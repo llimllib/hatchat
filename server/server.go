@@ -8,6 +8,19 @@ import (
 
 type ChatServer struct{}
 
+func serveChat(w http.ResponseWriter, r *http.Request) {
+	log.Println(r.URL)
+	if r.URL.Path != "/chat" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	http.ServeFile(w, r, "template/chat.html")
+}
+
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
 	if r.URL.Path != "/" {
@@ -29,6 +42,7 @@ func (h *ChatServer) Run(addr string) {
 	hub := newHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
+	http.HandleFunc("/chat", serveChat)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
