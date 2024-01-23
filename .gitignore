@@ -1,1 +1,4 @@
 tinychat
+*.db
+*.db-shm
+*.db-wal
