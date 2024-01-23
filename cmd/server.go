@@ -6,7 +6,7 @@ import (
 	"github.com/llimllib/tinychat/server"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
+var addr = flag.String("addr", "localhost:8080", "tinychat address")
 
 func main() {
 	flag.Parse()
