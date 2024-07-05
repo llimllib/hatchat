@@ -7,48 +7,58 @@ package server
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"crawshaw.io/sqlite"
 	"crawshaw.io/sqlite/sqlitex"
+	"github.com/lmittmann/tint"
 )
 
 var dbpool *sqlitex.Pool
 
 type ChatServer struct {
-	db *sqlitex.Pool
+	db     *sqlitex.Pool
+	logger *slog.Logger
 }
 
-func initDB() *sqlitex.Pool {
+func fatal(logger *slog.Logger, message string, err error, args ...any) {
+	args = append(args, "error")
+	args = append(args, err)
+	logger.Error(message, args...)
+	panic(message)
+}
+
+func initDB(logger *slog.Logger) *sqlitex.Pool {
 	var err error
 	dbpool, err = sqlitex.Open("file:chat.db", 0, 10)
 	if err != nil {
-		log.Fatal(err)
+		fatal(logger, "Unable to open db", err)
 	}
 	conn := dbpool.Get(context.Background())
 	if conn == nil {
-		log.Fatal("unable to get connection")
+		fatal(logger, "unable to get connection", nil)
 	}
 	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS users(id int primary key not null, username text, password text)", nil); err != nil {
-		log.Fatalf("unable to create users table %s", err)
+		fatal(logger, "unable to create users table", err)
 	}
 	return dbpool
 }
 
-func serveChat(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+func (h *ChatServer) serveChat(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("chat", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	http.ServeFile(w, r, "template/chat.html")
 }
 
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+func (h *ChatServer) serveHome(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("home", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	http.ServeFile(w, r, "template/home.html")
 }
 
 func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	h.logger.Info("register", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	if r.Method == http.MethodGet {
 		http.ServeFile(w, r, "template/register.html")
 		return
@@ -58,13 +68,14 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := sqlitex.Exec(conn, "INSERT INTO users(username, password) FROM users WHERE username=? AND password=?", nil, r.FormValue("username"), r.FormValue("password")); err != nil {
-		log.Fatalf("insert error: %v\n", err)
+		fatal(h.logger, "insert error", err)
 	}
+	h.logger.Debug("inserted user", "username", r.FormValue("username"))
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
+	h.logger.Info("login", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	if r.Method == http.MethodGet {
 		http.ServeFile(w, r, "template/login.html")
 		return
@@ -79,27 +90,44 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		userID = stmt.ColumnInt64(0)
 		return nil
 	}, r.FormValue("username"), r.FormValue("password")); err != nil {
-		log.Fatalf("query error: %v\n", err)
+		fatal(h.logger, "query error", err)
 	}
-	log.Printf("params: %s %s\n", r.FormValue("username"), r.FormValue("password"))
 	if userID == -1 {
-		log.Println("login failed")
+		h.logger.Debug("login failed")
 	} else {
-		log.Println("login succeeded")
+		h.logger.Debug("login succeeded")
 		http.Redirect(w, r, "/chat", http.StatusFound)
 	}
 }
 
+func env(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
+
 func NewChatServer() *ChatServer {
-	db := initDB()
-	return &ChatServer{db}
+	// set log level based on the LOG_LEVEL environment var, defaulting to INFO
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(env("LOG_LEVEL", "INFO"))); err != nil {
+		fatal(slog.Default(), "Unable to convert log level", err)
+	}
+	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
+		Level: level,
+	}))
+	logger.Debug("started logger", "level", level)
+
+	db := initDB(logger)
+	return &ChatServer{db, logger}
 }
 
 func (h *ChatServer) Run(addr string) {
+	h.logger.Info("Starting server", "addr", addr)
 	hub := newHub()
 	go hub.run()
-	http.HandleFunc("/", serveHome)
-	http.HandleFunc("/chat", serveChat)
+	http.HandleFunc("/", h.serveHome)
+	http.HandleFunc("/chat", h.serveChat)
 	http.HandleFunc("/register", h.register)
 	http.HandleFunc("/login", h.login)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -109,9 +137,9 @@ func (h *ChatServer) Run(addr string) {
 		Addr:              addr,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
-	log.Printf("listening on %s\n", addr)
+	h.logger.Info("listening", "addr", addr)
 	err := server.ListenAndServe()
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		fatal(h.logger, "ListenAndServe", err)
 	}
 }
