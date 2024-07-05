@@ -15,6 +15,8 @@ import (
 	"crawshaw.io/sqlite"
 	"crawshaw.io/sqlite/sqlitex"
 	"github.com/lmittmann/tint"
+
+	"github.com/llimllib/tinychat/server/middleware"
 )
 
 var dbpool *sqlitex.Pool
@@ -48,17 +50,14 @@ func initDB(logger *slog.Logger) *sqlitex.Pool {
 }
 
 func (h *ChatServer) serveChat(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("chat", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	http.ServeFile(w, r, "template/chat.html")
 }
 
 func (h *ChatServer) serveHome(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("home", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	http.ServeFile(w, r, "template/home.html")
 }
 
 func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("register", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	if r.Method == http.MethodGet {
 		http.ServeFile(w, r, "template/register.html")
 		return
@@ -75,7 +74,6 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
-	h.logger.Info("login", "url", r.URL, "user-agent", r.UserAgent(), "referer", r.Referer(), "method", r.Method, "host", r.Host)
 	if r.Method == http.MethodGet {
 		http.ServeFile(w, r, "template/login.html")
 		return
@@ -107,8 +105,9 @@ func env(key string, defaultVal string) string {
 	return defaultVal
 }
 
-func NewChatServer() *ChatServer {
-	// set log level based on the LOG_LEVEL environment var, defaulting to INFO
+// create a logger with its log level based on the LOG_LEVEL environment var,
+// defaulting to INFO
+func initLog() *slog.Logger {
 	var level slog.Level
 	if err := level.UnmarshalText([]byte(env("LOG_LEVEL", "INFO"))); err != nil {
 		fatal(slog.Default(), "Unable to convert log level", err)
@@ -117,7 +116,11 @@ func NewChatServer() *ChatServer {
 		Level: level,
 	}))
 	logger.Debug("started logger", "level", level)
+	return logger
+}
 
+func NewChatServer() *ChatServer {
+	logger := initLog()
 	db := initDB(logger)
 	return &ChatServer{db, logger}
 }
@@ -126,13 +129,16 @@ func (h *ChatServer) Run(addr string) {
 	h.logger.Info("Starting server", "addr", addr)
 	hub := newHub()
 	go hub.run()
-	http.HandleFunc("/", h.serveHome)
-	http.HandleFunc("/chat", h.serveChat)
-	http.HandleFunc("/register", h.register)
-	http.HandleFunc("/login", h.login)
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+
+	requestID := middleware.RequestIDMiddleware(h.logger)
+	logReq := middleware.RequestLogMiddleware(h.logger)
+	http.HandleFunc("/", requestID(logReq(h.serveHome)))
+	http.HandleFunc("/chat", requestID(logReq(h.serveChat)))
+	http.HandleFunc("/register", requestID(logReq(h.register)))
+	http.HandleFunc("/login", requestID(logReq(h.login)))
+	http.HandleFunc("/ws", requestID(logReq(func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
-	})
+	})))
 	server := &http.Server{
 		Addr:              addr,
 		ReadHeaderTimeout: 3 * time.Second,
