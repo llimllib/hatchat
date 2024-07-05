@@ -2,3 +2,4 @@ tinychat
 *.db
 *.db-shm
 *.db-wal
+.mise.toml
