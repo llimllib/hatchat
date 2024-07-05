@@ -26,37 +26,41 @@ func (sr *statusRecorder) WriteHeader(code int) {
 	sr.ResponseWriter.WriteHeader(code)
 }
 
-func RequestLogMiddleware(logger *slog.Logger) func(http.HandlerFunc) http.HandlerFunc {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(res http.ResponseWriter, req *http.Request) {
-			resw := newStatusRecorder(res)
+func RequestLogMiddleware(logger *slog.Logger) func(string) func(http.HandlerFunc) http.HandlerFunc {
+	return func(route string) func(http.HandlerFunc) http.HandlerFunc {
+		return func(next http.HandlerFunc) http.HandlerFunc {
+			return func(res http.ResponseWriter, req *http.Request) {
+				resw := newStatusRecorder(res)
 
-			start := time.Now()
+				start := time.Now()
 
-			next(resw, req)
+				next(resw, req)
 
-			if resw.status < 400 {
-				logger.Info(req.URL.Path,
-					"status", resw.status,
-					"clientIP", req.RemoteAddr,
-					"user-agent", req.UserAgent(),
-					"referer", req.Referer(),
-					"method", req.Method,
-					"host", req.Host,
-					"duration", time.Since(start),
-					"requestID", GetRequestID(req.Context()),
-				)
-			} else {
-				logger.Error(req.URL.Path,
-					"status", resw.status,
-					"clientIP", req.RemoteAddr,
-					"user-agent", req.UserAgent(),
-					"referer", req.Referer(),
-					"method", req.Method,
-					"host", req.Host,
-					"duration", time.Since(start),
-					"requestID", GetRequestID(req.Context()),
-				)
+				if resw.status < 400 {
+					logger.Info(route,
+						"status", resw.status,
+						"path", req.URL.Path,
+						"clientIP", req.RemoteAddr,
+						"user-agent", req.UserAgent(),
+						"referer", req.Referer(),
+						"method", req.Method,
+						"host", req.Host,
+						"duration", time.Since(start),
+						"requestID", GetRequestID(req.Context()),
+					)
+				} else {
+					logger.Error(route,
+						"status", resw.status,
+						"path", req.URL.Path,
+						"clientIP", req.RemoteAddr,
+						"user-agent", req.UserAgent(),
+						"referer", req.Referer(),
+						"method", req.Method,
+						"host", req.Host,
+						"duration", time.Since(start),
+						"requestID", GetRequestID(req.Context()),
+					)
+				}
 			}
 		}
 	}

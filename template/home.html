@@ -1,10 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <title>Tinychat</title>
-    <script></script>
-  </head>
-  <body>
-    hi! <a href="/login">login</a> or <a href="/register">register</a>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Server</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+  <header>
+    <h1>Welcome to Chat Server</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>Sign In</h2>
+      <form method="POST" action="/login">
+        <div>
+          <label for="username">Username:</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+        <div>
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit">Sign Up</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Register</h2>
+      <form method="POST" action="/register">
+        <div>
+          <label for="username">Username:</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+        <div>
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit">Register</button>
+      </form>
+    </section>
+  </main>
+</body>
+
 </html>

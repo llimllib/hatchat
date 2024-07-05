@@ -7,14 +7,18 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"crawshaw.io/sqlite"
 	"crawshaw.io/sqlite/sqlitex"
+	"github.com/google/uuid"
 	"github.com/lmittmann/tint"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/llimllib/tinychat/server/middleware"
 )
@@ -58,43 +62,101 @@ func (h *ChatServer) serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		http.ServeFile(w, r, "template/register.html")
+	if r.Method != http.MethodPost {
+		h.logger.Debug("wrong method")
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+
 	conn := h.db.Get(context.Background())
 	if conn == nil {
 		return
 	}
-	if err := sqlitex.Exec(conn, "INSERT INTO users(username, password) FROM users WHERE username=? AND password=?", nil, r.FormValue("username"), r.FormValue("password")); err != nil {
+
+	// TODO: add a message (where?) to display as a toast
+	user := r.FormValue("username")
+	if user == "" {
+		h.logger.Debug("missing username")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	pass := r.FormValue("password")
+	if pass == "" {
+		h.logger.Debug("missing password")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	encPass, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Debug("unable to encrypt pass")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	uid := fmt.Sprintf("usr_%s", uuid.New())
+
+	if err := sqlitex.Exec(conn, "INSERT INTO users(id, username, password) VALUES(?, ?, ?)", nil, uid, user, encPass); err != nil {
 		fatal(h.logger, "insert error", err)
 	}
 	h.logger.Debug("inserted user", "username", r.FormValue("username"))
-	http.Redirect(w, r, "/login", http.StatusFound)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		http.ServeFile(w, r, "template/login.html")
+	if r.Method != http.MethodPost {
+		h.logger.Debug("wrong method")
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	conn := h.db.Get(context.Background())
 	if conn == nil {
+		return
+	}
+
+	user := r.FormValue("username")
+	if user == "" {
+		h.logger.Debug("missing username")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	pass := r.FormValue("password")
+	if pass == "" {
+		h.logger.Debug("missing password")
+		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 
 	userID := int64(-1)
-	if err := sqlitex.Exec(conn, "SELECT (id) FROM users WHERE username=? AND password=?", func(stmt *sqlite.Stmt) error {
+	hashedPass := ""
+	if err := sqlitex.Exec(conn, "SELECT id, password FROM users WHERE username=?", func(stmt *sqlite.Stmt) error {
+		h.logger.Debug("here")
 		userID = stmt.ColumnInt64(0)
+		h.logger.Debug("", "userID", userID)
+		hashedPass = stmt.ColumnText(1)
+		h.logger.Debug("", "hashedPass", hashedPass)
 		return nil
-	}, r.FormValue("username"), r.FormValue("password")); err != nil {
+	}, user); err != nil {
 		fatal(h.logger, "query error", err)
 	}
+
 	if userID == -1 {
 		h.logger.Debug("login failed")
 	} else {
-		h.logger.Debug("login succeeded")
-		http.Redirect(w, r, "/chat", http.StatusFound)
+		if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(pass)); err == nil {
+			h.logger.Debug("login succeeded")
+			http.Redirect(w, r, "/chat", http.StatusFound)
+		} else {
+			h.logger.Debug("wrong password")
+			http.Redirect(w, r, "/", http.StatusFound)
+		}
+	}
+}
+
+func (h *ChatServer) serveStaticFiles(w http.ResponseWriter, r *http.Request) {
+	h.logger.Debug("path", "path", r.URL.Path)
+	if _, err := filepath.Abs(r.URL.Path); err == nil {
+		http.ServeFile(w, r, r.URL.Path)
+	} else {
+		http.NotFound(w, r)
 	}
 }
 
@@ -125,20 +187,28 @@ func NewChatServer() *ChatServer {
 	return &ChatServer{db, logger}
 }
 
+func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.HandlerFunc {
+	requestID := middleware.RequestIDMiddleware(h.logger)
+	logReq := middleware.RequestLogMiddleware(h.logger)(route)
+	panicHandler := middleware.RecoverMiddleware(h.logger)
+	return panicHandler(requestID(logReq(handler)))
+}
+
 func (h *ChatServer) Run(addr string) {
 	h.logger.Info("Starting server", "addr", addr)
 	hub := newHub()
 	go hub.run()
 
-	requestID := middleware.RequestIDMiddleware(h.logger)
-	logReq := middleware.RequestLogMiddleware(h.logger)
-	http.HandleFunc("/", requestID(logReq(h.serveHome)))
-	http.HandleFunc("/chat", requestID(logReq(h.serveChat)))
-	http.HandleFunc("/register", requestID(logReq(h.register)))
-	http.HandleFunc("/login", requestID(logReq(h.login)))
-	http.HandleFunc("/ws", requestID(logReq(func(w http.ResponseWriter, r *http.Request) {
+	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))).ServeHTTP
+	http.HandleFunc("/static/", h.middleware("/static", staticHandler))
+	http.HandleFunc("/chat", h.middleware("/chat", h.serveChat))
+	http.HandleFunc("/register", h.middleware("/register", h.register))
+	http.HandleFunc("/login", h.middleware("/login", h.login))
+	http.HandleFunc("/ws", h.middleware("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
-	})))
+	}))
+	http.HandleFunc("/", h.middleware("/", h.serveHome))
+
 	server := &http.Server{
 		Addr:              addr,
 		ReadHeaderTimeout: 3 * time.Second,
