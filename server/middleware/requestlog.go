@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
@@ -24,6 +27,14 @@ func newStatusRecorder(w http.ResponseWriter) *statusRecorder {
 func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
+}
+
+func (sr *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := sr.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("hijack not supported")
+	}
+	return h.Hijack()
 }
 
 func RequestLogMiddleware(logger *slog.Logger) func(string) func(http.HandlerFunc) http.HandlerFunc {
