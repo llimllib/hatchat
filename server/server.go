@@ -1,10 +1,5 @@
 package server
 
-// TODO:
-// - user new muxer to verify proper HTTP methods
-// - logging middleware
-// - log when listening
-
 import (
 	"crypto/rand"
 	"encoding/base64"
