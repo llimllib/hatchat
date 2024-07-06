@@ -15,7 +15,7 @@ func RecoverMiddleware(logger *slog.Logger) func(http.HandlerFunc) http.HandlerF
 					logger.Error("Panic occurred", "err", err)
 
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("Internal Server Error"))
+					w.Write([]byte("Internal Server Error")) //nolint:errcheck
 				}
 			}()
 

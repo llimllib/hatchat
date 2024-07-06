@@ -11,14 +11,17 @@ jobs:
         go: ["1.22.x"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: WillAbides/setup-go-faster@v1.14.0
+      - name: setup go
+        uses: WillAbides/setup-go-faster@v1.14.0
         with:
           go-version: ${{ matrix.go }}
-      - run: "go test ./..."
-      - run: "go vet ./..."
-      - run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          staticcheck ./...
+      - name: unit tests
+        run: "go test ./..."
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest

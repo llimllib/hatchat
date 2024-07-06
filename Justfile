@@ -2,8 +2,11 @@ lint:
     go vet ./...
     staticcheck ./...
 
+test: lint
+    go test ./...
+
 build:
-    go build -o tinychat ./cmd/server.go
+    go build -o hatchat ./cmd/server.go
 
 run: build
-    ./tinychat
+    ./hatchat

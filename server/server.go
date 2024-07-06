@@ -15,6 +15,7 @@ import (
 
 	"github.com/llimllib/tinychat/server/db"
 	"github.com/llimllib/tinychat/server/middleware"
+	"github.com/llimllib/tinychat/server/models"
 )
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -32,11 +33,17 @@ type ChatServer struct {
 
 func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
 	logger := initLog(level)
+
 	db, err := db.NewDB(dbLocation, logger)
 	if err != nil {
 		return nil, err
 	}
-	db.RunSQLFile("schema.sql")
+
+	err = db.RunSQLFile("schema.sql")
+	if err != nil {
+		return nil, err
+	}
+
 	return &ChatServer{
 		db:         db,
 		logger:     logger,
@@ -74,15 +81,24 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	encPass, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
 	if err != nil {
-		h.logger.Debug("unable to encrypt pass")
+		h.logger.Debug("unable to encrypt pass", "err", err)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 	uid := fmt.Sprintf("usr_%s", uuid.New())
 
-	if _, err := h.db.Exec("INSERT INTO users(id, username, password) VALUES(?, ?, ?)", nil, uid, user, encPass); err != nil {
-		fatal(h.logger, "insert error", err)
+	userp := &models.User{
+		ID:       uid,
+		Username: user,
+		Password: string(encPass),
 	}
+	err = userp.Insert(h.db)
+	if err != nil {
+		h.logger.Debug("unable to insert user", "err", err)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
 	h.logger.Debug("inserted user", "username", r.FormValue("username"))
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -90,7 +106,7 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 // generateSessionID generates a random session ID
 func generateSessionID() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	rand.Read(b) //nolint: errcheck
 	return base64.URLEncoding.EncodeToString(b)
 }
 
@@ -114,10 +130,10 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.db.Select(`
+	rows, err := h.db.Select(r.Context(), `
 		SELECT id, password
 		FROM users
-		WHERE username=?`)
+		WHERE username=?`, user)
 	if err != nil {
 		fatal(h.logger, "query error", err)
 	}
@@ -140,7 +156,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 
 		// set a session cookie
 		sid := generateSessionID()
-		if _, err := h.db.Exec("INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", sid, user, time.Now()); err != nil {
+		if _, err := h.db.Exec(r.Context(), "INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", sid, user, time.Now()); err != nil {
 			fatal(h.logger, "session insert error", err)
 		}
 		http.SetCookie(w, &http.Cookie{

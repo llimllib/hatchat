@@ -2,6 +2,7 @@ package db
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -18,6 +20,7 @@ type DB struct {
 	ReadDB  *sql.DB
 	WriteDB *sql.DB
 	logger  *slog.Logger
+	mu      sync.RWMutex
 }
 
 func NewDB(dbPath string, logger *slog.Logger) (*DB, error) {
@@ -54,31 +57,26 @@ func NewDB(dbPath string, logger *slog.Logger) (*DB, error) {
 	}, nil
 }
 
-// Select executes a SELECT statement using the read connection
-func (db *DB) Select(query string, args ...interface{}) (*sql.Rows, error) {
+// Make a query using the read connection
+func (db *DB) Select(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	db.logger.Debug("acquiring query lock", "query", query, "args", args)
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 	db.logger.Debug("querying", "query", query, "args", args)
-	return db.ReadDB.Query(query, args...)
+	return db.ReadDB.QueryContext(ctx, query, args...)
 }
 
-// Execute executes a non-SELECT statement using the write connection
-func (db *DB) Exec(query string, args ...interface{}) (sql.Result, error) {
+// Execute a query using the write connection
+func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	db.logger.Debug("acquiring execution lock", "query", query, "args", args)
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	db.logger.Debug("executing", "query", query, "args", args)
-	tx, err := db.WriteDB.Begin()
+	res, err := db.WriteDB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-
-	res, err := tx.Exec(query, args...)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
+	db.logger.Debug("returning", "query", query, "args", args)
 	return res, nil
 }
 
@@ -113,7 +111,8 @@ func setSQLitePragmas(conn *sql.DB) {
 	}
 }
 
-// RunSQLFile executes the SQL statements in the given file on the write connection
+// RunSQLFile executes the SQL statements in the given file on the write
+// connection
 func (db *DB) RunSQLFile(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -149,7 +148,7 @@ func (db *DB) RunSQLFile(filePath string) error {
 	}
 
 	for _, query := range queries {
-		_, err := db.Exec(query)
+		_, err := db.Exec(context.Background(), query)
 		if err != nil {
 			return err
 		}

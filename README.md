@@ -1,14 +1,14 @@
-# Tinychat
+# Hatchat 🪓
 
 Starting from the [gorilla/websocket chat example](https://github.com/gorilla/websocket/tree/main/examples/chat)
 
 ## Server
 
-To build a binary: `go build ./cmd/server.go -o tinychat`
+To build a binary: `go build ./cmd/server.go -o hatchat`
 
 If you have `just` installed, you can do `just build`
 
-To start the server: `./tinychat`
+To start the server: `./hatchat`
 
 Command line flags:
 

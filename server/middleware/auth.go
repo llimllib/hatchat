@@ -31,7 +31,7 @@ func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(htt
 			}
 
 			sessionID := cookie.Value
-			rows, err := db.Select(`
+			rows, err := db.Select(r.Context(), `
 				SELECT username
 				FROM sessions
 				WHERE id = ?`, sessionID)
