@@ -7,6 +7,8 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,8 +28,9 @@ import (
 var dbpool *sqlitex.Pool
 
 type ChatServer struct {
-	db     *sqlitex.Pool
-	logger *slog.Logger
+	db         *sqlitex.Pool
+	logger     *slog.Logger
+	sessionKey string
 }
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -47,7 +50,10 @@ func initDB(logger *slog.Logger) *sqlitex.Pool {
 	if conn == nil {
 		fatal(logger, "unable to get connection", nil)
 	}
-	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS users(id int primary key not null, username text, password text)", nil); err != nil {
+	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS users(id INT PRIMARY KEY NOT NULL, username TEXT, password TEXT)", nil); err != nil {
+		fatal(logger, "unable to create users table", err)
+	}
+	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY NOT NULL, username TEXT, created_at TIMESTAMP)", nil); err != nil {
 		fatal(logger, "unable to create users table", err)
 	}
 	return dbpool
@@ -101,6 +107,13 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// generateSessionID generates a random session ID
+func generateSessionID() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
+}
+
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		h.logger.Debug("wrong method")
@@ -127,12 +140,12 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 
 	userID := int64(-1)
 	hashedPass := ""
-	if err := sqlitex.Exec(conn, "SELECT id, password FROM users WHERE username=?", func(stmt *sqlite.Stmt) error {
-		h.logger.Debug("here")
+	if err := sqlitex.Exec(conn, `
+		SELECT id, password
+		FROM users
+		WHERE username=?`, func(stmt *sqlite.Stmt) error {
 		userID = stmt.ColumnInt64(0)
-		h.logger.Debug("", "userID", userID)
 		hashedPass = stmt.ColumnText(1)
-		h.logger.Debug("", "hashedPass", hashedPass)
 		return nil
 	}, user); err != nil {
 		fatal(h.logger, "query error", err)
@@ -143,6 +156,19 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(pass)); err == nil {
 			h.logger.Debug("login succeeded")
+
+			// set a session cookie
+			sid := generateSessionID()
+			if err := sqlitex.Exec(conn, "INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", nil, sid, user, time.Now()); err != nil {
+				fatal(h.logger, "session insert error", err)
+			}
+			http.SetCookie(w, &http.Cookie{
+				Name:     h.sessionKey,
+				Value:    sid,
+				Expires:  time.Now().Add(24 * time.Hour),
+				HttpOnly: true, // Client-side scripts cannot access the cookie
+			})
+
 			http.Redirect(w, r, "/chat", http.StatusFound)
 		} else {
 			h.logger.Debug("wrong password")
@@ -184,7 +210,11 @@ func initLog() *slog.Logger {
 func NewChatServer() *ChatServer {
 	logger := initLog()
 	db := initDB(logger)
-	return &ChatServer{db, logger}
+	return &ChatServer{
+		db:         db,
+		logger:     logger,
+		sessionKey: "tinychat-session-key",
+	}
 }
 
 func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.HandlerFunc {
@@ -199,9 +229,11 @@ func (h *ChatServer) Run(addr string) {
 	hub := newHub()
 	go hub.run()
 
+	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)
+
 	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))).ServeHTTP
 	http.HandleFunc("/static/", h.middleware("/static", staticHandler))
-	http.HandleFunc("/chat", h.middleware("/chat", h.serveChat))
+	http.HandleFunc("/chat", h.middleware("/chat", authRequired(h.serveChat)))
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
 	http.HandleFunc("/ws", h.middleware("/ws", func(w http.ResponseWriter, r *http.Request) {
