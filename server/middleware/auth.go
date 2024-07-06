@@ -5,8 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"crawshaw.io/sqlite"
-	"crawshaw.io/sqlite/sqlitex"
+	"github.com/llimllib/tinychat/server/db"
 )
 
 // UsernameKey is the key to use to pull a request out of a context
@@ -22,14 +21,9 @@ func GetUsername(ctx context.Context) string {
 	return ""
 }
 
-func AuthMiddleware(pool *sqlitex.Pool, logger *slog.Logger, session_key string) func(http.HandlerFunc) http.HandlerFunc {
+func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			conn := pool.Get(r.Context())
-			if conn == nil {
-				panic("unable to get connection")
-			}
-
 			cookie, err := r.Cookie(session_key)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -37,14 +31,17 @@ func AuthMiddleware(pool *sqlitex.Pool, logger *slog.Logger, session_key string)
 			}
 
 			sessionID := cookie.Value
-			var username string
-			err = sqlitex.Exec(conn, `
+			rows, err := db.Select(`
 				SELECT username
 				FROM sessions
-				WHERE id = ?`, func(stmt *sqlite.Stmt) error {
-				username = stmt.ColumnText(0)
-				return nil
-			}, sessionID)
+				WHERE id = ?`, sessionID)
+			if err != nil || !rows.Next() {
+				logger.Error("Error finding session", "err", err)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			var username string
+			err = rows.Scan(&username)
 			if err != nil {
 				logger.Error("Error finding session", "err", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)

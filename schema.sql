@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS users(
+	id INT PRIMARY KEY NOT NULL,
+	username TEXT,
+	password TEXT
+)
+
+CREATE TABLE IF NOT EXISTS sessions(
+	id TEXT PRIMARY KEY NOT NULL,
+	username TEXT,
+	created_at TIMESTAMP,
+)

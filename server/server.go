@@ -6,7 +6,6 @@ package server
 // - log when listening
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -16,22 +15,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"crawshaw.io/sqlite"
-	"crawshaw.io/sqlite/sqlitex"
 	"github.com/google/uuid"
 	"github.com/lmittmann/tint"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/llimllib/tinychat/server/db"
 	"github.com/llimllib/tinychat/server/middleware"
 )
-
-var dbpool *sqlitex.Pool
-
-type ChatServer struct {
-	db         *sqlitex.Pool
-	logger     *slog.Logger
-	sessionKey string
-}
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
 	args = append(args, "error")
@@ -40,23 +30,24 @@ func fatal(logger *slog.Logger, message string, err error, args ...any) {
 	panic(message)
 }
 
-func initDB(logger *slog.Logger) *sqlitex.Pool {
-	var err error
-	dbpool, err = sqlitex.Open("file:chat.db", 0, 10)
+type ChatServer struct {
+	db         *db.DB
+	logger     *slog.Logger
+	sessionKey string
+}
+
+func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
+	logger := initLog(level)
+	db, err := db.NewDB(dbLocation, logger)
 	if err != nil {
-		fatal(logger, "Unable to open db", err)
+		return nil, err
 	}
-	conn := dbpool.Get(context.Background())
-	if conn == nil {
-		fatal(logger, "unable to get connection", nil)
-	}
-	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS users(id INT PRIMARY KEY NOT NULL, username TEXT, password TEXT)", nil); err != nil {
-		fatal(logger, "unable to create users table", err)
-	}
-	if err := sqlitex.Exec(conn, "CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY NOT NULL, username TEXT, created_at TIMESTAMP)", nil); err != nil {
-		fatal(logger, "unable to create users table", err)
-	}
-	return dbpool
+	db.RunSQLFile("schema.sql")
+	return &ChatServer{
+		db:         db,
+		logger:     logger,
+		sessionKey: "tinychat-session-key",
+	}, nil
 }
 
 func (h *ChatServer) serveChat(w http.ResponseWriter, r *http.Request) {
@@ -71,11 +62,6 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		h.logger.Debug("wrong method")
 		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-
-	conn := h.db.Get(context.Background())
-	if conn == nil {
 		return
 	}
 
@@ -100,7 +86,7 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	uid := fmt.Sprintf("usr_%s", uuid.New())
 
-	if err := sqlitex.Exec(conn, "INSERT INTO users(id, username, password) VALUES(?, ?, ?)", nil, uid, user, encPass); err != nil {
+	if _, err := h.db.Exec("INSERT INTO users(id, username, password) VALUES(?, ?, ?)", nil, uid, user, encPass); err != nil {
 		fatal(h.logger, "insert error", err)
 	}
 	h.logger.Debug("inserted user", "username", r.FormValue("username"))
@@ -120,10 +106,6 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	conn := h.db.Get(context.Background())
-	if conn == nil {
-		return
-	}
 
 	user := r.FormValue("username")
 	if user == "" {
@@ -138,42 +120,46 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := int64(-1)
-	hashedPass := ""
-	if err := sqlitex.Exec(conn, `
+	rows, err := h.db.Select(`
 		SELECT id, password
 		FROM users
-		WHERE username=?`, func(stmt *sqlite.Stmt) error {
-		userID = stmt.ColumnInt64(0)
-		hashedPass = stmt.ColumnText(1)
-		return nil
-	}, user); err != nil {
+		WHERE username=?`)
+	if err != nil {
 		fatal(h.logger, "query error", err)
 	}
+	if !rows.Next() {
+		h.logger.Debug("missing user")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	var userID string
+	var hashedPass string
+	err = rows.Scan(&userID, &hashedPass)
+	if err != nil {
+		h.logger.Debug("failed getting user")
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 
-	if userID == -1 {
-		h.logger.Debug("login failed")
-	} else {
-		if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(pass)); err == nil {
-			h.logger.Debug("login succeeded")
+	if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(pass)); err == nil {
+		h.logger.Debug("login succeeded")
 
-			// set a session cookie
-			sid := generateSessionID()
-			if err := sqlitex.Exec(conn, "INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", nil, sid, user, time.Now()); err != nil {
-				fatal(h.logger, "session insert error", err)
-			}
-			http.SetCookie(w, &http.Cookie{
-				Name:     h.sessionKey,
-				Value:    sid,
-				Expires:  time.Now().Add(24 * time.Hour),
-				HttpOnly: true, // Client-side scripts cannot access the cookie
-			})
-
-			http.Redirect(w, r, "/chat", http.StatusFound)
-		} else {
-			h.logger.Debug("wrong password")
-			http.Redirect(w, r, "/", http.StatusFound)
+		// set a session cookie
+		sid := generateSessionID()
+		if _, err := h.db.Exec("INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", sid, user, time.Now()); err != nil {
+			fatal(h.logger, "session insert error", err)
 		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     h.sessionKey,
+			Value:    sid,
+			Expires:  time.Now().Add(24 * time.Hour),
+			HttpOnly: true, // Client-side scripts cannot access the cookie
+		})
+
+		http.Redirect(w, r, "/chat", http.StatusFound)
+	} else {
+		h.logger.Debug("wrong password")
+		http.Redirect(w, r, "/", http.StatusFound)
 	}
 }
 
@@ -198,16 +184,6 @@ func initLog(level string) *slog.Logger {
 	}))
 	logger.Debug("started logger", "level", level)
 	return logger
-}
-
-func NewChatServer(level string) *ChatServer {
-	logger := initLog(level)
-	db := initDB(logger)
-	return &ChatServer{
-		db:         db,
-		logger:     logger,
-		sessionKey: "tinychat-session-key",
-	}
 }
 
 func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.HandlerFunc {
