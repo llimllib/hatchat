@@ -186,29 +186,22 @@ func (h *ChatServer) serveStaticFiles(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func env(key string, defaultVal string) string {
-	if val, ok := os.LookupEnv(key); ok {
-		return val
-	}
-	return defaultVal
-}
-
 // create a logger with its log level based on the LOG_LEVEL environment var,
 // defaulting to INFO
-func initLog() *slog.Logger {
-	var level slog.Level
-	if err := level.UnmarshalText([]byte(env("LOG_LEVEL", "INFO"))); err != nil {
+func initLog(level string) *slog.Logger {
+	var levelObj slog.Level
+	if err := levelObj.UnmarshalText([]byte(level)); err != nil {
 		fatal(slog.Default(), "Unable to convert log level", err)
 	}
 	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
-		Level: level,
+		Level: levelObj,
 	}))
 	logger.Debug("started logger", "level", level)
 	return logger
 }
 
-func NewChatServer() *ChatServer {
-	logger := initLog()
+func NewChatServer(level string) *ChatServer {
+	logger := initLog(level)
 	db := initDB(logger)
 	return &ChatServer{
 		db:         db,

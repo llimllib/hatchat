@@ -6,10 +6,13 @@ import (
 	"github.com/llimllib/tinychat/server"
 )
 
-var addr = flag.String("addr", "localhost:8080", "tinychat address")
+var (
+	addr  = flag.String("addr", "localhost:8080", "address for tinychat to listen on")
+	level = flag.String("log-level", "INFO", "log level to print logs at")
+)
 
 func main() {
 	flag.Parse()
-	server := server.NewChatServer()
+	server := server.NewChatServer(*level)
 	server.Run(*addr)
 }
