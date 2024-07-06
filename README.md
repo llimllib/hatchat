@@ -12,6 +12,7 @@ Command line flags:
 
 - `addr`: the host and port to listen on; defaults to `localhost:8080`
 - `log-level`: the log level. `INFO` is default, other options are `DEBUG`, `WARN`, `ERROR`
+- `db`: the location for the chat database. Must be a url like `file:chat.db`
 
 ### development
 
