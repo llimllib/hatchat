@@ -6,6 +6,8 @@ Starting from the [gorilla/websocket chat example](https://github.com/gorilla/we
 
 To build a binary: `go build ./cmd/server.go -o tinychat`
 
+If you have `just` installed, you can do `just build`
+
 To start the server: `./tinychat`
 
 Command line flags:

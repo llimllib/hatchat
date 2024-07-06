@@ -1,5 +1,9 @@
+lint:
+    go vet ./...
+    staticcheck ./...
+
 build:
-    go build -o tinychat github.com/llimllib/tinychat/cmd
+    go build -o tinychat ./cmd/server.go
 
 run: build
     ./tinychat
