@@ -9,13 +9,15 @@ import (
 	"time"
 )
 
-// statusRecorder is a wrapper around http.ResponseWriter that captures the response code.
+// statusRecorder is a wrapper around http.ResponseWriter that captures the
+// response code.
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
 }
 
-// newStatusRecorder creates a new statusRecorder that wraps the given http.ResponseWriter.
+// newStatusRecorder creates a new statusRecorder that wraps the given
+// http.ResponseWriter.
 func newStatusRecorder(w http.ResponseWriter) *statusRecorder {
 	return &statusRecorder{
 		ResponseWriter: w,
@@ -23,12 +25,15 @@ func newStatusRecorder(w http.ResponseWriter) *statusRecorder {
 	}
 }
 
-// WriteHeader records the response code and calls the underlying http.ResponseWriter's WriteHeader method.
+// WriteHeader records the response code and calls the underlying
+// http.ResponseWriter's WriteHeader method.
 func (sr *statusRecorder) WriteHeader(code int) {
 	sr.status = code
 	sr.ResponseWriter.WriteHeader(code)
 }
 
+// Hijack allows the HTTP connection to be taken over for websockets:
+// https://pkg.go.dev/net/http#Hijacker
 func (sr *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	h, ok := sr.ResponseWriter.(http.Hijacker)
 	if !ok {
