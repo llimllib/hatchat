@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -155,15 +154,6 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	} else {
 		h.logger.Debug("wrong password")
 		http.Redirect(w, r, "/", http.StatusFound)
-	}
-}
-
-func (h *ChatServer) serveStaticFiles(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debug("path", "path", r.URL.Path)
-	if _, err := filepath.Abs(r.URL.Path); err == nil {
-		http.ServeFile(w, r, r.URL.Path)
-	} else {
-		http.NotFound(w, r)
 	}
 }
 
