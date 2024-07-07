@@ -3,7 +3,7 @@ on: ["push", "pull_request"]
 
 jobs:
   ci:
-    name: "Run CI"
+    name: "golang CI"
     strategy:
       fail-fast: false
       matrix:
@@ -25,3 +25,18 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+
+  js-ci:
+    runs-on: ubuntu-latest
+    strategy:
+      node: ["22"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: cd client && npx eslint src && tsc --noEmit
