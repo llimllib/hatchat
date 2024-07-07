@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -33,13 +34,7 @@ type ChatServer struct {
 
 func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
 	logger := initLog(level)
-
-	db, err := db.NewDB(dbLocation, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.RunSQLFile("schema.sql")
+	db, err := initDb(dbLocation, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -103,12 +98,23 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
+// XXX: where should these functions live? A new package on top of xomodels?
+// Added to the xomodels' templates?
+
 // generateSessionID generates a random session ID
 func generateSessionID() string {
 	b := make([]byte, 32)
 	rand.Read(b) //nolint: errcheck
 	return base64.URLEncoding.EncodeToString(b)
 }
+
+func generateRoomID() string {
+	b := make([]byte, 32)
+	rand.Read(b) //nolint: errcheck
+	return fmt.Sprintf("roo_%s", base64.URLEncoding.EncodeToString(b))
+}
+
+// /XXX
 
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -174,6 +180,40 @@ func initLog(level string) *slog.Logger {
 	}))
 	logger.Debug("started logger", "level", level)
 	return logger
+}
+
+func initDb(location string, logger *slog.Logger) (*db.DB, error) {
+	db, err := db.NewDB(location, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.RunSQLFile("schema.sql")
+	if err != nil {
+		return nil, err
+	}
+
+	// If there are no rooms, create a default room
+	row := db.QueryRowContext(context.Background(), "SELECT count(*) FROM rooms")
+	var n int
+	err = row.Scan(&n)
+	if err != nil {
+		return nil, err
+	}
+
+	if n == 0 {
+		room := xomodels.Room{
+			ID:        generateRoomID(),
+			Name:      "main",
+			IsPrivate: false,
+			CreatedAt: xomodels.NewTime(time.Now()),
+		}
+		if err := room.Insert(context.Background(), db); err != nil {
+			return nil, err
+		}
+	}
+
+	return db, nil
 }
 
 func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.HandlerFunc {

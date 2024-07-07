@@ -1,5 +1,7 @@
+run: build
+    ./hatchat
+
 lint:
-    go vet ./...
     golangci-lint run
 
 test: lint
@@ -11,8 +13,11 @@ models:
         xo -v schema sqlite://xo.db -o server/xomodels && \
         rm xo.db
 
-build:
+build-js:
+    cd client && node esbuild.config.js
+
+build-go:
     go build -o hatchat ./cmd/server.go
 
-run: build
-    ./hatchat
+build:
+    (cd client && node esbuild.config.js) & go build -o hatchat ./cmd/server.go
