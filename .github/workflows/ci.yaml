@@ -38,6 +38,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Install dependencies
-        run: npm ci
+        run: cd client && npm ci
       - name: Run ESLint
         run: cd client && npx eslint src && tsc --noEmit
