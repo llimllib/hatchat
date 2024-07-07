@@ -42,7 +42,7 @@ func TestSession_Insert(t *testing.T) {
 	}
 
 	// Check if the session was inserted correctly
-	rows, err := db.Select(context.Background(), "SELECT * FROM sessions WHERE id = ?", session.ID)
+	rows, err := db.QueryContext(context.Background(), "SELECT * FROM sessions WHERE id = ?", session.ID)
 	if err != nil {
 		t.Fatalf("Failed to select session: %v", err)
 	}

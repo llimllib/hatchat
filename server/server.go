@@ -15,7 +15,7 @@ import (
 
 	"github.com/llimllib/tinychat/server/db"
 	"github.com/llimllib/tinychat/server/middleware"
-	"github.com/llimllib/tinychat/server/models"
+	"github.com/llimllib/tinychat/server/xomodels"
 )
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -87,12 +87,12 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	uid := fmt.Sprintf("usr_%s", uuid.New())
 
-	userp := &models.User{
+	userp := &xomodels.User{
 		ID:       uid,
 		Username: user,
 		Password: string(encPass),
 	}
-	err = userp.Insert(h.db)
+	err = userp.Insert(r.Context(), h.db)
 	if err != nil {
 		h.logger.Debug("unable to insert user", "err", err)
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -117,8 +117,8 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := r.FormValue("username")
-	if user == "" {
+	username := r.FormValue("username")
+	if username == "" {
 		h.logger.Debug("missing username")
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
@@ -130,35 +130,24 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := h.db.Select(r.Context(), `
-		SELECT id, password
-		FROM users
-		WHERE username=?`, user)
+	user, err := xomodels.UserByUsername(r.Context(), h.db, username)
 	if err != nil {
 		fatal(h.logger, "query error", err)
 	}
-	if !rows.Next() {
-		h.logger.Debug("missing user")
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-	var userID string
-	var hashedPass string
-	err = rows.Scan(&userID, &hashedPass)
-	if err != nil {
-		h.logger.Debug("failed getting user")
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPass), []byte(pass)); err == nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass)); err == nil {
 		h.logger.Debug("login succeeded")
 
-		// set a session cookie
 		sid := generateSessionID()
-		if _, err := h.db.Exec(r.Context(), "INSERT INTO sessions(id, username, created_at) VALUES(?, ?, ?)", sid, user, time.Now()); err != nil {
+		session := xomodels.Session{
+			ID:        sid,
+			Username:  user.ID,
+			CreatedAt: xomodels.NewTime(time.Now()),
+		}
+		if err := session.Insert(r.Context(), h.db); err != nil {
 			fatal(h.logger, "session insert error", err)
 		}
+
 		http.SetCookie(w, &http.Cookie{
 			Name:     h.sessionKey,
 			Value:    sid,

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
@@ -9,8 +8,8 @@ import (
 	"net/url"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -58,25 +57,37 @@ func NewDB(dbPath string, logger *slog.Logger) (*DB, error) {
 }
 
 // Make a query using the read connection
-func (db *DB) Select(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	db.logger.Debug("acquiring query lock", "query", query, "args", args)
+func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 	db.logger.Debug("querying", "query", query, "args", args)
-	return db.ReadDB.QueryContext(ctx, query, args...)
+	t := time.Now()
+	rows, err := db.ReadDB.QueryContext(ctx, query, args...)
+	db.logger.Debug("querying", "query", query, "args", args, "duration", time.Since(t))
+	return rows, err
+}
+
+// Make a query using the read connection and return the first row
+func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	t := time.Now()
+	row := db.ReadDB.QueryRowContext(ctx, query, args...)
+	db.logger.Debug("querying row", "query", query, "args", args, "duration", time.Since(t))
+	return row
 }
 
 // Execute a query using the write connection
-func (db *DB) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
 	db.logger.Debug("acquiring execution lock", "query", query, "args", args)
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	db.logger.Debug("executing", "query", query, "args", args)
+	t := time.Now()
 	res, err := db.WriteDB.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	db.logger.Debug("returning", "query", query, "args", args)
+	db.logger.Debug("executed", "query", query, "args", args, "duration", time.Since(t))
 	return res, nil
 }
 
@@ -114,45 +125,47 @@ func setSQLitePragmas(conn *sql.DB) {
 // RunSQLFile executes the SQL statements in the given file on the write
 // connection
 func (db *DB) RunSQLFile(filePath string) error {
-	file, err := os.Open(filePath)
+	sqlfile, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	var queries []string
-	var currentQuery strings.Builder
+	db.ExecContext(context.Background(), string(sqlfile))
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
+	// scanner := bufio.NewScanner(file)
+	// var queries []string
+	// var currentQuery strings.Builder
 
-		if strings.HasPrefix(strings.TrimSpace(line), "--") {
-			continue // Skip comments
-		}
+	// for scanner.Scan() {
+	// 	line := scanner.Text()
+	// 	if strings.TrimSpace(line) == "" {
+	// 		continue
+	// 	}
 
-		currentQuery.WriteString(line)
-		currentQuery.WriteString(" ")
+	// 	if strings.HasPrefix(strings.TrimSpace(line), "--") {
+	// 		continue // Skip comments
+	// 	}
 
-		if strings.HasSuffix(strings.TrimSpace(line), ";") {
-			queries = append(queries, currentQuery.String())
-			currentQuery.Reset()
-		}
-	}
+	// 	currentQuery.WriteString(line)
+	// 	currentQuery.WriteString(" ")
 
-	if err := scanner.Err(); err != nil {
-		return err
-	}
+	// 	if strings.HasSuffix(strings.TrimSpace(line), ";") {
+	// 		queries = append(queries, currentQuery.String())
+	// 		currentQuery.Reset()
+	// 	}
+	// }
 
-	for _, query := range queries {
-		_, err := db.Exec(context.Background(), query)
-		if err != nil {
-			return err
-		}
-	}
+	// if err := scanner.Err(); err != nil {
+	// 	return err
+	// }
+
+	// for _, query := range queries {
+	// 	fmt.Printf("query: %s\n", query)
+	// 	_, err := db.ExecContext(context.Background(), query)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	return nil
 }

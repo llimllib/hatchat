@@ -20,7 +20,7 @@ func TestUser_Insert(t *testing.T) {
 	}
 
 	// Check if the user was inserted correctly
-	rows, err := db.Select(context.Background(), "SELECT * FROM users WHERE id = ?", user.ID)
+	rows, err := db.QueryContext(context.Background(), "SELECT * FROM users WHERE id = ?", user.ID)
 	if err != nil {
 		t.Errorf("Failed to select user: %v", err)
 	}

@@ -49,25 +49,25 @@ func TestSelect(t *testing.T) {
 	defer db.Close()
 
 	// Create a test table
-	_, err = db.Exec(context.Background(), "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+	_, err = db.ExecContext(context.Background(), "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
 	if err != nil {
 		t.Fatalf("Failed to create test table: %v", err)
 	}
 
 	// Test case: Select from an empty table
-	rows, err := db.Select(context.Background(), "SELECT * FROM test")
+	rows, err := db.QueryContext(context.Background(), "SELECT * FROM test")
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
 	defer rows.Close()
 
 	// Test case: Execute INSERT and SELECT
-	_, err = db.Exec(context.Background(), "INSERT INTO test (name) VALUES (?)", "John Doe")
+	_, err = db.ExecContext(context.Background(), "INSERT INTO test (name) VALUES (?)", "John Doe")
 	if err != nil {
 		t.Fatalf("Execute INSERT failed: %v", err)
 	}
 
-	rows, err = db.Select(context.Background(), "SELECT * FROM test")
+	rows, err = db.QueryContext(context.Background(), "SELECT * FROM test")
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
@@ -121,12 +121,12 @@ func TestRunSQLFile(t *testing.T) {
 	}
 
 	// Check if the table and index were created
-	_, err = db.Select(context.Background(), "SELECT * FROM users")
+	_, err = db.QueryContext(context.Background(), "SELECT * FROM users")
 	if err != nil {
 		t.Errorf("Failed to select from users table: %v", err)
 	}
 
-	_, err = db.Select(context.Background(), "SELECT * FROM sqlite_master WHERE type='index' AND name='idx_users_name'")
+	_, err = db.QueryContext(context.Background(), "SELECT * FROM sqlite_master WHERE type='index' AND name='idx_users_name'")
 	if err != nil {
 		t.Errorf("Failed to check for index: %v", err)
 	}

@@ -15,7 +15,7 @@ type Session struct {
 }
 
 func (u *Session) Insert(db *db.DB) error {
-	_, err := db.Exec(context.Background(), `
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO sessions (id, username, created_at)
 		VALUES (?, ?, ?)
 	`, u.ID, u.Username, time.Now())
@@ -28,7 +28,7 @@ func (u *Session) Insert(db *db.DB) error {
 
 func GetSessionByUsername(db *db.DB, username string) (*Session, error) {
 	var session Session
-	rows, err := db.Select(context.Background(), `
+	rows, err := db.QueryContext(context.Background(), `
 		SELECT id, username, created_at
 		FROM sessions 
 		WHERE username = ?
@@ -52,7 +52,7 @@ func GetSessionByUsername(db *db.DB, username string) (*Session, error) {
 
 func GetSessionByID(db *db.DB, id string) (*Session, error) {
 	var session Session
-	rows, err := db.Select(context.Background(), `
+	rows, err := db.QueryContext(context.Background(), `
 		SELECT id, username, created_at
 		FROM sessions 
 		WHERE id = ?

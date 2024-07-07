@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/llimllib/tinychat/server/db"
+	"github.com/llimllib/tinychat/server/xomodels"
 )
 
 // UsernameKey is the key to use to pull a request out of a context
@@ -30,18 +31,7 @@ func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(htt
 				return
 			}
 
-			sessionID := cookie.Value
-			rows, err := db.Select(r.Context(), `
-				SELECT username
-				FROM sessions
-				WHERE id = ?`, sessionID)
-			if err != nil || !rows.Next() {
-				logger.Error("Error finding session", "err", err)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-			var username string
-			err = rows.Scan(&username)
+			session, err := xomodels.SessionByID(context.Background(), db, cookie.Value)
 			if err != nil {
 				logger.Error("Error finding session", "err", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -49,7 +39,7 @@ func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(htt
 			}
 
 			// Set the username in the request context for the next handler
-			ctx := context.WithValue(r.Context(), UsernameKey, username)
+			ctx := context.WithValue(r.Context(), UsernameKey, session.Username)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}

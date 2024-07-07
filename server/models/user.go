@@ -17,7 +17,7 @@ type User struct {
 }
 
 func (u *User) Insert(db *db.DB) error {
-	_, err := db.Exec(context.Background(), `
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO users (id, username, password, created_at, modified_at)
 		VALUES (?, ?, ?, ?, ?)
 	`, u.ID, u.Username, u.Password, time.Now(), time.Now())
@@ -30,7 +30,7 @@ func (u *User) Insert(db *db.DB) error {
 
 func GetUserByUsername(db *db.DB, username string) (*User, error) {
 	var user User
-	rows, err := db.Select(context.Background(), `
+	rows, err := db.QueryContext(context.Background(), `
 		SELECT id, username, password, created_at, modified_at
 		FROM users
 		WHERE username = ?
@@ -54,7 +54,7 @@ func GetUserByUsername(db *db.DB, username string) (*User, error) {
 
 func GetUserByID(db *db.DB, id string) (*User, error) {
 	var user User
-	rows, err := db.Select(context.Background(), `
+	rows, err := db.QueryContext(context.Background(), `
 		SELECT id, username, password, created_at, modified_at
 		FROM users
 		WHERE id = ?
