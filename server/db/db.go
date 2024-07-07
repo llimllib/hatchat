@@ -130,42 +130,10 @@ func (db *DB) RunSQLFile(filePath string) error {
 		return err
 	}
 
-	db.ExecContext(context.Background(), string(sqlfile))
-
-	// scanner := bufio.NewScanner(file)
-	// var queries []string
-	// var currentQuery strings.Builder
-
-	// for scanner.Scan() {
-	// 	line := scanner.Text()
-	// 	if strings.TrimSpace(line) == "" {
-	// 		continue
-	// 	}
-
-	// 	if strings.HasPrefix(strings.TrimSpace(line), "--") {
-	// 		continue // Skip comments
-	// 	}
-
-	// 	currentQuery.WriteString(line)
-	// 	currentQuery.WriteString(" ")
-
-	// 	if strings.HasSuffix(strings.TrimSpace(line), ";") {
-	// 		queries = append(queries, currentQuery.String())
-	// 		currentQuery.Reset()
-	// 	}
-	// }
-
-	// if err := scanner.Err(); err != nil {
-	// 	return err
-	// }
-
-	// for _, query := range queries {
-	// 	fmt.Printf("query: %s\n", query)
-	// 	_, err := db.ExecContext(context.Background(), query)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
+	_, err = db.ExecContext(context.Background(), string(sqlfile))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
