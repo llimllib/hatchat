@@ -3,3 +3,4 @@ hatchat
 *.db-shm
 *.db-wal
 .mise.toml
+node_modules

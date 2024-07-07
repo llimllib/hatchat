@@ -2,7 +2,7 @@ run: build
     ./hatchat
 
 lint:
-    golangci-lint run
+    golangci-lint run & (cd client && npx eslint src)
 
 test: lint
     go test ./...
@@ -14,7 +14,7 @@ models:
         rm xo.db
 
 build-js:
-    cd client && node esbuild.config.js
+    cd client && npx tsc --noEmit && node esbuild.config.js
 
 build-go:
     go build -o hatchat ./cmd/server.go
