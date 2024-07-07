@@ -14,7 +14,7 @@ models:
         rm xo.db
 
 build-js:
-    cd client && npx tsc --noEmit && node esbuild.config.js
+    cd client && npx tsc --noEmit && node esbuild.config.mjs
 
 build-go:
     go build -o hatchat ./cmd/server.go

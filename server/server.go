@@ -225,7 +225,7 @@ func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.Han
 
 func (h *ChatServer) Run(addr string) {
 	h.logger.Info("Starting server", "addr", addr)
-	hub := newHub()
+	hub := newHub(h.logger)
 	go hub.run()
 
 	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)
@@ -235,9 +235,9 @@ func (h *ChatServer) Run(addr string) {
 	http.HandleFunc("/chat", h.middleware("/chat", authRequired(h.serveChat)))
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
-	http.HandleFunc("/ws", h.middleware("/ws", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
-	}))
+	})))
 	http.HandleFunc("/", h.middleware("/", h.serveHome))
 
 	server := &http.Server{

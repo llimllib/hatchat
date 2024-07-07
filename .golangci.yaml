@@ -1,5 +1,0 @@
-issues:
-  exclude-files:
-    # This is still the base gorilla example; fix it up once I'm in there doing
-    # stuff
-    - server/client.go

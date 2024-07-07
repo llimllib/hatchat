@@ -3,9 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Slack-like Chat Application</title>
+    <title>Hatchat 🪓</title>
     <link rel="stylesheet" href="/static/chat.css" />
-    <script src="/static/client.js"></script>
+    <!-- axe emoji as favicon https://css-tricks.com/emoji-as-a-favicon/ -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪓</text></svg>"
+    />
   </head>
 
   <body>
@@ -68,12 +72,16 @@
           </div>
         </div>
         <div class="chat-input">
-          <input type="text" placeholder="Type your message here..." />
-          <button type="submit">Send</button>
+          <input
+            id="message"
+            type="text"
+            placeholder="Type your message here..."
+          />
+          <button id="sendmessage" type="submit">Send</button>
         </div>
       </main>
     </div>
 
-    <script src="script.js"></script>
+    <script src="/static/client.js"></script>
   </body>
 </html>
