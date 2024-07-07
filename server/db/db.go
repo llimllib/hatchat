@@ -79,7 +79,6 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 
 // Execute a query using the write connection
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	db.logger.Debug("acquiring execution lock", "query", query, "args", args)
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	t := time.Now()
