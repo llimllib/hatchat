@@ -5,7 +5,7 @@ function wsClose(_: CloseEvent) {
 
 function wsReceive(evt: MessageEvent) {
   const body = JSON.parse(evt.data);
-  console.log(body);
+  console.log("received: ", body);
 }
 
 function wsOpen(evt: Event) {
