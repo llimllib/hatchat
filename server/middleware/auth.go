@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/llimllib/tinychat/server/db"
-	"github.com/llimllib/tinychat/server/xomodels"
+	"github.com/llimllib/hatchat/server/db"
+	"github.com/llimllib/hatchat/server/xomodels"
 )
 
 // UsernameKey is the key to use to pull a request out of a context

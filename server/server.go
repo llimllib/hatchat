@@ -13,9 +13,9 @@ import (
 	"github.com/lmittmann/tint"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/llimllib/tinychat/server/db"
-	"github.com/llimllib/tinychat/server/middleware"
-	"github.com/llimllib/tinychat/server/xomodels"
+	"github.com/llimllib/hatchat/server/db"
+	"github.com/llimllib/hatchat/server/middleware"
+	"github.com/llimllib/hatchat/server/xomodels"
 )
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -47,7 +47,7 @@ func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
 	return &ChatServer{
 		db:         db,
 		logger:     logger,
-		sessionKey: "tinychat-session-key",
+		sessionKey: "hatchat-session-key",
 	}, nil
 }
 

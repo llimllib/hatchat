@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/llimllib/tinychat/server"
+	"github.com/llimllib/hatchat/server"
 )
 
 var (
-	addr  = flag.String("addr", "localhost:8080", "address for tinychat to listen on")
+	addr  = flag.String("addr", "localhost:8080", "address for hatchat to listen on")
 	level = flag.String("log-level", "INFO", "log level to print logs at")
 	db    = flag.String("db", "file:chat.db", "location for the chat database. Must be a url like 'file:chat.db'")
 )

@@ -1,4 +1,4 @@
-module github.com/llimllib/tinychat
+module github.com/llimllib/hatchat
 
 go 1.21.1
 
