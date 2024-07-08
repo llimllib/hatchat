@@ -1,6 +1,10 @@
 package server
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"github.com/llimllib/hatchat/server/db"
+)
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -18,15 +22,18 @@ type Hub struct {
 	unregister chan *Client
 
 	logger *slog.Logger
+
+	db *db.DB
 }
 
-func newHub(logger *slog.Logger) *Hub {
+func newHub(db *db.DB, logger *slog.Logger) *Hub {
 	return &Hub{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
 		logger:     logger,
+		db:         db,
 	}
 }
 

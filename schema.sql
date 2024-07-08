@@ -12,7 +12,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_username ON users(username);
 
 CREATE TABLE IF NOT EXISTS sessions(
   id TEXT PRIMARY KEY NOT NULL,
-  username TEXT NOT NULL,
+  user_id TEXT REFERENCES users(id) NOT NULL,
   created_at TIMESTAMP NOT NULL
 );
 

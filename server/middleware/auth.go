@@ -10,12 +10,12 @@ import (
 )
 
 // UsernameKey is the key to use to pull a request out of a context
-var UsernameKey = &ContextKey{"username"}
+var UserIDKey = &ContextKey{"userID"}
 
 // GetUsername returns the request id associated with the context or a blank
 // string
-func GetUsername(ctx context.Context) string {
-	str, ok := ctx.Value(UsernameKey).(string)
+func GetUserID(ctx context.Context) string {
+	str, ok := ctx.Value(UserIDKey).(string)
 	if ok {
 		return str
 	}
@@ -39,7 +39,7 @@ func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(htt
 			}
 
 			// Set the username in the request context for the next handler
-			ctx := context.WithValue(r.Context(), UsernameKey, session.Username)
+			ctx := context.WithValue(r.Context(), UserIDKey, session.UserID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}

@@ -9,7 +9,7 @@ import (
 // Session represents a row from 'sessions'.
 type Session struct {
 	ID        string `json:"id"`         // id
-	Username  string `json:"username"`   // username
+	UserID    string `json:"user_id"`    // user_id
 	CreatedAt Time   `json:"created_at"` // created_at
 	// xo fields
 	_exists, _deleted bool
@@ -36,13 +36,13 @@ func (s *Session) Insert(ctx context.Context, db DB) error {
 	}
 	// insert (manual)
 	const sqlstr = `INSERT INTO sessions (` +
-		`id, username, created_at` +
+		`id, user_id, created_at` +
 		`) VALUES (` +
 		`$1, $2, $3` +
 		`)`
 	// run
-	logf(sqlstr, s.ID, s.Username, s.CreatedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, s.ID, s.Username, s.CreatedAt); err != nil {
+	logf(sqlstr, s.ID, s.UserID, s.CreatedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, s.ID, s.UserID, s.CreatedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -60,11 +60,11 @@ func (s *Session) Update(ctx context.Context, db DB) error {
 	}
 	// update with primary key
 	const sqlstr = `UPDATE sessions SET ` +
-		`username = $1, created_at = $2 ` +
+		`user_id = $1, created_at = $2 ` +
 		`WHERE id = $3`
 	// run
-	logf(sqlstr, s.Username, s.CreatedAt, s.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, s.Username, s.CreatedAt, s.ID); err != nil {
+	logf(sqlstr, s.UserID, s.CreatedAt, s.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, s.UserID, s.CreatedAt, s.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -86,16 +86,16 @@ func (s *Session) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO sessions (` +
-		`id, username, created_at` +
+		`id, user_id, created_at` +
 		`) VALUES (` +
 		`$1, $2, $3` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`username = EXCLUDED.username, created_at = EXCLUDED.created_at `
+		`user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at `
 	// run
-	logf(sqlstr, s.ID, s.Username, s.CreatedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, s.ID, s.Username, s.CreatedAt); err != nil {
+	logf(sqlstr, s.ID, s.UserID, s.CreatedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, s.ID, s.UserID, s.CreatedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -130,7 +130,7 @@ func (s *Session) Delete(ctx context.Context, db DB) error {
 func SessionByID(ctx context.Context, db DB, id string) (*Session, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, username, created_at ` +
+		`id, user_id, created_at ` +
 		`FROM sessions ` +
 		`WHERE id = $1`
 	// run
@@ -138,8 +138,15 @@ func SessionByID(ctx context.Context, db DB, id string) (*Session, error) {
 	s := Session{
 		_exists: true,
 	}
-	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&s.ID, &s.Username, &s.CreatedAt); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&s.ID, &s.UserID, &s.CreatedAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &s, nil
+}
+
+// User returns the User associated with the [Session]'s (UserID).
+//
+// Generated from foreign key 'sessions_user_id_fkey'.
+func (s *Session) User(ctx context.Context, db DB) (*User, error) {
+	return UserByID(ctx, db, s.UserID)
 }

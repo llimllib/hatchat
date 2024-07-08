@@ -147,7 +147,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		sid := generateSessionID()
 		session := xomodels.Session{
 			ID:        sid,
-			Username:  user.ID,
+			UserID:    user.ID,
 			CreatedAt: xomodels.NewTime(time.Now()),
 		}
 		if err := session.Insert(r.Context(), h.db); err != nil {
@@ -225,7 +225,8 @@ func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.Han
 
 func (h *ChatServer) Run(addr string) {
 	h.logger.Info("Starting server", "addr", addr)
-	hub := newHub(h.logger)
+
+	hub := newHub(h.db, h.logger)
 	go hub.run()
 
 	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)

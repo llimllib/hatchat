@@ -1,13 +1,14 @@
 package server
 
 import (
-	"bytes"
-	"log"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/llimllib/hatchat/server/middleware"
+	"github.com/llimllib/hatchat/server/xomodels"
 )
 
 const (
@@ -45,8 +46,13 @@ type Client struct {
 	send chan []byte
 
 	logger *slog.Logger
+
+	// The user who created the client; it's critical that we don't trust the
+	// client to say who they are
+	user *xomodels.User
 }
 
+// TODO: handle panics gracefully; rn a panic in here kills the whole app
 func must(e error) {
 	if e != nil {
 		panic(e)
@@ -58,6 +64,15 @@ func mustV[T any](value T, err error) T {
 		panic(err)
 	}
 	return value
+}
+
+type Envelope struct {
+	Type string
+	Data any
+}
+
+type Init struct {
+	User *xomodels.User
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -79,13 +94,31 @@ func (c *Client) readPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				c.logger.Error("", "err", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
+
+		var msg json.RawMessage
+		env := Envelope{Data: &msg}
+		if err := json.Unmarshal(message, &env); err != nil {
+			c.logger.Debug("invalid json", "message", string(message))
+			return
+		}
+
+		switch env.Type {
+		case "init":
+			// Return the user's info
+			// Return the room the user starts in
+			// Return the rooms that are available to the user
+			c.conn.WriteJSON(Envelope{
+				Type: "init",
+				Data: Init{c.user},
+			})
+		}
+
 		c.logger.Debug("received ws", "message", string(message))
-		c.hub.broadcast <- message
+		// c.hub.broadcast <- message
 	}
 }
 
@@ -106,7 +139,9 @@ func (c *Client) writePump() {
 			must(c.conn.SetWriteDeadline(time.Now().Add(writeWait)))
 			if !ok {
 				// The hub closed the channel.
-				must(c.conn.WriteMessage(websocket.CloseMessage, []byte{}))
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+					c.logger.Debug("Unable to send close message. Is this WriteMessage call necessary?", "err", err)
+				}
 				return
 			}
 
@@ -137,16 +172,24 @@ func (c *Client) writePump() {
 
 // serveWs handles websocket requests from the peer.
 func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	userid := middleware.GetUserID(r.Context())
+	user, err := xomodels.UserByID(r.Context(), hub.db, userid)
+	if err != nil {
+		hub.logger.Error("Unable to find user", "userid", userid)
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		hub.logger.Error("Unable to upgrade connection", "err", err)
 		return
 	}
+
 	client := &Client{
 		hub:    hub,
 		conn:   conn,
 		send:   make(chan []byte, 256),
 		logger: hub.logger,
+		user:   user,
 	}
 	client.hub.register <- client
 
