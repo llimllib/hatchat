@@ -1,19 +1,36 @@
-function wsClose(_: CloseEvent) {
-  // TODO: try to reconnect
-  console.warn("connection closed", _);
-}
+class Client {
+  conn: WebSocket;
 
-function wsReceive(evt: MessageEvent) {
-  const body = JSON.parse(evt.data);
-  console.log("received: ", body);
-}
+  constructor(conn: WebSocket) {
+    this.conn = conn;
 
-function wsOpen(evt: Event) {
-  console.log("connection opened", evt);
-}
+    conn.addEventListener("open", this.wsOpen.bind(this));
+    conn.addEventListener("message", this.wsReceive.bind(this));
+    conn.addEventListener("close", this.wsClose.bind(this));
+  }
 
-function onSubmit(conn: WebSocket) {
-  return (evt: MouseEvent) => {
+  wsClose(_: CloseEvent) {
+    // TODO: try to reconnect
+    console.warn("connection closed", _);
+  }
+
+  wsReceive(evt: MessageEvent) {
+    const body = JSON.parse(evt.data);
+    console.log("received: ", body);
+  }
+
+  wsOpen(evt: Event) {
+    console.log("opened", evt);
+    // TODO: type the stuff the websocket connection sends/receives
+    this.conn.send(
+      JSON.stringify({
+        type: "init",
+        data: {},
+      }),
+    );
+  }
+
+  onSubmit(evt: MouseEvent) {
     if (!(evt.target instanceof HTMLElement)) {
       return;
     }
@@ -24,7 +41,7 @@ function onSubmit(conn: WebSocket) {
       console.debug("empty message found, doing nothing");
       return;
     }
-    conn.send(
+    this.conn.send(
       JSON.stringify({
         type: "message",
         data: {
@@ -32,18 +49,16 @@ function onSubmit(conn: WebSocket) {
         },
       }),
     );
-  };
+  }
 }
 
 function main() {
   const conn = new WebSocket(`ws://${document.location.host}/ws`);
-  conn.addEventListener("open", wsOpen);
-  conn.addEventListener("message", wsReceive);
-  conn.addEventListener("close", wsClose);
+  const client = new Client(conn);
 
   document
     .getElementById("sendmessage")
-    ?.addEventListener("click", onSubmit(conn));
+    ?.addEventListener("click", client.onSubmit.bind(client));
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
