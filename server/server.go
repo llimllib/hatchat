@@ -17,7 +17,7 @@ import (
 
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/middleware"
-	"github.com/llimllib/hatchat/server/xomodels"
+	"github.com/llimllib/hatchat/server/models"
 )
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -83,7 +83,7 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	uid := fmt.Sprintf("usr_%s", uuid.New())
 
-	userp := &xomodels.User{
+	userp := &models.User{
 		ID:       uid,
 		Username: user,
 		Password: string(encPass),
@@ -95,19 +95,20 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := xomodels.GetDefaultRoom(context.Background(), h.db)
+	// Users automatically get inserted into the default room
+	room, err := models.GetDefaultRoom(context.Background(), h.db)
 	if err != nil {
-		h.logger.Debug("unable to get default room", "err", err)
+		h.logger.Error("unable to get default room", "err", err)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 
-	roomm := &xomodels.RoomMember{
+	roomm := &models.RoomsMember{
 		UserID: uid,
 		RoomID: room.ID,
 	}
 	if err = roomm.Insert(r.Context(), h.db); err != nil {
-		h.logger.Debug("unable to add user to room", "uid", uid, "roomid", room.ID, "err", err)
+		h.logger.Error("unable to add user to room", "uid", uid, "roomid", room.ID, "err", err)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -116,8 +117,8 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// XXX: where should these functions live? A new package on top of xomodels?
-// Added to the xomodels' templates?
+// XXX: where should these functions live? A new package on top of models?
+// Added to the models' templates?
 
 // generateSessionID generates a random session ID
 func generateSessionID() string {
@@ -160,7 +161,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := xomodels.UserByUsername(r.Context(), h.db, username)
+	user, err := models.UserByUsername(r.Context(), h.db, username)
 	if err != nil {
 		fatal(h.logger, "query error", err)
 	}
@@ -169,10 +170,10 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		h.logger.Debug("login succeeded")
 
 		sid := generateSessionID()
-		session := xomodels.Session{
+		session := models.Session{
 			ID:        sid,
 			UserID:    user.ID,
-			CreatedAt: xomodels.NewTime(time.Now()),
+			CreatedAt: models.NewTime(time.Now()),
 		}
 		if err := session.Insert(r.Context(), h.db); err != nil {
 			fatal(h.logger, "session insert error", err)
@@ -226,12 +227,12 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 	}
 
 	if n == 0 {
-		room := xomodels.Room{
+		room := models.Room{
 			ID:        generateRoomID(),
 			Name:      "main",
 			IsPrivate: false,
 			IsDefault: true,
-			CreatedAt: xomodels.NewTime(time.Now()),
+			CreatedAt: models.NewTime(time.Now()),
 		}
 		if err := room.Insert(context.Background(), db); err != nil {
 			return nil, err

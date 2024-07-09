@@ -8,7 +8,8 @@ test: lint
     go test ./...
 
 models:
-    bash models.sh
+    bash tools/models.sh
+
 build-js:
     cd client && npx tsc --noEmit && node esbuild.config.mjs
 

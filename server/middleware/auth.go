@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/llimllib/hatchat/server/db"
-	"github.com/llimllib/hatchat/server/xomodels"
+	"github.com/llimllib/hatchat/server/models"
 )
 
 // UsernameKey is the key to use to pull a request out of a context
@@ -31,7 +31,7 @@ func AuthMiddleware(db *db.DB, logger *slog.Logger, session_key string) func(htt
 				return
 			}
 
-			session, err := xomodels.SessionByID(context.Background(), db, cookie.Value)
+			session, err := models.SessionByID(context.Background(), db, cookie.Value)
 			if err != nil {
 				logger.Error("Error finding session", "err", err)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)

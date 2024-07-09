@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/llimllib/hatchat/server/apimodels"
 	"github.com/llimllib/hatchat/server/middleware"
-	"github.com/llimllib/hatchat/server/xomodels"
+	"github.com/llimllib/hatchat/server/models"
 )
 
 const (
@@ -48,7 +48,7 @@ type Client struct {
 
 	// The user who created the client; it's critical that we don't trust the
 	// client to say who they are
-	user *xomodels.User
+	user *models.User
 }
 
 // TODO: handle panics gracefully; rn a panic in here kills the whole app
@@ -73,7 +73,8 @@ type Envelope struct {
 }
 
 type Init struct {
-	User *apimodels.User
+	User  *apimodels.User
+	Rooms []*apimodels.Room
 }
 
 type Message struct {
@@ -119,10 +120,17 @@ func (c *Client) readPump() {
 			//
 			// For simplicity, right now there's just going to be that one
 			// room
+			rooms, err := apimodels.UserRooms(context.Background(), c.hub.db, c.user.ID)
+			if err != nil {
+				c.logger.Error("failed to get rooms", "error", err)
+				return
+			}
+
 			err = c.conn.WriteJSON(Envelope{
 				Type: "init",
 				Data: Init{
-					User: apimodels.NewUser(c.user.ID, c.user.Username, c.user.Avatar),
+					User:  apimodels.NewUser(c.user.ID, c.user.Username, c.user.Avatar),
+					Rooms: rooms,
 				},
 			})
 			if err != nil {
@@ -140,19 +148,19 @@ func (c *Client) readPump() {
 				return
 			}
 
-			room, err := xomodels.GetDefaultRoom(context.Background(), c.hub.db)
+			room, err := models.GetDefaultRoom(context.Background(), c.hub.db)
 			if err != nil {
 				c.logger.Error("unable to find default room", "error", err)
 				return
 			}
 
-			dbMessage := xomodels.Message{
+			dbMessage := models.Message{
 				ID:         generateMessageID(),
 				RoomID:     room.ID,
 				UserID:     c.user.ID,
 				Body:       m.Body,
-				CreatedAt:  xomodels.NewTime(time.Now()),
-				ModifiedAt: xomodels.NewTime(time.Now()),
+				CreatedAt:  models.NewTime(time.Now()),
+				ModifiedAt: models.NewTime(time.Now()),
 			}
 			err = dbMessage.Insert(context.Background(), c.hub.db)
 			if err != nil {
@@ -226,7 +234,7 @@ func (c *Client) writePump() {
 // serveWs handles websocket requests from the peer.
 func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	userid := middleware.GetUserID(r.Context())
-	user, err := xomodels.UserByID(r.Context(), hub.db, userid)
+	user, err := models.UserByID(r.Context(), hub.db, userid)
 	if err != nil {
 		hub.logger.Error("Unable to find user", "userid", userid)
 	}

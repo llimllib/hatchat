@@ -1,7 +1,7 @@
 package apimodels
 
 import (
-	"github.com/llimllib/hatchat/server/xomodels"
+	"github.com/llimllib/hatchat/server/models"
 )
 
 type Message struct {
@@ -9,11 +9,11 @@ type Message struct {
 	RoomID     string        `json:"room_id"`
 	UserID     string        `json:"user_id"`
 	Body       string        `json:"body"`
-	CreatedAt  xomodels.Time `json:"created_at"`
-	ModifiedAt xomodels.Time `json:"modified_at"`
+	CreatedAt  models.Time `json:"created_at"`
+	ModifiedAt models.Time `json:"modified_at"`
 }
 
-func NewMessage(ID, roomID, userID, body string, createdAt, modifiedAt xomodels.Time) *Message {
+func NewMessage(ID, roomID, userID, body string, createdAt, modifiedAt models.Time) *Message {
 	return &Message{
 		ID:         ID,
 		RoomID:     roomID,

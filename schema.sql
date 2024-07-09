@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS sessions(
   created_at TIMESTAMP NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS room_members(
+CREATE TABLE IF NOT EXISTS rooms_members(
   user_id TEXT REFERENCES users(id) NOT NULL,
   room_id TEXT REFERENCES rooms(id) NOT NULL,
   PRIMARY KEY (user_id, room_id)
