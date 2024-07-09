@@ -1,48 +1,48 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hatchat 🪓</title>
-    <link rel="stylesheet" href="/static/chat.css" />
-    <!-- axe emoji as favicon https://css-tricks.com/emoji-as-a-favicon/ -->
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪓</text></svg>"
-    />
-  </head>
 
-  <body>
-    <div class="container">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <h3>Workspace</h3>
-          <!-- Add workspace icon or logo here -->
-        </div>
-        <div class="sidebar-channels">
-          <ul>
-            <li><a href="#">Channel 1</a></li>
-            <li><a href="#">Channel 2</a></li>
-            <li><a href="#">Channel 3</a></li>
-            <!-- Add more channels as needed -->
-          </ul>
-        </div>
-        <div class="sidebar-direct-messages">
-          <h4>Direct Messages</h4>
-          <ul>
-            <li><a href="#">User 1</a></li>
-            <li><a href="#">User 2</a></li>
-            <!-- Add more direct messages as needed -->
-          </ul>
-        </div>
-      </aside>
-      <main class="chat-area">
-        <div class="chat-header">
-          <h2>Channel Name</h2>
-          <!-- Add channel info or options here -->
-        </div>
-        <div class="chat-messages">
-          <!-- Chat messages will be displayed here -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hatchat 🪓</title>
+  <link rel="stylesheet" href="/static/chat.css" />
+  <!-- axe emoji as favicon https://css-tricks.com/emoji-as-a-favicon/ -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪓</text></svg>" />
+</head>
+
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>Workspace</h3>
+        <!-- Add workspace icon or logo here -->
+      </div>
+      <div class="sidebar-channels">
+        <ul>
+          <li><a href="#">Channel 1</a></li>
+          <li><a href="#">Channel 2</a></li>
+          <li><a href="#">Channel 3</a></li>
+          <!-- Add more channels as needed -->
+        </ul>
+      </div>
+      <div class="sidebar-direct-messages">
+        <h4>Direct Messages</h4>
+        <ul>
+          <li><a href="#">User 1</a></li>
+          <li><a href="#">User 2</a></li>
+          <!-- Add more direct messages as needed -->
+        </ul>
+      </div>
+    </aside>
+    <main class="chat-area">
+      <div class="chat-header">
+        <h2>Channel Name</h2>
+        <!-- Add channel info or options here -->
+      </div>
+      <div class="chat-messages">
+        <!-- Chat messages will be displayed here -->
+        <!--
           <div class="message">
             <div class="message-header">
               <img src="https://via.placeholder.com/36" alt="User Avatar" />
@@ -70,18 +70,15 @@
               That's great! Let me know if you need any help with it.
             </div>
           </div>
-        </div>
+        </div>-->
         <div class="chat-input">
-          <input
-            id="message"
-            type="text"
-            placeholder="Type your message here..."
-          />
+          <input id="message" type="text" placeholder="Type your message here..." />
           <button id="sendmessage" type="submit">Send</button>
         </div>
-      </main>
-    </div>
+    </main>
+  </div>
 
-    <script src="/static/client.js"></script>
-  </body>
+  <script src="/static/client.js"></script>
+</body>
+
 </html>
