@@ -2,19 +2,15 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/lmittmann/tint"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/llimllib/hatchat/server/api"
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/middleware"
 	"github.com/llimllib/hatchat/server/models"
@@ -81,7 +77,8 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	uid := fmt.Sprintf("usr_%s", uuid.New())
+
+	uid := models.GenerateUserID()
 
 	userp := &models.User{
 		ID:       uid,
@@ -117,30 +114,6 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// XXX: where should these functions live? A new package on top of models?
-// Added to the models' templates?
-
-// generateSessionID generates a random session ID
-func generateSessionID() string {
-	b := make([]byte, 32)
-	rand.Read(b) //nolint: errcheck
-	return base64.URLEncoding.EncodeToString(b)
-}
-
-func generateRoomID() string {
-	b := make([]byte, 6)
-	rand.Read(b) //nolint: errcheck
-	return fmt.Sprintf("roo_%s", hex.EncodeToString(b))
-}
-
-func generateMessageID() string {
-	b := make([]byte, 6)
-	rand.Read(b) //nolint: errcheck
-	return fmt.Sprintf("msg_%s", hex.EncodeToString(b))
-}
-
-// /XXX
-
 func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		h.logger.Debug("wrong method")
@@ -169,7 +142,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass)); err == nil {
 		h.logger.Debug("login succeeded")
 
-		sid := generateSessionID()
+		sid := models.GenerateSessionID()
 		session := models.Session{
 			ID:        sid,
 			UserID:    user.ID,
@@ -228,7 +201,7 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 
 	if n == 0 {
 		room := models.Room{
-			ID:        generateRoomID(),
+			ID:        models.GenerateRoomID(),
 			Name:      "main",
 			IsPrivate: false,
 			IsDefault: true,
@@ -255,6 +228,8 @@ func (h *ChatServer) Run(addr string) {
 	hub := newHub(h.db, h.logger)
 	go hub.run()
 
+	api := api.NewApi(h.db, h.logger)
+
 	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)
 
 	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))).ServeHTTP
@@ -263,7 +238,7 @@ func (h *ChatServer) Run(addr string) {
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
 	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, w, r)
+		serveWs(hub, api, w, r)
 	})))
 	http.HandleFunc("/", h.middleware("/", h.serveHome))
 

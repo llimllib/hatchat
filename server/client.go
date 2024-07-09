@@ -1,14 +1,13 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/llimllib/hatchat/server/apimodels"
+	"github.com/llimllib/hatchat/server/api"
 	"github.com/llimllib/hatchat/server/middleware"
 	"github.com/llimllib/hatchat/server/models"
 )
@@ -49,6 +48,8 @@ type Client struct {
 	// The user who created the client; it's critical that we don't trust the
 	// client to say who they are
 	user *models.User
+
+	api *api.Api
 }
 
 // TODO: handle panics gracefully; rn a panic in here kills the whole app
@@ -63,22 +64,6 @@ func mustV[T any](value T, err error) T {
 		panic(err)
 	}
 	return value
-}
-
-// TODO: figure out how to create a spec for this and generate messages for
-// both typescript and go, maybe?
-type Envelope struct {
-	Type string
-	Data any
-}
-
-type Init struct {
-	User  *apimodels.User
-	Rooms []*apimodels.Room
-}
-
-type Message struct {
-	Body string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -105,8 +90,10 @@ func (c *Client) readPump() {
 			break
 		}
 
+		t := time.Now()
+
 		var msg json.RawMessage
-		env := Envelope{Data: &msg}
+		env := api.Envelope{Data: &msg}
 		if err = json.Unmarshal(message, &env); err != nil {
 			c.logger.Error("invalid json", "message", string(message))
 			return
@@ -114,72 +101,34 @@ func (c *Client) readPump() {
 
 		switch env.Type {
 		case "init":
-			// Return the user's info
-			// Return the room the user starts in
-			// Return the rooms that are available to the user
-			//
-			// For simplicity, right now there's just going to be that one
-			// room
-			rooms, err := apimodels.UserRooms(context.Background(), c.hub.db, c.user.ID)
+			res, err := c.api.InitMessage(c.user, msg)
 			if err != nil {
-				c.logger.Error("failed to get rooms", "error", err)
+				c.logger.Error("failed to generate init json", "error", err)
 				return
 			}
 
-			err = c.conn.WriteJSON(Envelope{
-				Type: "init",
-				Data: Init{
-					User:  apimodels.NewUser(c.user.ID, c.user.Username, c.user.Avatar),
-					Rooms: rooms,
-				},
-			})
+			err = c.conn.WriteJSON(res)
 			if err != nil {
 				c.logger.Error("failed to write init json", "error", err)
 				return
 			}
 		case "message":
-			// If we've received a message:
-			// - unmarshal it
-			// - save it to the database
-			// - return it, with an ID, to the sender for display
-			var m Message
-			if err = json.Unmarshal(msg, &m); err != nil {
-				c.logger.Error("invalid json", "error", err)
-				return
-			}
-
-			room, err := models.GetDefaultRoom(context.Background(), c.hub.db)
+			res, err := c.api.MessageMessage(c.user, msg)
 			if err != nil {
-				c.logger.Error("unable to find default room", "error", err)
+				c.logger.Error("failed to write init json", "error", err)
 				return
 			}
-
-			dbMessage := models.Message{
-				ID:         generateMessageID(),
-				RoomID:     room.ID,
-				UserID:     c.user.ID,
-				Body:       m.Body,
-				CreatedAt:  models.NewTime(time.Now()),
-				ModifiedAt: models.NewTime(time.Now()),
-			}
-			err = dbMessage.Insert(context.Background(), c.hub.db)
-			if err != nil {
-				c.logger.Error("unable to find default room", "error", err)
-				return
-			}
-
-			msg, err = json.Marshal(Envelope{
-				Type: "message",
-				Data: msg,
-			})
+			msg, err = json.Marshal(res)
 			if err != nil {
 				c.logger.Error("Unable to marshal Envelope", "error", err)
 				return
 			}
+
+			// TODO: send to the people in the room, not to everyone.gif
 			c.hub.broadcast <- msg
 		}
 
-		c.logger.Debug("received ws", "message", string(message))
+		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))
 	}
 }
 
@@ -232,7 +181,7 @@ func (c *Client) writePump() {
 }
 
 // serveWs handles websocket requests from the peer.
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func serveWs(hub *Hub, api *api.Api, w http.ResponseWriter, r *http.Request) {
 	userid := middleware.GetUserID(r.Context())
 	user, err := models.UserByID(r.Context(), hub.db, userid)
 	if err != nil {
@@ -251,6 +200,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		send:   make(chan []byte, 256),
 		logger: hub.logger,
 		user:   user,
+		api:    api,
 	}
 	client.hub.register <- client
 
