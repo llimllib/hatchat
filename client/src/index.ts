@@ -41,11 +41,12 @@ class Client {
       console.debug("empty message found, doing nothing");
       return;
     }
+    console.debug("sending", message.value);
     this.conn.send(
       JSON.stringify({
         type: "message",
         data: {
-          body: message,
+          body: message.value,
         },
       }),
     );

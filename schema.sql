@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS rooms(
   id TEXT PRIMARY KEY NOT NULL,
   name TEXT NOT NULL,
   is_private BOOL NOT NULL,
+  is_default BOOL NOT NULL,
   created_at TIMESTAMP NOT NULL
 );
 

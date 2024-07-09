@@ -1,0 +1,139 @@
+/* General Styles */
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f8f8f8;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: 220px;
+  background-color: #3f0e40;
+  color: #fff;
+  padding: 20px;
+}
+
+.sidebar-header {
+  margin-bottom: 20px;
+}
+
+.sidebar-channels ul,
+.sidebar-direct-messages ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.sidebar-channels li,
+.sidebar-direct-messages li {
+  margin-bottom: 10px;
+}
+
+.sidebar-channels a,
+.sidebar-direct-messages a {
+  color: #fff;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+.sidebar-channels a:hover,
+.sidebar-direct-messages a:hover {
+  background-color: #4a154b;
+}
+
+/* Chat Area Styles */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  background-color: #350d36;
+  color: #fff;
+  padding: 10px 20px;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.chat-input {
+  display: flex;
+  padding: 10px;
+  background-color: #f4f4f4;
+}
+
+.chat-input input {
+  flex: 1;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.chat-input button {
+  margin-left: 10px;
+  background-color: #3f0e40;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+  }
+}
+
+/* message styles */
+.message {
+  background-color: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+  max-width: 600px;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.message-header img {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  margin-right: 10px;
+}
+
+.message-header h3 {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 0;
+  color: #2c2d30;
+}
+
+.message-body {
+  font-size: 15px;
+  color: #2c2d30;
+  line-height: 1.4;
+}

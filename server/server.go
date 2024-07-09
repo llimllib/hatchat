@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -94,6 +95,23 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	room, err := xomodels.GetDefaultRoom(context.Background(), h.db)
+	if err != nil {
+		h.logger.Debug("unable to get default room", "err", err)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	roomm := &xomodels.RoomMember{
+		UserID: uid,
+		RoomID: room.ID,
+	}
+	if err = roomm.Insert(r.Context(), h.db); err != nil {
+		h.logger.Debug("unable to add user to room", "uid", uid, "roomid", room.ID, "err", err)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
 	h.logger.Debug("inserted user", "username", r.FormValue("username"))
 	http.Redirect(w, r, "/", http.StatusFound)
 }
@@ -109,9 +127,15 @@ func generateSessionID() string {
 }
 
 func generateRoomID() string {
-	b := make([]byte, 32)
+	b := make([]byte, 6)
 	rand.Read(b) //nolint: errcheck
-	return fmt.Sprintf("roo_%s", base64.URLEncoding.EncodeToString(b))
+	return fmt.Sprintf("roo_%s", hex.EncodeToString(b))
+}
+
+func generateMessageID() string {
+	b := make([]byte, 6)
+	rand.Read(b) //nolint: errcheck
+	return fmt.Sprintf("msg_%s", hex.EncodeToString(b))
 }
 
 // /XXX
@@ -206,6 +230,7 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 			ID:        generateRoomID(),
 			Name:      "main",
 			IsPrivate: false,
+			IsDefault: true,
 			CreatedAt: xomodels.NewTime(time.Now()),
 		}
 		if err := room.Insert(context.Background(), db); err != nil {

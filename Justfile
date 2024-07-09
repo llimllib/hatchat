@@ -8,11 +8,7 @@ test: lint
     go test ./...
 
 models:
-    rm -f xo.db && \
-        sqlite3 'xo.db' < schema.sql && \
-        xo -v schema sqlite://xo.db -o server/xomodels && \
-        rm xo.db
-
+    bash models.sh
 build-js:
     cd client && npx tsc --noEmit && node esbuild.config.mjs
 

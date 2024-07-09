@@ -4,3 +4,4 @@ hatchat
 *.db-wal
 .mise.toml
 node_modules
+static/client.*

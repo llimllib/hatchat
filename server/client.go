@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/llimllib/hatchat/server/apimodels"
 	"github.com/llimllib/hatchat/server/middleware"
 	"github.com/llimllib/hatchat/server/xomodels"
 )
@@ -25,10 +27,7 @@ const (
 	maxMessageSize = 512
 )
 
-var (
-	newline = []byte{'\n'}
-	space   = []byte{' '}
-)
+var newline = []byte{'\n'}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -66,13 +65,19 @@ func mustV[T any](value T, err error) T {
 	return value
 }
 
+// TODO: figure out how to create a spec for this and generate messages for
+// both typescript and go, maybe?
 type Envelope struct {
 	Type string
 	Data any
 }
 
 type Init struct {
-	User *xomodels.User
+	User *apimodels.User
+}
+
+type Message struct {
+	Body string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -101,8 +106,8 @@ func (c *Client) readPump() {
 
 		var msg json.RawMessage
 		env := Envelope{Data: &msg}
-		if err := json.Unmarshal(message, &env); err != nil {
-			c.logger.Debug("invalid json", "message", string(message))
+		if err = json.Unmarshal(message, &env); err != nil {
+			c.logger.Error("invalid json", "message", string(message))
 			return
 		}
 
@@ -111,14 +116,62 @@ func (c *Client) readPump() {
 			// Return the user's info
 			// Return the room the user starts in
 			// Return the rooms that are available to the user
-			c.conn.WriteJSON(Envelope{
+			//
+			// For simplicity, right now there's just going to be that one
+			// room
+			err = c.conn.WriteJSON(Envelope{
 				Type: "init",
-				Data: Init{c.user},
+				Data: Init{
+					User: apimodels.NewUser(c.user.ID, c.user.Username, c.user.Avatar),
+				},
 			})
+			if err != nil {
+				c.logger.Error("failed to write init json", "error", err)
+				return
+			}
+		case "message":
+			// If we've received a message:
+			// - unmarshal it
+			// - save it to the database
+			// - return it, with an ID, to the sender for display
+			var m Message
+			if err = json.Unmarshal(msg, &m); err != nil {
+				c.logger.Error("invalid json", "error", err)
+				return
+			}
+
+			room, err := xomodels.GetDefaultRoom(context.Background(), c.hub.db)
+			if err != nil {
+				c.logger.Error("unable to find default room", "error", err)
+				return
+			}
+
+			dbMessage := xomodels.Message{
+				ID:         generateMessageID(),
+				RoomID:     room.ID,
+				UserID:     c.user.ID,
+				Body:       m.Body,
+				CreatedAt:  xomodels.NewTime(time.Now()),
+				ModifiedAt: xomodels.NewTime(time.Now()),
+			}
+			err = dbMessage.Insert(context.Background(), c.hub.db)
+			if err != nil {
+				c.logger.Error("unable to find default room", "error", err)
+				return
+			}
+
+			msg, err = json.Marshal(Envelope{
+				Type: "message",
+				Data: msg,
+			})
+			if err != nil {
+				c.logger.Error("Unable to marshal Envelope", "error", err)
+				return
+			}
+			c.hub.broadcast <- msg
 		}
 
 		c.logger.Debug("received ws", "message", string(message))
-		// c.hub.broadcast <- message
 	}
 }
 
