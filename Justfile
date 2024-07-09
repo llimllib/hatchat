@@ -18,3 +18,7 @@ build-go:
 
 build:
     (cd client && node esbuild.config.js) & go build -o hatchat ./cmd/server.go
+
+browse-db:
+    # Maybe use datasette on the command line instead for broader applicability?
+    open /Applications/Datasette.app chat.db
