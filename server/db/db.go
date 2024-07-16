@@ -30,6 +30,26 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	// make a copy of the URL so we can safely append write params
 	writeUrl := *readUrl
 
+	// Add the _txlock=immediate flag
+	writeParams := writeUrl.Query()
+	writeParams.Add("_txlock", "immediate")
+	// Put sqlite in multithreaded mode; manage mutexes manually
+	// https://www.sqlite.org/threadsafe.html
+	writeParams.Add("_mutex", "no")
+	writeUrl.RawQuery = writeParams.Encode()
+
+	logger.Debug("connecting write db", "url", writeUrl.String())
+	writeDB, err := sql.Open("sqlite3", writeUrl.String())
+	if err != nil {
+		return nil, err
+	}
+
+	// We rely on this to provide our write locking. There should only be one
+	// open connection to the write database, and any further attempts will
+	// block until they acquire the lock
+	writeDB.SetMaxOpenConns(1)
+	setSQLitePragmas(writeDB)
+
 	// add readonly mode flag and open database
 	// docs on connection flags:
 	// https://pkg.go.dev/github.com/mattn/go-sqlite3#readme-connection-string
@@ -42,31 +62,11 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	logger.Debug("connecting read db", "url", readUrl.String())
 	readDB, err := sql.Open("sqlite3", readUrl.String())
 	if err != nil {
+		writeDB.Close()
 		return nil, err
 	}
 	readDB.SetMaxOpenConns(max(4, runtime.NumCPU()))
 	setSQLitePragmas(readDB)
-
-	// Add the _txlock=immediate flag
-	writeParams := writeUrl.Query()
-	writeParams.Add("_txlock", "immediate")
-	// Put sqlite in multithreaded mode; manage mutexes manually
-	// https://www.sqlite.org/threadsafe.html
-	writeParams.Add("_mutex", "no")
-	writeUrl.RawQuery = writeParams.Encode()
-
-	logger.Debug("connecting write db", "url", writeUrl.String())
-	writeDB, err := sql.Open("sqlite3", writeUrl.String())
-	if err != nil {
-		readDB.Close()
-		return nil, err
-	}
-
-	// We rely on this to provide our write locking. There should only be one
-	// open connection to the write database, and any further attempts will
-	// block until they acquire the lock
-	writeDB.SetMaxOpenConns(1)
-	setSQLitePragmas(writeDB)
 
 	return &DB{
 		ReadDB:  readDB,
