@@ -52,7 +52,7 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	writeParams.Add("_txlock", "immediate")
 	// Put sqlite in multithreaded mode; manage mutexes manually
 	// https://www.sqlite.org/threadsafe.html
-	readParams.Add("_mutex", "no")
+	writeParams.Add("_mutex", "no")
 	writeUrl.RawQuery = writeParams.Encode()
 
 	logger.Debug("connecting write db", "url", writeUrl.String())
