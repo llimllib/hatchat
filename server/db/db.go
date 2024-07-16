@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"runtime"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -19,7 +18,6 @@ type DB struct {
 	ReadDB  *sql.DB
 	WriteDB *sql.DB
 	logger  *slog.Logger
-	mu      sync.RWMutex
 }
 
 func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
@@ -37,6 +35,9 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	// https://pkg.go.dev/github.com/mattn/go-sqlite3#readme-connection-string
 	readParams := readUrl.Query()
 	readParams.Add("mode", "ro")
+	// Put sqlite in multithreaded mode; manage mutexes manually
+	// https://www.sqlite.org/threadsafe.html
+	readParams.Add("_mutex", "no")
 	readUrl.RawQuery = readParams.Encode()
 	logger.Debug("connecting read db", "url", readUrl.String())
 	readDB, err := sql.Open("sqlite3", readUrl.String())
@@ -49,6 +50,9 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	// Add the _txlock=immediate flag
 	writeParams := writeUrl.Query()
 	writeParams.Add("_txlock", "immediate")
+	// Put sqlite in multithreaded mode; manage mutexes manually
+	// https://www.sqlite.org/threadsafe.html
+	readParams.Add("_mutex", "no")
 	writeUrl.RawQuery = writeParams.Encode()
 
 	logger.Debug("connecting write db", "url", writeUrl.String())
@@ -57,6 +61,10 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 		readDB.Close()
 		return nil, err
 	}
+
+	// We rely on this to provide our write locking. There should only be one
+	// open connection to the write database, and any further attempts will
+	// block until they acquire the lock
 	writeDB.SetMaxOpenConns(1)
 	setSQLitePragmas(writeDB)
 
@@ -69,8 +77,6 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 
 // Make a query using the read connection
 func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
 	db.logger.Debug("querying", "query", query, "args", args)
 	t := time.Now()
 	rows, err := db.ReadDB.QueryContext(ctx, query, args...)
@@ -80,8 +86,6 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...interface{
 
 // Make a query using the read connection and return the first row
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
 	t := time.Now()
 	row := db.ReadDB.QueryRowContext(ctx, query, args...)
 	db.logger.Debug("querying row", "query", query, "args", args, "duration", time.Since(t))
@@ -90,8 +94,6 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 
 // Execute a query using the write connection
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
 	t := time.Now()
 	res, err := db.WriteDB.ExecContext(ctx, query, args...)
 	if err != nil {
