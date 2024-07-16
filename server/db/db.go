@@ -22,26 +22,37 @@ type DB struct {
 	mu      sync.RWMutex
 }
 
-func NewDB(dbPath string, logger *slog.Logger) (*DB, error) {
-	readDB, err := sql.Open("sqlite3", dbPath)
+func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
+	// we want to add a few parameters, so parse the db URL
+	readUrl, err := url.Parse(dbUrl)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing connection string: %v", err)
+	}
+
+	// make a copy of the URL so we can safely append write params
+	writeUrl := *readUrl
+
+	// add readonly mode flag and open database
+	// docs on connection flags:
+	// https://pkg.go.dev/github.com/mattn/go-sqlite3#readme-connection-string
+	readParams := readUrl.Query()
+	readParams.Add("mode", "ro")
+	readUrl.RawQuery = readParams.Encode()
+	logger.Debug("connecting read db", "url", readUrl.String())
+	readDB, err := sql.Open("sqlite3", readUrl.String())
 	if err != nil {
 		return nil, err
 	}
 	readDB.SetMaxOpenConns(max(4, runtime.NumCPU()))
 	setSQLitePragmas(readDB)
 
-	// add _txlock=immediate for the write database
-	u, err := url.Parse(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing connection string: %v", err)
-	}
+	// Add the _txlock=immediate flag
+	writeParams := writeUrl.Query()
+	writeParams.Add("_txlock", "immediate")
+	writeUrl.RawQuery = writeParams.Encode()
 
-	// Add the _txlock=immediate parameter
-	q := u.Query()
-	q.Add("_txlock", "immediate")
-	u.RawQuery = q.Encode()
-
-	writeDB, err := sql.Open("sqlite3", u.String())
+	logger.Debug("connecting write db", "url", writeUrl.String())
+	writeDB, err := sql.Open("sqlite3", writeUrl.String())
 	if err != nil {
 		readDB.Close()
 		return nil, err
