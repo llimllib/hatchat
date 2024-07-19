@@ -7,6 +7,13 @@ import (
 	"fmt"
 )
 
+// > SQLite does not have a separate Boolean storage class. Instead, Boolean
+// > values are stored as integers 0 (false) and 1 (true).
+const (
+	TRUE  = 1
+	FALSE = 0
+)
+
 // generateSessionID generates a random session ID
 func GenerateSessionID() string {
 	b := make([]byte, 32)

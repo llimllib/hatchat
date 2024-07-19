@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users(
   password TEXT NOT NULL,
   active INTEGER, -- true if the user has been recently active
   avatar TEXT, -- the URL of an avatar image
+  last_room TEXT NOT NULL, -- the id of last room the user was in
   created_at TEXT NOT NULL,
   modified_at TEXT NOT NULL
 ) STRICT;

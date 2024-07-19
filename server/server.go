@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -80,22 +81,23 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 
 	uid := models.GenerateUserID()
 
-	userp := &models.User{
-		ID:       uid,
-		Username: user,
-		Password: string(encPass),
-	}
-	err = userp.Insert(r.Context(), h.db)
-	if err != nil {
-		h.logger.Debug("unable to insert user", "err", err)
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-
 	// Users automatically get inserted into the default room
 	room, err := models.GetDefaultRoom(context.Background(), h.db)
 	if err != nil {
 		h.logger.Error("unable to get default room", "err", err)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	userp := &models.User{
+		ID:       uid,
+		Username: user,
+		Password: string(encPass),
+		LastRoom: room.ID,
+	}
+	err = userp.Insert(r.Context(), h.db)
+	if err != nil {
+		h.logger.Debug("unable to insert user", "err", err)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -111,6 +113,8 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.logger.Debug("inserted user", "username", r.FormValue("username"))
+	// XXX: consider the user logged in, set a session, and redirect to chat?
+	// currently this makes you go back and log in after registering
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -146,7 +150,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		session := models.Session{
 			ID:        sid,
 			UserID:    user.ID,
-			CreatedAt: models.NewTime(time.Now()),
+			CreatedAt: models.NewTime(time.Now()).String(),
 		}
 		if err := session.Insert(r.Context(), h.db); err != nil {
 			fatal(h.logger, "session insert error", err)
@@ -159,7 +163,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 			HttpOnly: true, // Client-side scripts cannot access the cookie
 		})
 
-		http.Redirect(w, r, "/chat", http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/chat/%s", user.LastRoom), http.StatusFound)
 	} else {
 		h.logger.Debug("wrong password")
 		http.Redirect(w, r, "/", http.StatusFound)
@@ -203,9 +207,9 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 		room := models.Room{
 			ID:        models.GenerateRoomID(),
 			Name:      "main",
-			IsPrivate: false,
-			IsDefault: true,
-			CreatedAt: models.NewTime(time.Now()),
+			IsPrivate: models.FALSE,
+			IsDefault: models.TRUE,
+			CreatedAt: models.NewTime(time.Now()).String(),
 		}
 		if err := room.Insert(context.Background(), db); err != nil {
 			return nil, err
@@ -234,7 +238,7 @@ func (h *ChatServer) Run(addr string) {
 
 	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))).ServeHTTP
 	http.HandleFunc("/static/", h.middleware("/static", staticHandler))
-	http.HandleFunc("/chat", h.middleware("/chat", authRequired(h.serveChat)))
+	http.HandleFunc("/chat/", h.middleware("/chat/", authRequired(h.serveChat)))
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
 	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {

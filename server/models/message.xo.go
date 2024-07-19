@@ -12,8 +12,8 @@ type Message struct {
 	RoomID     string `json:"room_id"`     // room_id
 	UserID     string `json:"user_id"`     // user_id
 	Body       string `json:"body"`        // body
-	CreatedAt  Time   `json:"created_at"`  // created_at
-	ModifiedAt Time   `json:"modified_at"` // modified_at
+	CreatedAt  string `json:"created_at"`  // created_at
+	ModifiedAt string `json:"modified_at"` // modified_at
 	// xo fields
 	_exists, _deleted bool
 }

@@ -10,7 +10,7 @@ import (
 type Session struct {
 	ID        string `json:"id"`         // id
 	UserID    string `json:"user_id"`    // user_id
-	CreatedAt Time   `json:"created_at"` // created_at
+	CreatedAt string `json:"created_at"` // created_at
 	// xo fields
 	_exists, _deleted bool
 }

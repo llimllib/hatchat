@@ -10,9 +10,9 @@ import (
 type Room struct {
 	ID        string `json:"id"`         // id
 	Name      string `json:"name"`       // name
-	IsPrivate bool   `json:"is_private"` // is_private
-	IsDefault bool   `json:"is_default"` // is_default
-	CreatedAt Time   `json:"created_at"` // created_at
+	IsPrivate int    `json:"is_private"` // is_private
+	IsDefault int    `json:"is_default"` // is_default
+	CreatedAt string `json:"created_at"` // created_at
 	// xo fields
 	_exists, _deleted bool
 }

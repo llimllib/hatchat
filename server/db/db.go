@@ -94,6 +94,7 @@ func (db *DB) QueryRowContext(ctx context.Context, query string, args ...interfa
 
 // Execute a query using the write connection
 func (db *DB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	// TODO: handle SQLITE_BUSY and retry in that case
 	t := time.Now()
 	res, err := db.WriteDB.ExecContext(ctx, query, args...)
 	if err != nil {

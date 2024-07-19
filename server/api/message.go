@@ -34,8 +34,8 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*Envelope,
 		RoomID:     room.ID,
 		UserID:     user.ID,
 		Body:       m.Body,
-		CreatedAt:  models.NewTime(time.Now()),
-		ModifiedAt: models.NewTime(time.Now()),
+		CreatedAt:  models.NewTime(time.Now()).String(),
+		ModifiedAt: models.NewTime(time.Now()).String(),
 	}
 	if err = dbMessage.Insert(context.Background(), a.db); err != nil {
 		a.logger.Error("unable to find default room", "error", err)
