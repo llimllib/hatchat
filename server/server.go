@@ -90,10 +90,12 @@ func (h *ChatServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userp := &models.User{
-		ID:       uid,
-		Username: user,
-		Password: string(encPass),
-		LastRoom: room.ID,
+		ID:         uid,
+		Username:   user,
+		Password:   string(encPass),
+		LastRoom:   room.ID,
+		CreatedAt:  time.Now().Format(time.RFC3339),
+		ModifiedAt: time.Now().Format(time.RFC3339),
 	}
 	err = userp.Insert(r.Context(), h.db)
 	if err != nil {
@@ -150,7 +152,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		session := models.Session{
 			ID:        sid,
 			UserID:    user.ID,
-			CreatedAt: models.NewTime(time.Now()).String(),
+			CreatedAt: time.Now().Format(time.RFC3339),
 		}
 		if err := session.Insert(r.Context(), h.db); err != nil {
 			fatal(h.logger, "session insert error", err)
@@ -209,7 +211,7 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 			Name:      "main",
 			IsPrivate: models.FALSE,
 			IsDefault: models.TRUE,
-			CreatedAt: models.NewTime(time.Now()).String(),
+			CreatedAt: time.Now().Format(time.RFC3339),
 		}
 		if err := room.Insert(context.Background(), db); err != nil {
 			return nil, err

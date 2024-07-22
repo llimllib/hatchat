@@ -34,22 +34,29 @@ class Client {
     if (!(evt.target instanceof HTMLElement)) {
       return;
     }
-    const message = evt.target.parentElement?.querySelector(
+
+    // get the message from the input box
+    const messageText = evt.target.parentElement?.querySelector(
       "#message",
     ) as HTMLInputElement;
-    if (!message.value) {
+    if (!messageText.value) {
       console.debug("empty message found, doing nothing");
       return;
     }
-    console.debug("sending", message.value);
-    this.conn.send(
-      JSON.stringify({
-        type: "message",
-        data: {
-          body: message.value,
-        },
-      }),
-    );
+
+    // get the room ID from the URL
+    const parts = window.location.pathname.split("/");
+    const roomID = parts[parts.length - 1];
+
+    const message = {
+      type: "message",
+      data: {
+        body: messageText.value,
+        room: roomID,
+      },
+    };
+    console.debug("sending", message);
+    this.conn.send(JSON.stringify(message));
   }
 }
 

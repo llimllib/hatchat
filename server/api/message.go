@@ -9,23 +9,22 @@ import (
 )
 
 type Message struct {
-	Body string
+	Body   string
+	RoomID string
 }
 
-// We've received a message:
-// - unmarshal it
-// - save it to the database
-// - return it, with an ID, to the sender for display
-func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*Envelope, error) {
+// MessageMessage accepts a message from a user that has yet to be unmarshaled,
+// writes it to the database and returns an Api.Message marshaled to json
+func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) ([]byte, error) {
 	var m Message
 	if err := json.Unmarshal(msg, &m); err != nil {
 		a.logger.Error("invalid json", "error", err)
 		return nil, err
 	}
 
-	room, err := models.GetDefaultRoom(context.Background(), a.db)
+	room, err := models.RoomByID(context.Background(), a.db, m.RoomID)
 	if err != nil {
-		a.logger.Error("unable to find default room", "error", err)
+		a.logger.Error("unable to find room", "error", err, "room", m.RoomID)
 		return nil, err
 	}
 
@@ -34,16 +33,16 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*Envelope,
 		RoomID:     room.ID,
 		UserID:     user.ID,
 		Body:       m.Body,
-		CreatedAt:  models.NewTime(time.Now()).String(),
-		ModifiedAt: models.NewTime(time.Now()).String(),
+		CreatedAt:  time.Now().Format(time.RFC3339),
+		ModifiedAt: time.Now().Format(time.RFC3339),
 	}
 	if err = dbMessage.Insert(context.Background(), a.db); err != nil {
 		a.logger.Error("unable to find default room", "error", err)
 		return nil, err
 	}
 
-	return &Envelope{
+	return json.Marshal(&Envelope{
 		Type: "message",
 		Data: msg,
-	}, nil
+	})
 }
