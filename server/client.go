@@ -115,14 +115,12 @@ func (c *Client) readPump() {
 		case "message":
 			res, err := c.api.MessageMessage(c.user, msg)
 			if err != nil {
-				// XXX: this should return an error message to the client, not
-				// just log it
 				c.logger.Error("failed to handle message", "error", err, "msg", msg)
 				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to handle message")))
+			} else {
+				// TODO: send to the people in the room, not to everyone.gif
+				c.hub.broadcast <- res
 			}
-
-			// TODO: send to the people in the room, not to everyone.gif
-			c.hub.broadcast <- res
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

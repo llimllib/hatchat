@@ -3,14 +3,15 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/llimllib/hatchat/server/models"
 )
 
 type Message struct {
-	Body   string
-	RoomID string
+	Body   string `json:"body"`
+	RoomID string `json:"room_id"`
 }
 
 // MessageMessage accepts a message from a user that has yet to be unmarshaled,
@@ -20,6 +21,12 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) ([]byte, er
 	if err := json.Unmarshal(msg, &m); err != nil {
 		a.logger.Error("invalid json", "error", err)
 		return nil, err
+	}
+
+	// if the message is empty or there's no room, error out
+	if len(m.Body) < 1 || len(m.RoomID) < 1 {
+		a.logger.Error("invalid message", "msg", string(msg))
+		return nil, fmt.Errorf("invalid message <%s> <%s>", m.Body, m.RoomID)
 	}
 
 	room, err := models.RoomByID(context.Background(), a.db, m.RoomID)

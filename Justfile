@@ -17,7 +17,7 @@ build-go:
     go build -o hatchat ./cmd/server.go
 
 build:
-    (cd client && node esbuild.config.js) & go build -o hatchat ./cmd/server.go
+    (cd client && node esbuild.config.mjs) & go build -o hatchat ./cmd/server.go
 
 browse-db:
     # Maybe use datasette on the command line instead for broader applicability?

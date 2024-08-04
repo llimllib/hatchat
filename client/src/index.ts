@@ -1,3 +1,5 @@
+// TODO: type the messages between the client and server
+
 class Client {
   conn: WebSocket;
 
@@ -15,13 +17,19 @@ class Client {
   }
 
   wsReceive(evt: MessageEvent) {
-    const body = JSON.parse(evt.data);
-    console.log("received: ", body);
+    if (!evt.data) {
+      console.debug("unable to process empty message", evt);
+    }
+    try {
+      const body = JSON.parse(evt.data);
+      console.debug("received: ", body);
+    } catch (e) {
+      console.error("uanble to parse", evt.data, e);
+    }
   }
 
   wsOpen(evt: Event) {
     console.log("opened", evt);
-    // TODO: type the stuff the websocket connection sends/receives
     this.conn.send(
       JSON.stringify({
         type: "init",
@@ -52,7 +60,7 @@ class Client {
       type: "message",
       data: {
         body: messageText.value,
-        room: roomID,
+        room_id: roomID,
       },
     };
     console.debug("sending", message);
