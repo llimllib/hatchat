@@ -144,6 +144,20 @@ func (c *Client) readPump() {
 					Message: res.Message,
 				}
 			}
+		case "join_room":
+			res, err := c.api.JoinRoom(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle join_room", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to join room")))
+			} else {
+				// Update the client's current room
+				c.currentRoom = res.RoomID
+				err = c.conn.WriteJSON(res.Envelope)
+				if err != nil {
+					c.logger.Error("failed to write join_room json", "error", err)
+					return
+				}
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

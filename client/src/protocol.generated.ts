@@ -93,6 +93,13 @@ export interface HistoryRequest {
   room_id: string;
 }
 
+export interface JoinRoomRequest {
+  /**
+   * Room ID to switch to
+   */
+  room_id: string;
+}
+
 export interface InitResponse {
   /**
    * Rooms the user is a member of
@@ -178,6 +185,26 @@ export interface HistoryResponse {
   next_cursor: string;
 }
 
+export interface JoinRoomResponse {
+  /**
+   * The room that was joined
+   */
+  room: {
+    /**
+     * Unique room identifier (roo_ prefix)
+     */
+    id: string;
+    /**
+     * Whether the room is private
+     */
+    is_private: boolean;
+    /**
+     * Room display name
+     */
+    name: string;
+  };
+}
+
 export interface ErrorResponse {
   /**
    * Human-readable error message
@@ -205,7 +232,12 @@ export interface Envelope {
 /**
  * All valid message type strings
  */
-export type MessageType = "init" | "message" | "history" | "error";
+export type MessageType =
+  | "init"
+  | "message"
+  | "history"
+  | "join_room"
+  | "error";
 
 /**
  * Type-safe envelope for client → server messages
@@ -213,7 +245,8 @@ export type MessageType = "init" | "message" | "history" | "error";
 export type ClientEnvelope =
   | { type: "init"; data: InitRequest }
   | { type: "message"; data: SendMessageRequest }
-  | { type: "history"; data: HistoryRequest };
+  | { type: "history"; data: HistoryRequest }
+  | { type: "join_room"; data: JoinRoomRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -222,6 +255,7 @@ export type ServerEnvelope =
   | { type: "init"; data: InitResponse }
   | { type: "message"; data: Message }
   | { type: "history"; data: HistoryResponse }
+  | { type: "join_room"; data: JoinRoomResponse }
   | { type: "error"; data: ErrorResponse };
 
 /**

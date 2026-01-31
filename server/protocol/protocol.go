@@ -84,6 +84,13 @@ type HistoryRequest struct {
 	Limit  int    `json:"limit" jsonschema:"description=Maximum messages to return (default 50; max 100),minimum=1,maximum=100"`
 }
 
+// JoinRoomRequest is sent by the client to switch to a different room
+// Direction: client → server
+// Response: JoinRoomResponse
+type JoinRoomRequest struct {
+	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to switch to"`
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -108,6 +115,12 @@ type HistoryResponse struct {
 // Direction: server → client
 type ErrorResponse struct {
 	Message string `json:"message" jsonschema:"required,description=Human-readable error message"`
+}
+
+// JoinRoomResponse is sent by the server in response to JoinRoomRequest
+// Direction: server → client
+type JoinRoomResponse struct {
+	Room Room `json:"room" jsonschema:"required,description=The room that was joined"`
 }
 
 // =============================================================================
@@ -150,5 +163,15 @@ var MessageTypes = []MessageMeta{
 		Type:        "error",
 		Direction:   ServerToClient,
 		Description: "Error response when a request fails",
+	},
+	{
+		Type:        "join_room",
+		Direction:   ClientToServer,
+		Description: "Switch to a different room (updates last_room)",
+	},
+	{
+		Type:        "join_room",
+		Direction:   ServerToClient,
+		Description: "Response confirming room switch",
 	},
 }

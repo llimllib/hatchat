@@ -65,8 +65,10 @@ async function main() {
       'InitRequest',
       'SendMessageRequest',
       'HistoryRequest',
+      'JoinRoomRequest',
       'InitResponse',
       'HistoryResponse',
+      'JoinRoomResponse',
       'ErrorResponse',
       'Envelope',
     ];
@@ -116,7 +118,7 @@ async function main() {
 /**
  * All valid message type strings
  */
-export type MessageType = "init" | "message" | "history" | "error";
+export type MessageType = "init" | "message" | "history" | "join_room" | "error";
 
 /**
  * Type-safe envelope for client → server messages
@@ -124,7 +126,8 @@ export type MessageType = "init" | "message" | "history" | "error";
 export type ClientEnvelope =
   | { type: "init"; data: InitRequest }
   | { type: "message"; data: SendMessageRequest }
-  | { type: "history"; data: HistoryRequest };
+  | { type: "history"; data: HistoryRequest }
+  | { type: "join_room"; data: JoinRoomRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -133,6 +136,7 @@ export type ServerEnvelope =
   | { type: "init"; data: InitResponse }
   | { type: "message"; data: Message }
   | { type: "history"; data: HistoryResponse }
+  | { type: "join_room"; data: JoinRoomResponse }
   | { type: "error"; data: ErrorResponse };
 
 /**
