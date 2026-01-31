@@ -1,38 +1,36 @@
-export interface Room {
-  id: string;
-  name: string;
-  is_private: boolean;
-}
+// Re-export protocol types from generated file
+export type {
+  ClientEnvelope,
+  Envelope,
+  ErrorResponse,
+  HistoryRequest,
+  HistoryResponse,
+  InitRequest,
+  InitResponse,
+  Message,
+  MessageType,
+  Room,
+  SendMessageRequest,
+  ServerEnvelope,
+  User,
+} from "./protocol.generated";
 
-export interface User {
-  id: `usr_${string}`;
-  username: string;
-  avatar: string;
-}
+export { isMessageType } from "./protocol.generated";
 
-export interface InitialData {
-  Rooms: Room[];
-  User: User;
-  current_room: string;
-}
+// =============================================================================
+// Client-specific types (not part of the protocol)
+// =============================================================================
 
-export interface Message {
-  id: string;
-  room_id: string;
-  user_id: string;
-  username: string;
-  body: string;
-  created_at: string;
-  modified_at: string;
-}
+/**
+ * InitialData is an alias for InitResponse for backward compatibility.
+ * Use InitResponse directly in new code.
+ */
+export type { InitResponse as InitialData } from "./protocol.generated";
 
-export interface HistoryResponse {
-  messages: Message[];
-  has_more: boolean;
-  next_cursor: string;
-}
-
-// Pending message waiting for server confirmation
+/**
+ * Pending message waiting for server confirmation.
+ * This is a client-side concept for optimistic UI updates.
+ */
 export interface PendingMessage {
   tempId: string;
   body: string;

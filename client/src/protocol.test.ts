@@ -243,7 +243,7 @@ describe("Protocol Schema Validation", () => {
     describe("ErrorResponse", () => {
       it("validates error response", () => {
         const res: ErrorResponse = {
-          Message: "Room not found",
+          message: "Room not found",
         };
         const result = validate("ErrorResponse", res);
         expect(result.valid).toBe(true);

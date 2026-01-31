@@ -4,3 +4,6 @@ hatchat
 *.db-wal
 node_modules
 static/client.*
+
+# Generated documentation site
+docs/site/

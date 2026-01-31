@@ -29,28 +29,29 @@ _Goal: Complete the JSON Schema infrastructure work_
 
 ### 0.1 Migrate Client to Generated Types
 
-- [ ] Update `client/src/types.ts` to re-export from `protocol.generated.ts`
-- [ ] Keep only client-specific types in `types.ts` (e.g., `PendingMessage`)
-- [ ] Update all imports throughout the client codebase
-- [ ] Remove duplicated type definitions
+- [x] Update `client/src/types.ts` to re-export from `protocol.generated.ts`
+- [x] Keep only client-specific types in `types.ts` (e.g., `PendingMessage`)
+- [x] Update all imports throughout the client codebase
+- [x] Remove duplicated type definitions
 
 ### 0.2 Add Required Field Tags
 
-- [ ] Review `server/protocol/protocol.go` and add `jsonschema:"required"` tags
-- [ ] Regenerate schema with `just client-types`
-- [ ] Verify TypeScript types are now stricter (non-optional where appropriate)
+- [x] Review `server/protocol/protocol.go` and add `jsonschema:"required"` tags
+- [x] Regenerate schema with `just client-types`
+- [x] Verify TypeScript types are now stricter (non-optional where appropriate)
 
 ### 0.3 Server API Type Alignment
 
-- [ ] Update `server/api/*.go` handlers to use `protocol.*` types directly
-- [ ] Remove or consolidate duplicate type definitions in `apimodels/`
-- [ ] Ensure JSON field names match protocol spec exactly
+- [x] Update `server/api/*.go` handlers to use `protocol.*` types directly
+- [x] Remove or consolidate duplicate type definitions in `apimodels/` (removed entirely)
+- [x] Ensure JSON field names match protocol spec exactly
 
 ### 0.4 Protocol Documentation
 
-- [ ] Generate HTML docs from `schema/protocol.json` using `json-schema-for-humans`
-- [ ] Add `just docs` command to justfile
-- [ ] Include generated docs in repo (or add to CI)
+- [x] Generate HTML docs from `schema/protocol.json` using `json-schema-for-humans`
+- [x] Add `just site` command to justfile
+- [x] GitHub Actions workflow to deploy docs to GitHub Pages
+- [ ] Fix empty protocol schema page (json-schema-for-humans not rendering definitions)
 
 ---
 

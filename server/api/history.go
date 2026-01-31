@@ -7,32 +7,8 @@ import (
 
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
+	"github.com/llimllib/hatchat/server/protocol"
 )
-
-// HistoryRequest is the client's request for message history
-type HistoryRequest struct {
-	RoomID string `json:"room_id"`
-	Cursor string `json:"cursor"` // Optional - created_at timestamp for pagination
-	Limit  int    `json:"limit"`  // Optional - defaults to 50
-}
-
-// HistoryMessage is a single message in the history response
-type HistoryMessage struct {
-	ID         string `json:"id"`
-	RoomID     string `json:"room_id"`
-	UserID     string `json:"user_id"`
-	Username   string `json:"username"`
-	Body       string `json:"body"`
-	CreatedAt  string `json:"created_at"`
-	ModifiedAt string `json:"modified_at"`
-}
-
-// HistoryResponse is the server's response with message history
-type HistoryResponse struct {
-	Messages   []*HistoryMessage `json:"messages"`
-	HasMore    bool              `json:"has_more"`
-	NextCursor string            `json:"next_cursor"` // Pass this as cursor to get older messages
-}
 
 const (
 	defaultHistoryLimit = 50
@@ -41,7 +17,7 @@ const (
 
 // HistoryMessage fetches message history for a room with cursor-based pagination
 func (a *Api) HistoryMessage(user *models.User, msg json.RawMessage) (*Envelope, error) {
-	var req HistoryRequest
+	var req protocol.HistoryRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		a.logger.Error("invalid json for history request", "error", err)
 		return nil, err
@@ -88,10 +64,10 @@ func (a *Api) HistoryMessage(user *models.User, msg json.RawMessage) (*Envelope,
 		messages = messages[:limit] // Trim to requested limit
 	}
 
-	// Convert to response format
-	historyMessages := make([]*HistoryMessage, len(messages))
+	// Convert to protocol.Message format
+	historyMessages := make([]*protocol.Message, len(messages))
 	for i, m := range messages {
-		historyMessages[i] = &HistoryMessage{
+		historyMessages[i] = &protocol.Message{
 			ID:         m.ID,
 			RoomID:     m.RoomID,
 			UserID:     m.UserID,
@@ -110,7 +86,7 @@ func (a *Api) HistoryMessage(user *models.User, msg json.RawMessage) (*Envelope,
 
 	return &Envelope{
 		Type: "history",
-		Data: HistoryResponse{
+		Data: protocol.HistoryResponse{
 			Messages:   historyMessages,
 			HasMore:    hasMore,
 			NextCursor: nextCursor,

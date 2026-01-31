@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/llimllib/hatchat/server/protocol"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -135,7 +136,7 @@ func TestMessageMessage_ValidMember(t *testing.T) {
 	addUserToRoom(t, database, user.ID, room.ID)
 
 	// Send a message
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "Hello, world!",
 		RoomID: room.ID,
 	}
@@ -179,7 +180,7 @@ func TestMessageMessage_NonMemberRejected(t *testing.T) {
 	room := createTestRoom(t, database, "roo_test12345678", "secret-room", false)
 
 	// Try to send a message to a room we're not a member of
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "I shouldn't be able to send this!",
 		RoomID: room.ID,
 	}
@@ -217,7 +218,7 @@ func TestMessageMessage_NonExistentRoom(t *testing.T) {
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
 	// Try to send a message to a non-existent room
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "Message to nowhere",
 		RoomID: "roo_nonexistent1",
 	}
@@ -246,7 +247,7 @@ func TestMessageMessage_EmptyBody(t *testing.T) {
 	addUserToRoom(t, database, user.ID, room.ID)
 
 	// Try to send an empty message
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "",
 		RoomID: room.ID,
 	}
@@ -273,7 +274,7 @@ func TestMessageMessage_EmptyRoomID(t *testing.T) {
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
 	// Try to send a message without a room ID
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "Hello",
 		RoomID: "",
 	}
@@ -334,7 +335,7 @@ func TestMessageMessage_MultipleRoomsSecurity(t *testing.T) {
 	addUserToRoom(t, database, user2.ID, room2.ID)
 
 	// User1 tries to send to room2 (should fail)
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "Trying to infiltrate Bob's room!",
 		RoomID: room2.ID,
 	}
@@ -349,7 +350,7 @@ func TestMessageMessage_MultipleRoomsSecurity(t *testing.T) {
 	}
 
 	// User2 tries to send to room1 (should fail)
-	msgData = Message{
+	msgData = protocol.SendMessageRequest{
 		Body:   "Trying to infiltrate Alice's room!",
 		RoomID: room1.ID,
 	}
@@ -391,7 +392,7 @@ func TestMessageMessage_MembershipRevokedDuringSession(t *testing.T) {
 	addUserToRoom(t, database, user.ID, room.ID)
 
 	// First message should succeed
-	msgData := Message{
+	msgData := protocol.SendMessageRequest{
 		Body:   "First message",
 		RoomID: room.ID,
 	}
@@ -413,7 +414,7 @@ func TestMessageMessage_MembershipRevokedDuringSession(t *testing.T) {
 	}
 
 	// Second message should fail
-	msgData = Message{
+	msgData = protocol.SendMessageRequest{
 		Body:   "Second message after revocation",
 		RoomID: room.ID,
 	}
@@ -446,7 +447,7 @@ func TestMessageMessage_ResponseContainsCorrectRoomID(t *testing.T) {
 	addUserToRoom(t, database, user.ID, room2.ID)
 
 	// Send to room1
-	msgData := Message{Body: "Hello room1", RoomID: room1.ID}
+	msgData := protocol.SendMessageRequest{Body: "Hello room1", RoomID: room1.ID}
 	msgJSON, _ := json.Marshal(msgData)
 	response, err := api.MessageMessage(user, msgJSON)
 	if err != nil {
@@ -457,7 +458,7 @@ func TestMessageMessage_ResponseContainsCorrectRoomID(t *testing.T) {
 	}
 
 	// Send to room2
-	msgData = Message{Body: "Hello room2", RoomID: room2.ID}
+	msgData = protocol.SendMessageRequest{Body: "Hello room2", RoomID: room2.ID}
 	msgJSON, _ = json.Marshal(msgData)
 	response, err = api.MessageMessage(user, msgJSON)
 	if err != nil {
@@ -480,7 +481,7 @@ func TestMessageMessage_ResponseEnvelopeFormat(t *testing.T) {
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
 	addUserToRoom(t, database, user.ID, room.ID)
 
-	msgData := Message{Body: "Test message", RoomID: room.ID}
+	msgData := protocol.SendMessageRequest{Body: "Test message", RoomID: room.ID}
 	msgJSON, _ := json.Marshal(msgData)
 	response, err := api.MessageMessage(user, msgJSON)
 	if err != nil {
