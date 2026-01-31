@@ -10,11 +10,8 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@eslint/js": "^9.6.0",
-    "@types/eslint__js": "^8.42.3",
-    "esbuild": "^0.23.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.5.3",
-    "typescript-eslint": "^7.15.0"
+    "@biomejs/biome": "^2.3.13",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.9.3"
   }
 }
