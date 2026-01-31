@@ -174,8 +174,7 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// create a logger with its log level based on the LOG_LEVEL environment var,
-// defaulting to INFO
+// create a logger with the given log level
 func initLog(level string) *slog.Logger {
 	var levelObj slog.Level
 	if err := levelObj.UnmarshalText([]byte(level)); err != nil {
