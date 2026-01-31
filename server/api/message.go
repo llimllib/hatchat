@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
 )
 
@@ -39,7 +40,7 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 	ctx := context.Background()
 
 	// Validate that the user is a member of the room
-	isMember, err := models.IsRoomMember(ctx, a.db, user.ID, m.RoomID)
+	isMember, err := db.IsRoomMember(ctx, a.db, user.ID, m.RoomID)
 	if err != nil {
 		a.logger.Error("failed to check room membership", "error", err, "user", user.ID, "room", m.RoomID)
 		return nil, err
@@ -55,13 +56,14 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 		return nil, err
 	}
 
+	now := time.Now().Format(time.RFC3339Nano)
 	dbMessage := models.Message{
 		ID:         models.GenerateMessageID(),
 		RoomID:     room.ID,
 		UserID:     user.ID,
 		Body:       m.Body,
-		CreatedAt:  time.Now().Format(time.RFC3339),
-		ModifiedAt: time.Now().Format(time.RFC3339),
+		CreatedAt:  now,
+		ModifiedAt: now,
 	}
 	if err = dbMessage.Insert(ctx, a.db); err != nil {
 		a.logger.Error("unable to insert message", "error", err)

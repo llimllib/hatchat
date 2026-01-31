@@ -278,6 +278,12 @@ func (tc *testClient) sendMessage(body, roomID string) error {
 	return tc.conn.WriteMessage(websocket.TextMessage, []byte(msg))
 }
 
+// sendHistoryRequest sends a history request
+func (tc *testClient) sendHistoryRequest(roomID string, cursor string, limit int) error {
+	msg := fmt.Sprintf(`{"type":"history","data":{"room_id":%q,"cursor":%q,"limit":%d}}`, roomID, cursor, limit)
+	return tc.conn.WriteMessage(websocket.TextMessage, []byte(msg))
+}
+
 // waitForMessage waits for a message with timeout
 func (tc *testClient) waitForMessage(timeout time.Duration) ([]byte, error) {
 	select {
@@ -702,5 +708,262 @@ func TestIntegration_SessionPersistence(t *testing.T) {
 	// Should be the same user
 	if userID1 != userID2 {
 		t.Errorf("User ID changed between connections: %s vs %s", userID1, userID2)
+	}
+}
+
+// TestIntegration_MessageHistory tests fetching message history
+func TestIntegration_MessageHistory(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	httpClient := ts.createUser("alice", "password123")
+	client := ts.connectWebSocket(httpClient, "alice")
+	defer client.close()
+
+	// Initialize client
+	initResp, err := client.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	initData := initResp.Data.(map[string]interface{})
+	roomID := initData["current_room"].(string)
+
+	// Send a few messages
+	for i := 0; i < 5; i++ {
+		err := client.sendMessage(fmt.Sprintf("Message %d", i), roomID)
+		if err != nil {
+			t.Fatalf("Failed to send message %d: %v", i, err)
+		}
+		// Wait for the broadcast of our own message
+		_, err = client.waitForMessage(2 * time.Second)
+		if err != nil {
+			t.Fatalf("Didn't receive message %d back: %v", i, err)
+		}
+		// Small delay to ensure messages have distinct timestamps
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Request message history
+	err = client.sendHistoryRequest(roomID, "", 50)
+	if err != nil {
+		t.Fatalf("Failed to send history request: %v", err)
+	}
+
+	// Wait for history response
+	historyMsg, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Didn't receive history response: %v", err)
+	}
+
+	// Parse and verify response
+	var env api.Envelope
+	if err := json.Unmarshal(historyMsg, &env); err != nil {
+		t.Fatalf("Failed to parse history response: %v", err)
+	}
+
+	if env.Type != "history" {
+		t.Errorf("Expected history response, got %s", env.Type)
+	}
+
+	historyData, ok := env.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Failed to parse history data")
+	}
+
+	messages, ok := historyData["messages"].([]interface{})
+	if !ok {
+		t.Fatalf("Failed to parse messages array")
+	}
+
+	if len(messages) != 5 {
+		t.Errorf("Expected 5 messages in history, got %d", len(messages))
+	}
+
+	// Verify messages are in newest-first order (Message 4 should be first)
+	if len(messages) > 0 {
+		firstMsg := messages[0].(map[string]interface{})
+		if !strings.Contains(firstMsg["body"].(string), "Message 4") {
+			t.Errorf("Expected newest message first, got: %s", firstMsg["body"])
+		}
+	}
+}
+
+// TestIntegration_MessageHistoryPagination tests cursor-based pagination of message history
+func TestIntegration_MessageHistoryPagination(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	httpClient := ts.createUser("alice", "password123")
+	client := ts.connectWebSocket(httpClient, "alice")
+	defer client.close()
+
+	// Initialize client
+	initResp, err := client.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	initData := initResp.Data.(map[string]interface{})
+	roomID := initData["current_room"].(string)
+
+	// Send 10 messages
+	for i := 0; i < 10; i++ {
+		err := client.sendMessage(fmt.Sprintf("Message %d", i), roomID)
+		if err != nil {
+			t.Fatalf("Failed to send message %d: %v", i, err)
+		}
+		_, err = client.waitForMessage(2 * time.Second)
+		if err != nil {
+			t.Fatalf("Didn't receive message %d back: %v", i, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Request first page (3 messages)
+	err = client.sendHistoryRequest(roomID, "", 3)
+	if err != nil {
+		t.Fatalf("Failed to send first page request: %v", err)
+	}
+
+	historyMsg, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Didn't receive first page response: %v", err)
+	}
+
+	var env api.Envelope
+	if err := json.Unmarshal(historyMsg, &env); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	historyData := env.Data.(map[string]interface{})
+	messages := historyData["messages"].([]interface{})
+	hasMore := historyData["has_more"].(bool)
+	nextCursor := historyData["next_cursor"].(string)
+
+	if len(messages) != 3 {
+		t.Errorf("Expected 3 messages on first page, got %d", len(messages))
+	}
+	if !hasMore {
+		t.Error("Expected has_more to be true")
+	}
+	if nextCursor == "" {
+		t.Error("Expected non-empty next_cursor")
+	}
+
+	// Request second page using cursor
+	err = client.sendHistoryRequest(roomID, nextCursor, 3)
+	if err != nil {
+		t.Fatalf("Failed to send second page request: %v", err)
+	}
+
+	historyMsg2, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Didn't receive second page response: %v", err)
+	}
+
+	var env2 api.Envelope
+	if err := json.Unmarshal(historyMsg2, &env2); err != nil {
+		t.Fatalf("Failed to parse second response: %v", err)
+	}
+
+	historyData2 := env2.Data.(map[string]interface{})
+	messages2 := historyData2["messages"].([]interface{})
+
+	if len(messages2) != 3 {
+		t.Errorf("Expected 3 messages on second page, got %d", len(messages2))
+	}
+
+	// Verify no overlap between pages
+	page1IDs := make(map[string]bool)
+	for _, m := range messages {
+		page1IDs[m.(map[string]interface{})["id"].(string)] = true
+	}
+	for _, m := range messages2 {
+		id := m.(map[string]interface{})["id"].(string)
+		if page1IDs[id] {
+			t.Errorf("Message %s appeared on both pages", id)
+		}
+	}
+}
+
+// TestIntegration_MessageHistorySecurityNonMember tests that non-members cannot fetch history
+func TestIntegration_MessageHistorySecurityNonMember(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create a private room
+	privateRoom := models.Room{
+		ID:        models.GenerateRoomID(),
+		Name:      "secret",
+		IsPrivate: models.TRUE,
+		IsDefault: models.FALSE,
+		CreatedAt: time.Now().Format(time.RFC3339),
+	}
+	if err := privateRoom.Insert(context.Background(), ts.chatServer.db); err != nil {
+		t.Fatalf("Failed to create private room: %v", err)
+	}
+
+	// Create another user and add them to the private room
+	httpClient2 := ts.createUser("bob", "password456")
+	user2, _ := models.UserByUsername(context.Background(), ts.chatServer.db, "bob")
+	membership := &models.RoomsMember{UserID: user2.ID, RoomID: privateRoom.ID}
+	if err := membership.Insert(context.Background(), ts.chatServer.db); err != nil {
+		t.Fatalf("Failed to add bob to room: %v", err)
+	}
+
+	// Bob sends some messages to the private room
+	client2 := ts.connectWebSocket(httpClient2, "bob")
+	_, _ = client2.sendInit()
+	_ = client2.sendMessage("Secret message 1", privateRoom.ID)
+	_, _ = client2.waitForMessage(2 * time.Second)
+	_ = client2.sendMessage("Secret message 2", privateRoom.ID)
+	_, _ = client2.waitForMessage(2 * time.Second)
+	client2.close()
+
+	// Alice (not a member of private room) tries to fetch history
+	httpClient1 := ts.createUser("alice", "password123")
+	client1 := ts.connectWebSocket(httpClient1, "alice")
+	defer client1.close()
+
+	_, err := client1.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Try to fetch history from the private room
+	err = client1.sendHistoryRequest(privateRoom.ID, "", 50)
+	if err != nil {
+		t.Fatalf("Failed to send history request: %v", err)
+	}
+
+	// Should receive an error response
+	msg, err := client1.waitForMessage(2 * time.Second)
+	if err != nil {
+		// Timeout or connection close is acceptable
+		return
+	}
+
+	var env api.Envelope
+	if err := json.Unmarshal(msg, &env); err == nil {
+		if env.Type != "error" {
+			t.Errorf("SECURITY BREACH: Expected error response for non-member history request, got type: %s", env.Type)
+
+			// If it's a history response, check that it's empty or rejected
+			if env.Type == "history" {
+				historyData := env.Data.(map[string]interface{})
+				messages := historyData["messages"].([]interface{})
+				if len(messages) > 0 {
+					t.Errorf("SECURITY BREACH: Non-member received %d messages from private room", len(messages))
+				}
+			}
+		}
 	}
 }

@@ -1,4 +1,4 @@
-package models
+package db
 
 import (
 	"context"
@@ -7,16 +7,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/llimllib/hatchat/server/db"
+	"github.com/llimllib/hatchat/server/models"
 )
 
 // testDB creates a new in-memory database with the schema loaded
-func testDB(t *testing.T) *db.DB {
+func testDB(t *testing.T) *DB {
 	t.Helper()
 	dbPath := "file::memory:?cache=shared"
-	database, err := db.NewDB(dbPath, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
+	database, err := NewDB(dbPath, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
+	}
+
+	// Drop existing tables to ensure a clean slate (in case other tests created different schemas)
+	dropSchema := `
+		DROP TABLE IF EXISTS messages;
+		DROP TABLE IF EXISTS rooms_members;
+		DROP TABLE IF EXISTS sessions;
+		DROP TABLE IF EXISTS rooms;
+		DROP TABLE IF EXISTS users;
+		DROP TABLE IF EXISTS test;
+	`
+	_, err = database.ExecContext(context.Background(), dropSchema)
+	if err != nil {
+		t.Fatalf("Failed to drop existing tables: %v", err)
 	}
 
 	// Create schema
@@ -56,6 +70,8 @@ func testDB(t *testing.T) *db.DB {
 			created_at TEXT NOT NULL,
 			modified_at TEXT NOT NULL
 		) STRICT;
+
+		CREATE INDEX IF NOT EXISTS messages_room_created ON messages(room_id, created_at DESC);
 	`
 	_, err = database.ExecContext(context.Background(), schema)
 	if err != nil {
@@ -66,10 +82,10 @@ func testDB(t *testing.T) *db.DB {
 }
 
 // createTestUser creates a user in the database for testing
-func createTestUser(t *testing.T, database *db.DB, id, username string) *User {
+func createTestUser(t *testing.T, database *DB, id, username string) *models.User {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
-	user := &User{
+	user := &models.User{
 		ID:         id,
 		Username:   username,
 		Password:   "hashedpassword",
@@ -85,17 +101,17 @@ func createTestUser(t *testing.T, database *db.DB, id, username string) *User {
 }
 
 // createTestRoom creates a room in the database for testing
-func createTestRoom(t *testing.T, database *db.DB, id, name string, isDefault bool) *Room {
+func createTestRoom(t *testing.T, database *DB, id, name string, isDefault bool) *models.Room {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
-	isDefaultInt := FALSE
+	isDefaultInt := models.FALSE
 	if isDefault {
-		isDefaultInt = TRUE
+		isDefaultInt = models.TRUE
 	}
-	room := &Room{
+	room := &models.Room{
 		ID:        id,
 		Name:      name,
-		IsPrivate: FALSE,
+		IsPrivate: models.FALSE,
 		IsDefault: isDefaultInt,
 		CreatedAt: now,
 	}
@@ -107,9 +123,9 @@ func createTestRoom(t *testing.T, database *db.DB, id, name string, isDefault bo
 }
 
 // addUserToRoom adds a user to a room
-func addUserToRoom(t *testing.T, database *db.DB, userID, roomID string) {
+func addUserToRoom(t *testing.T, database *DB, userID, roomID string) {
 	t.Helper()
-	membership := &RoomsMember{
+	membership := &models.RoomsMember{
 		UserID: userID,
 		RoomID: roomID,
 	}
