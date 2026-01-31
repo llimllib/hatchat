@@ -34,6 +34,16 @@ _Goal: A functional, secure chat with proper room isolation_
 - [x] Broadcast messages only to clients in the same room
 - [x] Add room membership validation before accepting messages
 
+#### 1.1a Testing Room-scoped message routing
+
+- [ ] Add tests that verify that users only receive messages for the rooms they belong to
+  - Test this thoroughly, as it's an important security feature
+
+#### 1.1b dependency upgrades
+
+- Upgrade go to the latest version everywhere
+- Upgrade all node packages and node version to the latest versions
+
 #### 1.2 Message History
 
 - [ ] Add API endpoint/WebSocket message to fetch room message history
