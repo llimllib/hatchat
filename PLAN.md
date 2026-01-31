@@ -36,13 +36,15 @@ _Goal: A functional, secure chat with proper room isolation_
 
 #### 1.1a Testing Room-scoped message routing
 
-- [ ] Add tests that verify that users only receive messages for the rooms they belong to
+- [x] Add tests that verify that users only receive messages for the rooms they belong to
   - Test this thoroughly, as it's an important security feature
 
 #### 1.1b dependency upgrades
 
-- Upgrade go to the latest version everywhere
-- Upgrade all node packages and node version to the latest versions
+- [x] Upgrade go to the latest version (1.25) everywhere
+- [x] Upgrade the client to use biome instead of eslint
+  - make sure to replace all references to eslint
+- [x] Upgrade all node packages and node version to the latest versions
 
 #### 1.2 Message History
 

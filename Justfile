@@ -2,7 +2,7 @@ run: build
     ./hatchat
 
 lint:
-    golangci-lint run & (cd client && npx eslint src)
+    golangci-lint run & (cd client && npx biome check src)
 
 test: lint
     go test ./...
