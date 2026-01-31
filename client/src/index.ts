@@ -38,6 +38,14 @@ interface InitialData {
     avatar: string;
   };
   current_room: string;
+interface InitialData {
+  // TODO
+  Rooms: any;
+  User: {
+    id: `usr_${string}`;
+    username: string;
+    avatar: string;
+  };
 }
 
 class Client {
