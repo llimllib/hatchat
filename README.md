@@ -1,6 +1,8 @@
 # Hatchat 🪓
 
-Starting from the [gorilla/websocket chat example](https://github.com/gorilla/websocket/tree/main/examples/chat)
+The aim of Hatchat is to build a slack-like chat application on top of SQLite.
+
+The goal is simplicity for running the server over more features.
 
 ## Server
 
@@ -13,8 +15,8 @@ To start the server: `./hatchat`
 Command line flags:
 
 - `addr`: the host and port to listen on; defaults to `localhost:8080`
-- `log-level`: the log level. `INFO` is default, other options are `DEBUG`, `WARN`, `ERROR`
 - `db`: the location for the chat database. Must be a url like `file:chat.db`
+- `log-level`: the log level. `INFO` is default, other options are `DEBUG`, `WARN`, `ERROR`
 
 ### development
 
