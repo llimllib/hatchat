@@ -44,13 +44,16 @@ hatchat/
 ### Backend
 
 #### HTTP Handlers
+
 - Handlers are methods on `*ChatServer` struct
 - Use the middleware chain: `h.middleware(route, handler)` which applies panic recovery, request ID, and request logging
 - Auth-protected routes wrap handler with `authRequired()`
 - Return early on errors with appropriate redirects or HTTP error codes
 
 #### WebSocket Message Protocol
+
 Messages use an envelope pattern:
+
 ```go
 type Envelope struct {
     Type string  // Message type: "init", "message", "error", etc.
@@ -59,13 +62,15 @@ type Envelope struct {
 ```
 
 Client sends JSON like:
+
 ```json
-{"type": "message", "data": {"body": "hello", "room_id": "roo_abc123"}}
+{ "type": "message", "data": { "body": "hello", "room_id": "roo_abc123" } }
 ```
 
 Server responds with same envelope structure.
 
 #### Database Models
+
 - **DO NOT edit `*.xo.go` files** - they are generated
 - Schema changes go in `schema.sql`
 - Run `just models` (or `bash tools/models.sh`) to regenerate
@@ -73,24 +78,29 @@ Server responds with same envelope structure.
 - Manual model extensions go in separate files (e.g., `generate_id.go`)
 
 #### ID Generation
+
 All IDs are prefixed strings for debuggability:
+
 - Users: `usr_` + 16 hex chars
-- Rooms: `roo_` + 12 hex chars  
+- Rooms: `roo_` + 12 hex chars
 - Messages: `msg_` + 12 hex chars
 - Sessions: base64-encoded random bytes
 
 #### Database Access
+
 - Use `db.QueryContext` / `db.QueryRowContext` for reads (uses read connection)
 - Use `db.ExecContext` for writes (uses write connection with mutex)
 - Always pass `context.Context` as first argument
 - Timestamps stored as RFC3339 strings
 
 #### Error Handling
+
 - Use structured logging: `logger.Error("message", "key", value, "err", err)`
 - Don't expose internal errors to clients
 - Middleware recovers from panics and returns 500
 
 #### Separation of Concerns
+
 - `models/` - Database representation, generated code
 - `apimodels/` - Client-facing types, conversion from models
 - `api/` - WebSocket message handling logic
@@ -98,21 +108,27 @@ All IDs are prefixed strings for debuggability:
 ### Frontend
 
 #### DOM Helpers
+
 Custom `$()` function for element creation:
+
 ```typescript
-$("div", { class: "message" },
+$(
+  "div",
+  { class: "message" },
   $("span", { text: username }),
   text(": "),
-  $("span", { text: messageBody })
-)
+  $("span", { text: messageBody }),
+);
 ```
 
 #### WebSocket Client
+
 - Single `Client` class manages WebSocket connection
 - Messages are JSON with `{type, data}` structure
 - Optimistic UI updates (show message immediately, don't wait for server)
 
 #### Future Direction
+
 - Keep close to web platform (Web Components when needed)
 - Avoid frameworks; use modern browser APIs
 - Prioritize backend API quality for alternative client support
@@ -120,12 +136,14 @@ $("div", { class: "message" },
 ## Development Workflow
 
 ### Running the Server
+
 ```bash
 just run          # Build and run
 modd              # Auto-rebuild on changes (install: go install github.com/cortesi/modd/cmd/modd)
 ```
 
 ### Building
+
 ```bash
 just build        # Build both Go and JS
 just build-go     # Go only
@@ -133,12 +151,14 @@ just build-js     # TypeScript only
 ```
 
 ### Database
+
 ```bash
 just models       # Regenerate models from schema.sql
 just browse-db    # Open database in Datasette
 ```
 
 ### Testing & Linting
+
 ```bash
 just test         # Run linter and tests
 just lint         # Linter only
@@ -159,6 +179,7 @@ just lint         # Linter only
 ### Adding a New WebSocket Message Type
 
 1. Add handler in `server/api/`:
+
 ```go
 func (a *Api) NewMessageType(user *models.User, msg json.RawMessage) ([]byte, error) {
     // Parse msg, validate, perform action, return response
