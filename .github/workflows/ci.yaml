@@ -8,7 +8,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macOS-latest"]
-        go: ["1.22.x"]
+        go: ["1.23.x"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout
@@ -16,15 +16,15 @@ jobs:
         with:
           fetch-depth: 1
       - name: setup go
-        uses: WillAbides/setup-go-faster@v1.14.0
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
       - name: unit tests
         run: "go test ./..."
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.8.0
 
   js-ci:
     runs-on: ubuntu-latest
