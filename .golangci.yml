@@ -2,14 +2,13 @@ version: "2"
 
 linters:
   default: standard
+  exclusions:
+    paths:
+      # Exclude generated xo files from linting
+      - ".*\\.xo\\.go$"
   settings:
     errcheck:
       # Don't check error returns for these functions
       exclude-functions:
         - fmt.Fprintf
         - (*database/sql.Rows).Close
-
-issues:
-  exclude-files:
-    # Exclude generated xo files from linting
-    - ".*\\.xo\\.go$"
