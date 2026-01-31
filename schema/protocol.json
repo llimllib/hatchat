@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "Envelope": {
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "description": "Type-specific payload"
+        },
+        "type": {
+          "description": "Message type identifier",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "Message": {
+          "description": "Human-readable error message",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "HistoryRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "description": "Pagination cursor (created_at of oldest message seen)",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum messages to return (default 50; max 100)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "room_id": {
+          "description": "Room to fetch history for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id"
+      ],
+      "type": "object"
+    },
+    "HistoryResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "has_more": {
+          "description": "Whether older messages exist",
+          "type": "boolean"
+        },
+        "messages": {
+          "description": "Messages in chronological order (newest first)",
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "type": "array"
+        },
+        "next_cursor": {
+          "description": "Pass as cursor to fetch older messages",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "InitRequest": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "InitResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "Rooms": {
+          "description": "Rooms the user is a member of",
+          "items": {
+            "$ref": "#/$defs/Room"
+          },
+          "type": "array"
+        },
+        "User": {
+          "$ref": "#/$defs/User",
+          "description": "The authenticated user"
+        },
+        "current_room": {
+          "description": "Room ID to display initially",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Message": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "Message content",
+          "type": "string"
+        },
+        "created_at": {
+          "description": "RFC3339Nano timestamp of creation",
+          "type": "string"
+        },
+        "id": {
+          "description": "Unique message identifier (msg_ prefix)",
+          "pattern": "^msg_[a-f0-9]{12}$",
+          "type": "string"
+        },
+        "modified_at": {
+          "description": "RFC3339Nano timestamp of last modification",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room this message belongs to",
+          "type": "string"
+        },
+        "user_id": {
+          "description": "User who sent the message",
+          "type": "string"
+        },
+        "username": {
+          "description": "Username of sender (denormalized for convenience)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Room": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique room identifier (roo_ prefix)",
+          "pattern": "^roo_[a-f0-9]{12}$",
+          "type": "string"
+        },
+        "is_private": {
+          "description": "Whether the room is private",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Room display name",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SendMessageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "Message content",
+          "minLength": 1,
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Target room ID",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "User": {
+      "additionalProperties": false,
+      "properties": {
+        "avatar": {
+          "description": "Avatar URL (may be empty)",
+          "type": "string"
+        },
+        "id": {
+          "description": "Unique user identifier (usr_ prefix)",
+          "pattern": "^usr_[a-f0-9]{16}$",
+          "type": "string"
+        },
+        "username": {
+          "description": "Display name",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "hatchat-protocol",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "JSON Schema for all WebSocket messages in the Hatchat chat application",
+  "title": "Hatchat WebSocket Protocol"
+}
