@@ -76,18 +76,18 @@ _Goal: Users can navigate between rooms without page reload_
 
 #### 1.1 Dynamic Sidebar
 
-- [ ] Render actual room list from `init` response
-- [ ] Show room names with `#` prefix for channels
-- [ ] Highlight currently active room
-- [ ] Click room to switch (without page reload)
+- [x] Render actual room list from `init` response
+- [x] Show room names with `#` prefix for channels
+- [x] Highlight currently active room
+- [x] Click room to switch (without page reload)
 
 #### 1.2 Room Switching via WebSocket
 
 - [ ] Implement `join_room` message type handling
-- [ ] Clear message area when switching rooms
-- [ ] Load history for new room
-- [ ] Update URL using History API (`/chat/{room_id}`)
-- [ ] Update chat header with room name
+- [x] Clear message area when switching rooms
+- [x] Load history for new room
+- [x] Update URL using History API (`/chat/{room_id}`)
+- [x] Update chat header with room name
 
 #### 1.3 Room State Management
 

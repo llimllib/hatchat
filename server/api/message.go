@@ -70,9 +70,28 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 		return nil, err
 	}
 
+	// Create broadcast message with full message details
+	broadcastData := struct {
+		ID         string `json:"id"`
+		Body       string `json:"body"`
+		RoomID     string `json:"room_id"`
+		UserID     string `json:"user_id"`
+		Username   string `json:"username"`
+		CreatedAt  string `json:"created_at"`
+		ModifiedAt string `json:"modified_at"`
+	}{
+		ID:         dbMessage.ID,
+		Body:       dbMessage.Body,
+		RoomID:     dbMessage.RoomID,
+		UserID:     dbMessage.UserID,
+		Username:   user.Username,
+		CreatedAt:  dbMessage.CreatedAt,
+		ModifiedAt: dbMessage.ModifiedAt,
+	}
+
 	msgBytes, err := json.Marshal(&Envelope{
 		Type: "message",
-		Data: msg,
+		Data: broadcastData,
 	})
 	if err != nil {
 		return nil, err

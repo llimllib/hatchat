@@ -23,6 +23,15 @@ body {
   margin-bottom: 20px;
 }
 
+.sidebar-channels h4,
+.sidebar-direct-messages h4 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
 .sidebar-channels ul,
 .sidebar-direct-messages ul {
   list-style-type: none;
@@ -46,6 +55,17 @@ body {
 .sidebar-channels a:hover,
 .sidebar-direct-messages a:hover {
   background-color: #4a154b;
+}
+
+.sidebar-channels li.active a,
+.sidebar-direct-messages li.active a {
+  background-color: #1164a3;
+  font-weight: bold;
+}
+
+.sidebar-channels a,
+.sidebar-direct-messages a {
+  display: block;
 }
 
 /* Chat Area Styles */
@@ -136,4 +156,9 @@ body {
   font-size: 15px;
   color: #2c2d30;
   line-height: 1.4;
+}
+
+/* Pending message indicator */
+.chat-message.pending {
+  opacity: 0.7;
 }

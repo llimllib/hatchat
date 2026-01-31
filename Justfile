@@ -5,6 +5,7 @@ lint:
     golangci-lint run & (cd client && npx biome check src)
 
 test: lint
+    cd client && npm test
     go test ./...
 
 models:
