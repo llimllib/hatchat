@@ -166,6 +166,32 @@ just lint         # Linter only
 
 **Important**: `just lint` must pass before reporting work as complete. Fix all linting errors before finishing a task.
 
+## Testing Strategy
+
+The project has two levels of tests:
+
+### Unit Tests
+
+Test individual components in isolation (e.g., `hub_test.go`, `db_test.go`). These mock dependencies and run fast.
+
+### Integration Tests
+
+Located in `server/integration_test.go`. These spin up a real server with an in-memory database and test the full request lifecycle through real HTTP and WebSocket connections. See the file header for details on the test infrastructure.
+
+To skip integration tests (if they become slow):
+
+```bash
+go test ./... -short
+```
+
+Integration tests check `testing.Short()` and skip themselves when `-short` is passed.
+
+### When to Update Tests
+
+- **Bug fixes**: Add a test that reproduces the bug before fixing
+- **New features**: Add both unit tests for new components and integration tests for user-facing behavior
+- **Refactors**: Existing tests should continue to pass; update them if interfaces change
+
 ## Key Design Decisions
 
 1. **Single workspace**: No multi-tenancy; one deployment = one workspace
