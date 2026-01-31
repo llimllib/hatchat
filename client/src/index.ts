@@ -1,7 +1,49 @@
-// TODO: type the messages between the client and server
+function $(
+  tagName: string,
+  attributes?: Record<string, string>,
+  ...children: (HTMLElement | Text)[]
+): HTMLElement {
+  const elt = document.createElement(tagName);
+  if (attributes) {
+    for (const [key, val] of Object.entries(attributes)) {
+      switch (key) {
+        case "text":
+          elt.innerText = val;
+          break;
+        default:
+          elt.setAttribute(key, val || "");
+      }
+    }
+  }
+  for (const child of children) {
+    elt.appendChild(child);
+  }
+
+  return elt;
+}
+
+function text(s: string): Text {
+  return document.createTextNode(s);
+}
+
+interface Room {
+  ID: string;
+}
+
+interface InitialData {
+  Rooms: Room[];
+  User: {
+    id: `usr_${string}`;
+    username: string;
+    avatar: string;
+  };
+  current_room: string;
+}
 
 class Client {
   conn: WebSocket;
+
+  initialData?: InitialData;
 
   constructor(conn: WebSocket) {
     this.conn = conn;
@@ -22,6 +64,11 @@ class Client {
     }
     try {
       const body = JSON.parse(evt.data);
+      switch (body.Type) {
+        case "init": {
+          this.initialData = body.Data;
+        }
+      }
       console.debug("received: ", body);
     } catch (e) {
       console.error("uanble to parse", evt.data, e);
@@ -38,16 +85,20 @@ class Client {
     );
   }
 
-  onSubmit(evt: MouseEvent) {
-    if (!(evt.target instanceof HTMLElement)) {
-      return;
+  submitTextbox() {
+    // What is the appropriate thing to do if we haven't yet gotten the
+    // initialize data, so we don't even know who the user is?
+    if (!this.initialData) {
+      // placeholder for sensible error handling
+      throw new Error("Not yet initialized");
     }
 
     // get the message from the input box
-    const messageText = evt.target.parentElement?.querySelector(
-      "#message",
-    ) as HTMLInputElement;
-    if (!messageText.value) {
+    const messageBox = document.querySelector("#message") as HTMLInputElement;
+    if (!messageBox) {
+      throw new Error("couldn't find message box");
+    }
+    if (!messageBox.value) {
       console.debug("empty message found, doing nothing");
       return;
     }
@@ -59,12 +110,45 @@ class Client {
     const message = {
       type: "message",
       data: {
-        body: messageText.value,
+        body: messageBox.value,
         room_id: roomID,
       },
     };
     console.debug("sending", message);
     this.conn.send(JSON.stringify(message));
+
+    // Optimistically insert chat message into the chat window
+    const messageWindow = document.querySelector(".chat-messages");
+    if (!messageWindow) {
+      throw new Error("no message window, somehow?");
+    }
+
+    // append the message to the window
+    messageWindow.appendChild(
+      $(
+        "div",
+        {},
+        $("span", {
+          text: this.initialData.User.username,
+          class: "username",
+        }),
+        text(":"),
+        $("span", {
+          text: messageBox.value,
+          class: "message",
+        }),
+      ),
+    );
+  }
+
+  onSubmit(_evt: MouseEvent) {
+    this.submitTextbox();
+  }
+
+  onKeypress(e: KeyboardEvent) {
+    if (e.key === "Enter") {
+      this.submitTextbox();
+    }
   }
 }
 
@@ -72,6 +156,9 @@ function main() {
   const conn = new WebSocket(`ws://${document.location.host}/ws`);
   const client = new Client(conn);
 
+  document
+    .getElementById("sendmessage")
+    ?.addEventListener("keypress", client.onKeypress.bind(client));
   document
     .getElementById("sendmessage")
     ?.addEventListener("click", client.onSubmit.bind(client));

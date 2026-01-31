@@ -16,7 +16,7 @@ func TestNewDB(t *testing.T) {
 	if err != nil {
 		t.Errorf("NewDB failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Test case: ReadDB has the correct maximum open connections
 	expectedReadConns := int(max(4, float64(runtime.NumCPU())))
@@ -46,7 +46,7 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDB failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a test table
 	_, err = db.ExecContext(context.Background(), "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
@@ -59,7 +59,7 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Test case: Execute INSERT and SELECT
 	_, err = db.ExecContext(context.Background(), "INSERT INTO test (name) VALUES (?)", "John Doe")
@@ -71,7 +71,7 @@ func TestSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Select failed: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Check if there is at least one row
 	if !rows.Next() {
@@ -86,14 +86,14 @@ func TestRunSQLFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDB failed: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Create a temporary SQL file
 	sqlFile, err := os.CreateTemp("", "test*.sql")
 	if err != nil {
 		t.Fatalf("Failed to create temporary SQL file: %v", err)
 	}
-	defer os.Remove(sqlFile.Name())
+	defer func() { _ = os.Remove(sqlFile.Name()) }()
 
 	// Write SQL statements to the temporary file
 	_, err = sqlFile.WriteString(`

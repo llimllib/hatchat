@@ -49,6 +49,10 @@ type Client struct {
 	// client to say who they are
 	user *models.User
 
+	// The room the client is currently viewing. Messages will only be sent to
+	// clients viewing the same room.
+	currentRoom string
+
 	api *api.Api
 }
 
@@ -74,7 +78,7 @@ func mustV[T any](value T, err error) T {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	must(c.conn.SetReadDeadline(time.Now().Add(pongWait)))
@@ -107,7 +111,10 @@ func (c *Client) readPump() {
 				return
 			}
 
-			err = c.conn.WriteJSON(res)
+			// Set the client's current room for message routing
+			c.currentRoom = res.CurrentRoom
+
+			err = c.conn.WriteJSON(res.Envelope)
 			if err != nil {
 				c.logger.Error("failed to write init json", "error", err)
 				return
@@ -118,8 +125,12 @@ func (c *Client) readPump() {
 				c.logger.Error("failed to handle message", "error", err, "msg", msg)
 				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to handle message")))
 			} else {
-				// TODO: send to the people in the room, not to everyone.gif
-				c.hub.broadcast <- res
+				// Update the client's current room and broadcast to room members only
+				c.currentRoom = res.RoomID
+				c.hub.broadcast <- RoomMessage{
+					RoomID:  res.RoomID,
+					Message: res.Message,
+				}
 			}
 		}
 
@@ -136,7 +147,7 @@ func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.conn.Close()
+		_ = c.conn.Close()
 	}()
 	for {
 		select {

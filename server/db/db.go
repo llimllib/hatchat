@@ -62,7 +62,7 @@ func NewDB(dbUrl string, logger *slog.Logger) (*DB, error) {
 	logger.Debug("connecting read db", "url", readUrl.String())
 	readDB, err := sql.Open("sqlite3", readUrl.String())
 	if err != nil {
-		writeDB.Close()
+		_ = writeDB.Close()
 		return nil, err
 	}
 	readDB.SetMaxOpenConns(max(4, runtime.NumCPU()))

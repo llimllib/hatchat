@@ -142,7 +142,9 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := models.UserByUsername(r.Context(), h.db, username)
 	if err != nil {
-		fatal(h.logger, "query error", err)
+		h.logger.Debug("Unable to find user", "user", username)
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(pass)); err == nil {

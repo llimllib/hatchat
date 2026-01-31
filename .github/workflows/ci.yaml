@@ -8,23 +8,23 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest", "macOS-latest"]
-        go: ["1.22.x"]
+        go: ["1.23.x"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: setup go
-        uses: WillAbides/setup-go-faster@v1.14.0
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
       - name: unit tests
         run: "go test ./..."
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.8.0
 
   js-ci:
     runs-on: ubuntu-latest
@@ -32,9 +32,9 @@ jobs:
       matrix:
         node: ["22"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       - name: Install dependencies
