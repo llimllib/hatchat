@@ -83,25 +83,25 @@ _Goal: Users can navigate between rooms without page reload_
 
 #### 1.2 Room Switching via WebSocket
 
-- [ ] Implement `join_room` message type handling
 - [x] Clear message area when switching rooms
 - [x] Load history for new room
 - [x] Update URL using History API (`/chat/{room_id}`)
 - [x] Update chat header with room name
+- [x] Handle browser back/forward navigation
 
 #### 1.3 Room State Management
 
-- [ ] Extract state into dedicated module
-- [ ] Cache messages per room (avoid re-fetching on switch back)
-- [ ] Track scroll position per room
-- [ ] Restore scroll position when returning to room
+- [x] Extract state into dedicated module (`state.ts`)
+- [x] Cache messages per room (avoid re-fetching on switch back)
+- [x] Track scroll position per room
+- [x] Restore scroll position when returning to room
 
 #### 1.4 Better Message Display
 
-- [ ] Show timestamps on messages
-- [ ] Group consecutive messages from same user
-- [ ] Add user avatars (placeholder or initials)
-- [ ] Distinguish own messages visually
+- [x] Show timestamps on messages
+- [x] Group consecutive messages from same user (within 5 minutes)
+- [x] Add user avatars (initials with consistent colors)
+- [x] Distinguish own messages visually (class applied, subtle styling ready)
 
 ---
 
@@ -109,7 +109,12 @@ _Goal: Users can navigate between rooms without page reload_
 
 _Goal: Users can create and manage rooms_
 
-#### 2.1 Create Room
+#### 2.1 Join Room
+
+- [ ] Implement `join_room` WebSocket message type (backend + frontend)
+- [ ] Handle joining rooms user isn't yet a member of
+
+#### 2.2 Create Room
 
 - [ ] "Create Channel" button in sidebar
 - [ ] Modal/dialog for room creation
@@ -117,20 +122,20 @@ _Goal: Users can create and manage rooms_
 - [ ] Public/private toggle
 - [ ] Submit via REST API, then join via WebSocket
 
-#### 2.2 Room Discovery
+#### 2.3 Room Discovery
 
 - [ ] "Browse Channels" view
 - [ ] List public rooms user isn't a member of
 - [ ] Join button for each room
 - [ ] Search/filter rooms by name
 
-#### 2.3 Room Settings
+#### 2.4 Room Settings
 
 - [ ] Room info panel (name, created date, member count)
 - [ ] Leave room option
 - [ ] Edit room name (if permitted)
 
-#### 2.4 Room Members
+#### 2.5 Room Members
 
 - [ ] View member list for current room
 - [ ] Show member online status
