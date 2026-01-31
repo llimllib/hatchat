@@ -19,6 +19,10 @@ schema:
 client-types: schema
     cd client && node gen-types.mjs && npx biome check --fix src/protocol.generated.ts
 
+# Build the documentation website (includes protocol schema docs)
+site: schema
+    bash tools/build-site.sh
+
 build-js:
     cd client && npx tsc --noEmit && node esbuild.config.mjs
 

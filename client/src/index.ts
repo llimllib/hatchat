@@ -3,6 +3,7 @@ import { AppState } from "./state";
 import {
   type HistoryResponse,
   type InitialData,
+  type InitResponse,
   type Message,
   makePendingKey,
   type PendingMessage,
@@ -70,7 +71,7 @@ class Client {
     }
   }
 
-  handleInit(data: InitialData) {
+  handleInit(data: InitResponse) {
     this.state.setInitialData(data);
 
     // Get room ID from URL or use the current_room from init

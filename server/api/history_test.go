@@ -10,6 +10,7 @@ import (
 
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
+	"github.com/llimllib/hatchat/server/protocol"
 )
 
 // createTestMessage creates a message in the database for testing
@@ -50,7 +51,7 @@ func TestHistoryMessage_ValidMember(t *testing.T) {
 	createTestMessage(t, database, "msg_test3456789", room.ID, user.ID, "Message 3", now)
 
 	// Request history
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 		Limit:  50,
 	}
@@ -69,9 +70,9 @@ func TestHistoryMessage_ValidMember(t *testing.T) {
 		t.Errorf("Expected type 'history', got '%s'", response.Type)
 	}
 
-	historyResp, ok := response.Data.(HistoryResponse)
+	historyResp, ok := response.Data.(protocol.HistoryResponse)
 	if !ok {
-		t.Fatalf("Expected HistoryResponse data type, got %T", response.Data)
+		t.Fatalf("Expected protocol.HistoryResponse data type, got %T", response.Data)
 	}
 
 	if len(historyResp.Messages) != 3 {
@@ -112,7 +113,7 @@ func TestHistoryMessage_NonMemberRejected(t *testing.T) {
 	createTestMessage(t, database, "msg_test1234567", room.ID, otherUser.ID, "Secret message", now)
 
 	// Try to fetch history for a room we're not a member of
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 		Limit:  50,
 	}
@@ -149,7 +150,7 @@ func TestHistoryMessage_Pagination(t *testing.T) {
 	}
 
 	// First page - request 3 messages
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 		Limit:  3,
 	}
@@ -160,7 +161,7 @@ func TestHistoryMessage_Pagination(t *testing.T) {
 		t.Fatalf("HistoryMessage failed: %v", err)
 	}
 
-	historyResp := response.Data.(HistoryResponse)
+	historyResp := response.Data.(protocol.HistoryResponse)
 	if len(historyResp.Messages) != 3 {
 		t.Errorf("Expected 3 messages on first page, got %d", len(historyResp.Messages))
 	}
@@ -172,7 +173,7 @@ func TestHistoryMessage_Pagination(t *testing.T) {
 	}
 
 	// Second page - use cursor
-	reqData = HistoryRequest{
+	reqData = protocol.HistoryRequest{
 		RoomID: room.ID,
 		Cursor: historyResp.NextCursor,
 		Limit:  3,
@@ -184,7 +185,7 @@ func TestHistoryMessage_Pagination(t *testing.T) {
 		t.Fatalf("HistoryMessage failed on second page: %v", err)
 	}
 
-	historyResp2 := response.Data.(HistoryResponse)
+	historyResp2 := response.Data.(protocol.HistoryResponse)
 	if len(historyResp2.Messages) != 3 {
 		t.Errorf("Expected 3 messages on second page, got %d", len(historyResp2.Messages))
 	}
@@ -213,7 +214,7 @@ func TestHistoryMessage_EmptyRoom(t *testing.T) {
 	room := createTestRoom(t, database, "roo_test12345678", "empty-room", true)
 	addUserToRoom(t, database, user.ID, room.ID)
 
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 		Limit:  50,
 	}
@@ -224,7 +225,7 @@ func TestHistoryMessage_EmptyRoom(t *testing.T) {
 		t.Fatalf("HistoryMessage failed: %v", err)
 	}
 
-	historyResp := response.Data.(HistoryResponse)
+	historyResp := response.Data.(protocol.HistoryResponse)
 	if len(historyResp.Messages) != 0 {
 		t.Errorf("Expected 0 messages, got %d", len(historyResp.Messages))
 	}
@@ -243,7 +244,7 @@ func TestHistoryMessage_MissingRoomID(t *testing.T) {
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: "",
 		Limit:  50,
 	}
@@ -278,7 +279,7 @@ func TestHistoryMessage_DefaultLimit(t *testing.T) {
 	}
 
 	// Request without specifying limit
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 	}
 	reqJSON, _ := json.Marshal(reqData)
@@ -288,7 +289,7 @@ func TestHistoryMessage_DefaultLimit(t *testing.T) {
 		t.Fatalf("HistoryMessage failed: %v", err)
 	}
 
-	historyResp := response.Data.(HistoryResponse)
+	historyResp := response.Data.(protocol.HistoryResponse)
 	if len(historyResp.Messages) != 50 {
 		t.Errorf("Expected default limit of 50 messages, got %d", len(historyResp.Messages))
 	}
@@ -317,7 +318,7 @@ func TestHistoryMessage_MaxLimit(t *testing.T) {
 	}
 
 	// Request with limit exceeding max
-	reqData := HistoryRequest{
+	reqData := protocol.HistoryRequest{
 		RoomID: room.ID,
 		Limit:  500,
 	}
@@ -328,7 +329,7 @@ func TestHistoryMessage_MaxLimit(t *testing.T) {
 		t.Fatalf("HistoryMessage failed: %v", err)
 	}
 
-	historyResp := response.Data.(HistoryResponse)
+	historyResp := response.Data.(protocol.HistoryResponse)
 	if len(historyResp.Messages) != 100 {
 		t.Errorf("Expected max limit of 100 messages, got %d", len(historyResp.Messages))
 	}
@@ -382,7 +383,7 @@ func TestHistoryMessage_MultipleRoomsSecurity(t *testing.T) {
 	createTestMessage(t, database, "msg_bob12345678", bobRoom.ID, bob.ID, "Bob's secret", now)
 
 	// Alice tries to fetch Bob's room history (should fail)
-	reqData := HistoryRequest{RoomID: bobRoom.ID, Limit: 50}
+	reqData := protocol.HistoryRequest{RoomID: bobRoom.ID, Limit: 50}
 	reqJSON, _ := json.Marshal(reqData)
 
 	response, err := api.HistoryMessage(alice, reqJSON)
@@ -394,7 +395,7 @@ func TestHistoryMessage_MultipleRoomsSecurity(t *testing.T) {
 	}
 
 	// Bob tries to fetch Alice's room history (should fail)
-	reqData = HistoryRequest{RoomID: aliceRoom.ID, Limit: 50}
+	reqData = protocol.HistoryRequest{RoomID: aliceRoom.ID, Limit: 50}
 	reqJSON, _ = json.Marshal(reqData)
 
 	response, err = api.HistoryMessage(bob, reqJSON)
@@ -406,7 +407,7 @@ func TestHistoryMessage_MultipleRoomsSecurity(t *testing.T) {
 	}
 
 	// Alice can fetch her own room (should succeed)
-	reqData = HistoryRequest{RoomID: aliceRoom.ID, Limit: 50}
+	reqData = protocol.HistoryRequest{RoomID: aliceRoom.ID, Limit: 50}
 	reqJSON, _ = json.Marshal(reqData)
 
 	response, err = api.HistoryMessage(alice, reqJSON)
@@ -418,7 +419,7 @@ func TestHistoryMessage_MultipleRoomsSecurity(t *testing.T) {
 	}
 
 	// Bob can fetch his own room (should succeed)
-	reqData = HistoryRequest{RoomID: bobRoom.ID, Limit: 50}
+	reqData = protocol.HistoryRequest{RoomID: bobRoom.ID, Limit: 50}
 	reqJSON, _ = json.Marshal(reqData)
 
 	response, err = api.HistoryMessage(bob, reqJSON)

@@ -4,16 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/llimllib/hatchat/server/apimodels"
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
+	"github.com/llimllib/hatchat/server/protocol"
 )
-
-type Init struct {
-	User        *apimodels.User
-	Rooms       []*apimodels.Room
-	CurrentRoom string `json:"current_room"` // The room ID the user should start in
-}
 
 // InitResponse contains the init envelope and the current room ID for client tracking
 type InitResponse struct {
@@ -30,10 +24,20 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResponse
 	// Return the user's info
 	// Return the room the user starts in
 	// Return the rooms that are available to the user
-	rooms, err := apimodels.UserRooms(ctx, a.db, user.ID)
+	dbRooms, err := models.UserRoomDetailsByUserID(ctx, a.db, user.ID)
 	if err != nil {
 		a.logger.Error("failed to get rooms", "error", err)
 		return nil, err
+	}
+
+	// Convert to protocol types
+	rooms := make([]*protocol.Room, len(dbRooms))
+	for i, r := range dbRooms {
+		rooms[i] = &protocol.Room{
+			ID:        r.ID,
+			Name:      r.Name,
+			IsPrivate: r.IsPrivate != 0,
+		}
 	}
 
 	// Determine the user's current room - use last_room if valid, otherwise default room
@@ -61,8 +65,12 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResponse
 	return &InitResponse{
 		Envelope: &Envelope{
 			Type: "init",
-			Data: Init{
-				User:        apimodels.NewUser(user.ID, user.Username, user.Avatar),
+			Data: protocol.InitResponse{
+				User: protocol.User{
+					ID:       user.ID,
+					Username: user.Username,
+					Avatar:   user.Avatar.String,
+				},
 				Rooms:       rooms,
 				CurrentRoom: currentRoom,
 			},

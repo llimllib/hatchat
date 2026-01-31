@@ -11,16 +11,23 @@
           "type": "string"
         }
       },
+      "required": [
+        "type",
+        "data"
+      ],
       "type": "object"
     },
     "ErrorResponse": {
       "additionalProperties": false,
       "properties": {
-        "Message": {
+        "message": {
           "description": "Human-readable error message",
           "type": "string"
         }
       },
+      "required": [
+        "message"
+      ],
       "type": "object"
     },
     "HistoryRequest": {
@@ -65,6 +72,11 @@
           "type": "string"
         }
       },
+      "required": [
+        "messages",
+        "has_more",
+        "next_cursor"
+      ],
       "type": "object"
     },
     "InitRequest": {
@@ -91,6 +103,11 @@
           "type": "string"
         }
       },
+      "required": [
+        "User",
+        "Rooms",
+        "current_room"
+      ],
       "type": "object"
     },
     "Message": {
@@ -126,6 +143,15 @@
           "type": "string"
         }
       },
+      "required": [
+        "id",
+        "room_id",
+        "user_id",
+        "username",
+        "body",
+        "created_at",
+        "modified_at"
+      ],
       "type": "object"
     },
     "Room": {
@@ -145,6 +171,11 @@
           "type": "string"
         }
       },
+      "required": [
+        "id",
+        "name",
+        "is_private"
+      ],
       "type": "object"
     },
     "SendMessageRequest": {
@@ -161,6 +192,10 @@
           "type": "string"
         }
       },
+      "required": [
+        "body",
+        "room_id"
+      ],
       "type": "object"
     },
     "User": {
@@ -180,6 +215,10 @@
           "type": "string"
         }
       },
+      "required": [
+        "id",
+        "username"
+      ],
       "type": "object"
     }
   },

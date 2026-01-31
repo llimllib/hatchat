@@ -8,12 +8,8 @@ import (
 
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
+	"github.com/llimllib/hatchat/server/protocol"
 )
-
-type Message struct {
-	Body   string `json:"body"`
-	RoomID string `json:"room_id"`
-}
 
 // MessageResponse contains the message data and the room ID for routing
 type MessageResponse struct {
@@ -25,34 +21,34 @@ type MessageResponse struct {
 // writes it to the database and returns a MessageResponse with the message
 // JSON and room ID for routing
 func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageResponse, error) {
-	var m Message
-	if err := json.Unmarshal(msg, &m); err != nil {
+	var req protocol.SendMessageRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
 		a.logger.Error("invalid json", "error", err)
 		return nil, err
 	}
 
 	// if the message is empty or there's no room, error out
-	if len(m.Body) < 1 || len(m.RoomID) < 1 {
+	if len(req.Body) < 1 || len(req.RoomID) < 1 {
 		a.logger.Error("invalid message", "msg", string(msg))
-		return nil, fmt.Errorf("invalid message <%s> <%s>", m.Body, m.RoomID)
+		return nil, fmt.Errorf("invalid message <%s> <%s>", req.Body, req.RoomID)
 	}
 
 	ctx := context.Background()
 
 	// Validate that the user is a member of the room
-	isMember, err := db.IsRoomMember(ctx, a.db, user.ID, m.RoomID)
+	isMember, err := db.IsRoomMember(ctx, a.db, user.ID, req.RoomID)
 	if err != nil {
-		a.logger.Error("failed to check room membership", "error", err, "user", user.ID, "room", m.RoomID)
+		a.logger.Error("failed to check room membership", "error", err, "user", user.ID, "room", req.RoomID)
 		return nil, err
 	}
 	if !isMember {
-		a.logger.Warn("user attempted to send message to room they are not a member of", "user", user.ID, "room", m.RoomID)
-		return nil, fmt.Errorf("user is not a member of room %s", m.RoomID)
+		a.logger.Warn("user attempted to send message to room they are not a member of", "user", user.ID, "room", req.RoomID)
+		return nil, fmt.Errorf("user is not a member of room %s", req.RoomID)
 	}
 
-	room, err := models.RoomByID(ctx, a.db, m.RoomID)
+	room, err := models.RoomByID(ctx, a.db, req.RoomID)
 	if err != nil {
-		a.logger.Error("unable to find room", "error", err, "room", m.RoomID)
+		a.logger.Error("unable to find room", "error", err, "room", req.RoomID)
 		return nil, err
 	}
 
@@ -61,7 +57,7 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 		ID:         models.GenerateMessageID(),
 		RoomID:     room.ID,
 		UserID:     user.ID,
-		Body:       m.Body,
+		Body:       req.Body,
 		CreatedAt:  now,
 		ModifiedAt: now,
 	}
@@ -70,16 +66,8 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 		return nil, err
 	}
 
-	// Create broadcast message with full message details
-	broadcastData := struct {
-		ID         string `json:"id"`
-		Body       string `json:"body"`
-		RoomID     string `json:"room_id"`
-		UserID     string `json:"user_id"`
-		Username   string `json:"username"`
-		CreatedAt  string `json:"created_at"`
-		ModifiedAt string `json:"modified_at"`
-	}{
+	// Create broadcast message with full message details using protocol.Message
+	broadcastMsg := protocol.Message{
 		ID:         dbMessage.ID,
 		Body:       dbMessage.Body,
 		RoomID:     dbMessage.RoomID,
@@ -91,7 +79,7 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 
 	msgBytes, err := json.Marshal(&Envelope{
 		Type: "message",
-		Data: broadcastData,
+		Data: broadcastMsg,
 	})
 	if err != nil {
 		return nil, err

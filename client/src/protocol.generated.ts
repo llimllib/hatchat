@@ -12,57 +12,57 @@ export interface User {
   /**
    * Unique user identifier (usr_ prefix)
    */
-  id?: string;
+  id: string;
   /**
    * Display name
    */
-  username?: string;
+  username: string;
 }
 
 export interface Room {
   /**
    * Unique room identifier (roo_ prefix)
    */
-  id?: string;
+  id: string;
   /**
    * Whether the room is private
    */
-  is_private?: boolean;
+  is_private: boolean;
   /**
    * Room display name
    */
-  name?: string;
+  name: string;
 }
 
 export interface Message {
   /**
    * Message content
    */
-  body?: string;
+  body: string;
   /**
    * RFC3339Nano timestamp of creation
    */
-  created_at?: string;
+  created_at: string;
   /**
    * Unique message identifier (msg_ prefix)
    */
-  id?: string;
+  id: string;
   /**
    * RFC3339Nano timestamp of last modification
    */
-  modified_at?: string;
+  modified_at: string;
   /**
    * Room this message belongs to
    */
-  room_id?: string;
+  room_id: string;
   /**
    * User who sent the message
    */
-  user_id?: string;
+  user_id: string;
   /**
    * Username of sender (denormalized for convenience)
    */
-  username?: string;
+  username: string;
 }
 
 export type InitRequest = Record<string, never>;
@@ -71,11 +71,11 @@ export interface SendMessageRequest {
   /**
    * Message content
    */
-  body?: string;
+  body: string;
   /**
    * Target room ID
    */
-  room_id?: string;
+  room_id: string;
 }
 
 export interface HistoryRequest {
@@ -97,24 +97,24 @@ export interface InitResponse {
   /**
    * Rooms the user is a member of
    */
-  Rooms?: {
+  Rooms: {
     /**
      * Unique room identifier (roo_ prefix)
      */
-    id?: string;
+    id: string;
     /**
      * Whether the room is private
      */
-    is_private?: boolean;
+    is_private: boolean;
     /**
      * Room display name
      */
-    name?: string;
+    name: string;
   }[];
   /**
    * The authenticated user
    */
-  User?: {
+  User: {
     /**
      * Avatar URL (may be empty)
      */
@@ -122,80 +122,80 @@ export interface InitResponse {
     /**
      * Unique user identifier (usr_ prefix)
      */
-    id?: string;
+    id: string;
     /**
      * Display name
      */
-    username?: string;
+    username: string;
   };
   /**
    * Room ID to display initially
    */
-  current_room?: string;
+  current_room: string;
 }
 
 export interface HistoryResponse {
   /**
    * Whether older messages exist
    */
-  has_more?: boolean;
+  has_more: boolean;
   /**
    * Messages in chronological order (newest first)
    */
-  messages?: {
+  messages: {
     /**
      * Message content
      */
-    body?: string;
+    body: string;
     /**
      * RFC3339Nano timestamp of creation
      */
-    created_at?: string;
+    created_at: string;
     /**
      * Unique message identifier (msg_ prefix)
      */
-    id?: string;
+    id: string;
     /**
      * RFC3339Nano timestamp of last modification
      */
-    modified_at?: string;
+    modified_at: string;
     /**
      * Room this message belongs to
      */
-    room_id?: string;
+    room_id: string;
     /**
      * User who sent the message
      */
-    user_id?: string;
+    user_id: string;
     /**
      * Username of sender (denormalized for convenience)
      */
-    username?: string;
+    username: string;
   }[];
   /**
    * Pass as cursor to fetch older messages
    */
-  next_cursor?: string;
+  next_cursor: string;
 }
 
 export interface ErrorResponse {
   /**
    * Human-readable error message
    */
-  Message?: string;
+  message: string;
 }
 
 export interface Envelope {
   /**
    * Type-specific payload
    */
-  data?: {
+  data: {
     [k: string]: unknown | undefined;
   };
   /**
    * Message type identifier
    */
-  type?: string;
+  type: string;
 }
 
 // =============================================================================

@@ -1,4 +1,4 @@
-import type { InitialData, Message, Room } from "./types";
+import type { InitResponse, Message, Room } from "./types";
 
 /**
  * Per-room state that persists when switching rooms
@@ -14,7 +14,7 @@ export interface RoomState {
  * Application state management with room message caching and scroll position tracking.
  */
 export class AppState {
-  initialData?: InitialData;
+  initialData?: InitResponse;
   currentRoom?: string;
 
   // Per-room cached state
@@ -23,7 +23,7 @@ export class AppState {
   /**
    * Initialize state with data from server
    */
-  setInitialData(data: InitialData) {
+  setInitialData(data: InitResponse) {
     this.initialData = data;
   }
 
