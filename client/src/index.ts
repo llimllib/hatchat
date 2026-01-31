@@ -1,4 +1,5 @@
-import { $, text } from "./dom";
+import { $ } from "./dom";
+import { AppState } from "./state";
 import {
   type HistoryResponse,
   type InitialData,
@@ -6,21 +7,26 @@ import {
   makePendingKey,
   type PendingMessage,
 } from "./types";
+import {
+  formatTimestamp,
+  formatTimestampFull,
+  getInitials,
+  stringToColor,
+} from "./utils";
 
 class Client {
   conn: WebSocket;
-
-  initialData?: InitialData;
-  currentRoom?: string;
-  historyCursor?: string;
-  hasMoreHistory: boolean = false;
-  isLoadingHistory: boolean = false;
+  state: AppState;
 
   // Track pending messages waiting for server confirmation
   pendingMessages: Map<string, PendingMessage> = new Map();
 
+  // Track loading state
+  isLoadingHistory: boolean = false;
+
   constructor(conn: WebSocket) {
     this.conn = conn;
+    this.state = new AppState();
 
     conn.addEventListener("open", this.wsOpen.bind(this));
     conn.addEventListener("message", this.wsReceive.bind(this));
@@ -41,20 +47,7 @@ class Client {
       const body = JSON.parse(evt.data);
       switch (body.Type) {
         case "init": {
-          this.initialData = body.Data;
-          // Get room ID from URL or use the current_room from init
-          const parts = window.location.pathname.split("/");
-          const urlRoomID = parts[parts.length - 1];
-          this.currentRoom = urlRoomID || body.Data.current_room;
-
-          // Render the sidebar with rooms
-          this.renderSidebar();
-
-          // Request history for the current room
-          if (this.currentRoom) {
-            this.requestHistory(this.currentRoom);
-            this.updateChatHeader();
-          }
+          this.handleInit(body.Data as InitialData);
           break;
         }
         case "history": {
@@ -74,6 +67,24 @@ class Client {
       console.debug("received: ", body);
     } catch (e) {
       console.error("unable to parse", evt.data, e);
+    }
+  }
+
+  handleInit(data: InitialData) {
+    this.state.setInitialData(data);
+
+    // Get room ID from URL or use the current_room from init
+    const parts = window.location.pathname.split("/");
+    const urlRoomID = parts[parts.length - 1];
+    this.state.setCurrentRoom(urlRoomID || data.current_room);
+
+    // Render the sidebar with rooms
+    this.renderSidebar();
+
+    // Request history for the current room
+    if (this.state.currentRoom) {
+      this.requestHistory(this.state.currentRoom);
+      this.updateChatHeader();
     }
   }
 
@@ -107,8 +118,38 @@ class Client {
 
   handleHistory(response: HistoryResponse) {
     this.isLoadingHistory = false;
-    this.hasMoreHistory = response.has_more;
-    this.historyCursor = response.next_cursor;
+
+    const roomId = this.state.currentRoom;
+    if (!roomId) {
+      console.error("no current room set");
+      return;
+    }
+
+    // Messages come in newest-first order, we need chronological
+    const messages = [...response.messages].reverse();
+
+    // Check if this is loading more (has cursor) or initial load
+    const roomState = this.state.getRoomState(roomId);
+    const isLoadingMore = roomState.historyCursor !== undefined;
+
+    // Update state with messages and pagination
+    this.state.addMessages(roomId, messages, isLoadingMore);
+    this.state.updatePagination(
+      roomId,
+      response.next_cursor || undefined,
+      response.has_more,
+    );
+
+    // Re-render the messages from state
+    this.renderMessages();
+  }
+
+  /**
+   * Render all messages for the current room from state
+   */
+  renderMessages() {
+    const roomId = this.state.currentRoom;
+    if (!roomId) return;
 
     const messageWindow = document.querySelector(".chat-messages");
     if (!messageWindow) {
@@ -116,112 +157,193 @@ class Client {
       return;
     }
 
-    // Messages come in newest-first order, we need to display oldest-first
-    // Reverse the array to get chronological order
-    const messages = [...response.messages].reverse();
+    const roomState = this.state.getRoomState(roomId);
 
-    // If this is the first load (no cursor was used), clear the message window
-    // Otherwise, prepend to existing messages
-    const isFirstLoad = !this.historyCursor || messages.length === 0;
+    // Clear and re-render
+    messageWindow.innerHTML = "";
 
-    if (isFirstLoad && response.messages.length > 0) {
-      // Clear any placeholder content
-      messageWindow.innerHTML = "";
-    }
-
-    // Create a document fragment for efficient DOM manipulation
-    const fragment = document.createDocumentFragment();
-
-    for (const msg of messages) {
-      fragment.appendChild(this.createMessageElement(msg.username, msg.body));
-    }
-
-    if (isFirstLoad) {
-      messageWindow.appendChild(fragment);
-    } else {
-      // Prepend older messages at the top
-      messageWindow.insertBefore(fragment, messageWindow.firstChild);
-    }
-
-    // Add "Load more" button if there are more messages
-    this.updateLoadMoreButton(messageWindow);
-  }
-
-  updateLoadMoreButton(messageWindow: Element) {
-    // Remove existing load more button if present
-    const existingButton = document.querySelector(".load-more-button");
-    if (existingButton) {
-      existingButton.remove();
-    }
-
-    if (this.hasMoreHistory) {
+    // Add load more button if needed
+    if (roomState.hasMoreHistory) {
       const loadMoreBtn = $("button", {
         text: "Load older messages",
         class: "load-more-button",
       });
       loadMoreBtn.addEventListener("click", () => {
-        if (this.currentRoom && this.historyCursor) {
-          this.requestHistory(this.currentRoom, this.historyCursor);
+        if (roomState.historyCursor) {
+          this.requestHistory(roomId, roomState.historyCursor);
         }
       });
-      messageWindow.insertBefore(loadMoreBtn, messageWindow.firstChild);
+      messageWindow.appendChild(loadMoreBtn);
+    }
+
+    // Group and render messages
+    const messages = roomState.messages;
+    let lastMessage: Message | undefined;
+
+    for (const msg of messages) {
+      const isGrouped = this.shouldGroupWithPrevious(msg, lastMessage);
+      const isOwn = msg.user_id === this.state.user.id;
+      const element = this.createMessageElement(msg, isGrouped, isOwn);
+      messageWindow.appendChild(element);
+      lastMessage = msg;
+    }
+
+    // Scroll to bottom for initial load, restore position otherwise
+    if (roomState.scrollPosition > 0) {
+      messageWindow.scrollTop = roomState.scrollPosition;
+    } else {
+      messageWindow.scrollTop = messageWindow.scrollHeight;
     }
   }
 
-  createMessageElement(username: string, body: string): HTMLElement {
-    return $(
-      "div",
-      { class: "chat-message" },
-      $("span", {
-        text: username,
-        class: "username",
-      }),
-      text(": "),
-      $("span", {
-        text: body,
-        class: "message",
-      }),
-    );
+  /**
+   * Check if a message should be visually grouped with the previous one
+   */
+  shouldGroupWithPrevious(msg: Message, prevMsg: Message | undefined): boolean {
+    if (!prevMsg) return false;
+
+    // Different user - no grouping
+    if (msg.user_id !== prevMsg.user_id) return false;
+
+    // More than 5 minutes apart - no grouping
+    const msgTime = new Date(msg.created_at).getTime();
+    const prevTime = new Date(prevMsg.created_at).getTime();
+    const fiveMinutes = 5 * 60 * 1000;
+    if (msgTime - prevTime > fiveMinutes) return false;
+
+    return true;
+  }
+
+  /**
+   * Create a message element with full formatting
+   */
+  createMessageElement(
+    msg: Message,
+    isGrouped: boolean,
+    isOwn: boolean,
+  ): HTMLElement {
+    const wrapper = $("div", {
+      class: `chat-message ${isGrouped ? "grouped" : ""} ${isOwn ? "own-message" : ""}`,
+      "data-message-id": msg.id,
+    });
+
+    if (!isGrouped) {
+      // Full message with avatar and header
+      const avatar = this.createAvatar(msg.username);
+      const header = $("div", { class: "message-header" });
+
+      const usernameEl = $("span", {
+        class: "message-username",
+        text: msg.username,
+      });
+
+      const timestamp = $("span", {
+        class: "message-timestamp",
+        text: formatTimestamp(msg.created_at),
+        title: formatTimestampFull(msg.created_at),
+      });
+
+      header.appendChild(usernameEl);
+      header.appendChild(timestamp);
+
+      const content = $("div", { class: "message-content" });
+      content.appendChild(avatar);
+
+      const textArea = $("div", { class: "message-text-area" });
+      textArea.appendChild(header);
+      textArea.appendChild($("div", { class: "message-body", text: msg.body }));
+      content.appendChild(textArea);
+
+      wrapper.appendChild(content);
+    } else {
+      // Grouped message - just the body with indent to align with text
+      const content = $("div", { class: "message-content grouped-content" });
+      const body = $("div", { class: "message-body", text: msg.body });
+
+      // Add timestamp on hover
+      const timestamp = $("span", {
+        class: "message-timestamp hover-timestamp",
+        text: formatTimestamp(msg.created_at),
+        title: formatTimestampFull(msg.created_at),
+      });
+
+      content.appendChild(timestamp);
+      content.appendChild(body);
+      wrapper.appendChild(content);
+    }
+
+    return wrapper;
+  }
+
+  /**
+   * Create an avatar element with initials
+   */
+  createAvatar(username: string): HTMLElement {
+    const initials = getInitials(username);
+    const color = stringToColor(username);
+
+    const avatar = $("div", {
+      class: "message-avatar",
+      text: initials,
+    });
+    avatar.style.backgroundColor = color;
+
+    return avatar;
   }
 
   handleIncomingMessage(msg: Message) {
+    // Only process if it's for the current room
+    if (msg.room_id !== this.state.currentRoom) {
+      // TODO: Update unread count for other room
+      console.debug("message for different room", msg.room_id);
+      return;
+    }
+
     // Check if this is a confirmation of our pending message
-    // We match by body + room_id + user_id since we don't have the server ID yet
     const pendingKey = makePendingKey(msg.body, msg.room_id, msg.user_id);
     const pending = this.pendingMessages.get(pendingKey);
 
     if (pending) {
-      // This is our message confirmed by the server - update the element with real data
+      // This is our message confirmed - update the element with real data
       pending.element.setAttribute("data-message-id", msg.id);
       pending.element.classList.remove("pending");
       this.pendingMessages.delete(pendingKey);
       console.debug("confirmed pending message", msg.id);
+
+      // Add to state cache
+      this.state.addMessage(msg.room_id, msg);
     } else {
-      // This is a message from someone else - append it
-      this.appendMessage(msg.body, msg.username);
+      // Message from someone else - add to state and render
+      this.state.addMessage(msg.room_id, msg);
+      this.appendMessageToUI(msg);
     }
   }
 
-  appendMessage(body: string, username: string): HTMLElement {
+  /**
+   * Append a single new message to the UI (for real-time updates)
+   */
+  appendMessageToUI(msg: Message) {
     const messageWindow = document.querySelector(".chat-messages");
     if (!messageWindow) {
       console.error("no message window found");
-      throw new Error("no message window found");
-    }
-    const element = this.createMessageElement(username, body);
-    messageWindow.appendChild(element);
-
-    // Scroll to the bottom to show the new message
-    messageWindow.scrollTop = messageWindow.scrollHeight;
-
-    return element;
-  }
-
-  renderSidebar() {
-    if (!this.initialData) {
       return;
     }
 
+    // Get the previous message to determine grouping
+    const roomState = this.state.getCurrentRoomState();
+    const messages = roomState?.messages || [];
+    const prevMsg =
+      messages.length >= 2 ? messages[messages.length - 2] : undefined;
+
+    const isGrouped = this.shouldGroupWithPrevious(msg, prevMsg);
+    const isOwn = msg.user_id === this.state.user.id;
+    const element = this.createMessageElement(msg, isGrouped, isOwn);
+
+    messageWindow.appendChild(element);
+    messageWindow.scrollTop = messageWindow.scrollHeight;
+  }
+
+  renderSidebar() {
     const channelList = document.querySelector(".sidebar-channels ul");
     if (!channelList) {
       console.error("no channel list found");
@@ -232,7 +354,7 @@ class Client {
     channelList.innerHTML = "";
 
     // Render each room
-    for (const room of this.initialData.Rooms) {
+    for (const room of this.state.rooms) {
       const li = $("li", { "data-room-id": room.id });
       const link = $("a", {
         href: `/chat/${room.id}`,
@@ -240,7 +362,7 @@ class Client {
       });
 
       // Mark the active room
-      if (room.id === this.currentRoom) {
+      if (room.id === this.state.currentRoom) {
         li.classList.add("active");
       }
 
@@ -256,15 +378,24 @@ class Client {
   }
 
   switchRoom(roomId: string) {
-    if (roomId === this.currentRoom) {
+    if (roomId === this.state.currentRoom) {
       return;
     }
 
+    // Save scroll position for current room before switching
+    const messageWindow = document.querySelector(".chat-messages");
+    if (messageWindow && this.state.currentRoom) {
+      this.state.saveScrollPosition(
+        this.state.currentRoom,
+        messageWindow.scrollTop,
+      );
+    }
+
     // Update current room
-    this.currentRoom = roomId;
+    this.state.setCurrentRoom(roomId);
 
     // Update URL without reload
-    window.history.pushState({}, "", `/chat/${roomId}`);
+    window.history.pushState({ roomId }, "", `/chat/${roomId}`);
 
     // Update sidebar highlighting
     this.updateSidebarHighlight();
@@ -272,13 +403,18 @@ class Client {
     // Update chat header
     this.updateChatHeader();
 
-    // Clear messages and reset pagination state
-    this.clearMessages();
-    this.historyCursor = undefined;
-    this.hasMoreHistory = false;
+    // Clear pending messages (they were for the old room)
+    this.pendingMessages.clear();
 
-    // Request history for new room
-    this.requestHistory(roomId);
+    // Check if we have cached messages for this room
+    if (this.state.hasMessagesForRoom(roomId)) {
+      // Render from cache
+      this.renderMessages();
+    } else {
+      // Clear messages and request history
+      this.clearMessageUI();
+      this.requestHistory(roomId);
+    }
   }
 
   updateSidebarHighlight() {
@@ -290,7 +426,7 @@ class Client {
 
     // Add active class to current room
     const activeItem = document.querySelector(
-      `.sidebar-channels li[data-room-id="${this.currentRoom}"]`,
+      `.sidebar-channels li[data-room-id="${this.state.currentRoom}"]`,
     );
     if (activeItem) {
       activeItem.classList.add("active");
@@ -299,34 +435,22 @@ class Client {
 
   updateChatHeader() {
     const header = document.querySelector(".chat-header h2");
-    if (!header || !this.initialData) {
-      return;
-    }
+    if (!header) return;
 
-    const room = this.initialData.Rooms.find((r) => r.id === this.currentRoom);
+    const room = this.state.getRoom(this.state.currentRoom || "");
     if (room) {
       header.textContent = `# ${room.name}`;
     }
   }
 
-  clearMessages() {
+  clearMessageUI() {
     const messageWindow = document.querySelector(".chat-messages");
     if (messageWindow) {
       messageWindow.innerHTML = "";
     }
-    // Clear pending messages for the old room
-    this.pendingMessages.clear();
   }
 
   submitTextbox() {
-    // What is the appropriate thing to do if we haven't yet gotten the
-    // initialize data, so we don't even know who the user is?
-    if (!this.initialData) {
-      // placeholder for sensible error handling
-      throw new Error("Not yet initialized");
-    }
-
-    // get the message from the input box
     const messageBox = document.querySelector("#message") as HTMLInputElement;
     if (!messageBox) {
       throw new Error("couldn't find message box");
@@ -336,10 +460,14 @@ class Client {
       return;
     }
 
-    // get the room ID from the URL
-    const parts = window.location.pathname.split("/");
-    const roomID = parts[parts.length - 1];
+    const roomID = this.state.currentRoom;
+    if (!roomID) {
+      console.error("no current room set");
+      return;
+    }
+
     const body = messageBox.value;
+    const user = this.state.user;
 
     const message = {
       type: "message",
@@ -351,12 +479,22 @@ class Client {
     console.debug("sending", message);
     this.conn.send(JSON.stringify(message));
 
-    // Optimistically insert chat message into the chat window
-    const element = this.appendMessage(body, this.initialData.User.username);
-    element.classList.add("pending");
+    // Create optimistic message
+    const optimisticMsg: Message = {
+      id: `pending-${Date.now()}`,
+      room_id: roomID,
+      user_id: user.id,
+      username: user.username,
+      body: body,
+      created_at: new Date().toISOString(),
+      modified_at: new Date().toISOString(),
+    };
+
+    // Render immediately
+    const element = this.appendOptimisticMessage(optimisticMsg);
 
     // Track the pending message so we can match it when the server confirms
-    const pendingKey = makePendingKey(body, roomID, this.initialData.User.id);
+    const pendingKey = makePendingKey(body, roomID, user.id);
     this.pendingMessages.set(pendingKey, {
       tempId: pendingKey,
       body: body,
@@ -366,6 +504,31 @@ class Client {
 
     // Clear the input box
     messageBox.value = "";
+  }
+
+  /**
+   * Append an optimistic (pending) message to the UI
+   */
+  appendOptimisticMessage(msg: Message): HTMLElement {
+    const messageWindow = document.querySelector(".chat-messages");
+    if (!messageWindow) {
+      throw new Error("no message window found");
+    }
+
+    // Get previous message for grouping
+    const roomState = this.state.getCurrentRoomState();
+    const messages = roomState?.messages || [];
+    const prevMsg =
+      messages.length > 0 ? messages[messages.length - 1] : undefined;
+
+    const isGrouped = this.shouldGroupWithPrevious(msg, prevMsg);
+    const element = this.createMessageElement(msg, isGrouped, true);
+    element.classList.add("pending");
+
+    messageWindow.appendChild(element);
+    messageWindow.scrollTop = messageWindow.scrollHeight;
+
+    return element;
   }
 
   onSubmit(_evt: MouseEvent) {
@@ -382,6 +545,14 @@ class Client {
 function main() {
   const conn = new WebSocket(`ws://${document.location.host}/ws`);
   const client = new Client(conn);
+
+  // Handle browser back/forward navigation
+  window.addEventListener("popstate", (evt) => {
+    const roomId = evt.state?.roomId;
+    if (roomId && roomId !== client.state.currentRoom) {
+      client.switchRoom(roomId);
+    }
+  });
 
   document
     .getElementById("sendmessage")

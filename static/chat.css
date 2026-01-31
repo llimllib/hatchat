@@ -122,43 +122,131 @@ body {
   }
 }
 
-/* message styles */
-.message {
-  background-color: #ffffff;
-  border: 1px solid #e8e8e8;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 10px;
-  max-width: 600px;
+/* Chat Message Styles */
+.chat-message {
+  padding: 8px 20px;
+  transition: background-color 0.1s;
 }
 
-.message-header {
+.chat-message:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.chat-message.grouped {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.chat-message.own-message {
+  /* Subtle highlight for own messages - optional */
+}
+
+.message-content {
   display: flex;
-  align-items: center;
-  margin-bottom: 5px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.message-header img {
+.message-content.grouped-content {
+  padding-left: 46px; /* Avatar width (36px) + gap (10px) */
+  position: relative;
+}
+
+/* Avatar */
+.message-avatar {
   width: 36px;
   height: 36px;
   border-radius: 4px;
-  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  user-select: none;
 }
 
-.message-header h3 {
-  font-size: 16px;
-  font-weight: bold;
-  margin: 0;
-  color: #2c2d30;
+/* Message text area */
+.message-text-area {
+  flex: 1;
+  min-width: 0;
 }
 
+/* Message header with username and timestamp */
+.message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.message-username {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1d1c1d;
+  cursor: pointer;
+}
+
+.message-username:hover {
+  text-decoration: underline;
+}
+
+.message-timestamp {
+  font-size: 12px;
+  color: #616061;
+  font-weight: 400;
+}
+
+/* Hover timestamp for grouped messages */
+.hover-timestamp {
+  position: absolute;
+  left: 0;
+  opacity: 0;
+  font-size: 11px;
+  width: 40px;
+  text-align: right;
+  transition: opacity 0.1s;
+}
+
+.chat-message:hover .hover-timestamp {
+  opacity: 1;
+}
+
+/* Message body */
 .message-body {
   font-size: 15px;
-  color: #2c2d30;
-  line-height: 1.4;
+  color: #1d1c1d;
+  line-height: 1.46668;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 /* Pending message indicator */
 .chat-message.pending {
+  opacity: 0.6;
+}
+
+.chat-message.pending .message-avatar {
   opacity: 0.7;
+}
+
+/* Load more button */
+.load-more-button {
+  display: block;
+  margin: 10px auto 20px;
+  padding: 8px 16px;
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #616061;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.load-more-button:hover {
+  background-color: #fff;
+  border-color: #1264a3;
+  color: #1264a3;
 }
