@@ -119,6 +119,18 @@ func (c *Client) readPump() {
 				c.logger.Error("failed to write init json", "error", err)
 				return
 			}
+		case "history":
+			res, err := c.api.HistoryMessage(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle history request", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to fetch history")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write history json", "error", err)
+					return
+				}
+			}
 		case "message":
 			res, err := c.api.MessageMessage(c.user, msg)
 			if err != nil {

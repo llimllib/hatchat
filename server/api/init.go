@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/llimllib/hatchat/server/apimodels"
+	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/models"
 )
 
@@ -40,7 +41,7 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResponse
 
 	// Verify the user is still a member of their last room
 	if currentRoom != "" {
-		isMember, err := models.IsRoomMember(ctx, a.db, user.ID, currentRoom)
+		isMember, err := db.IsRoomMember(ctx, a.db, user.ID, currentRoom)
 		if err != nil || !isMember {
 			// Fall back to default room if last room is invalid
 			currentRoom = ""

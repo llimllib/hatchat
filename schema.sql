@@ -39,3 +39,6 @@ CREATE TABLE IF NOT EXISTS messages(
   created_at TEXT NOT NULL,
   modified_at TEXT NOT NULL
 ) STRICT;
+
+-- Index for fetching messages by room, ordered by creation time (newest first for pagination)
+CREATE INDEX IF NOT EXISTS messages_room_created ON messages(room_id, created_at DESC);

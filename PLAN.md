@@ -48,9 +48,9 @@ _Goal: A functional, secure chat with proper room isolation_
 
 #### 1.2 Message History
 
-- [ ] Add API endpoint/WebSocket message to fetch room message history
-- [ ] Pagination support (cursor-based, load older messages)
-- [ ] Load history when entering a room
+- [x] Add API endpoint/WebSocket message to fetch room message history
+- [x] Pagination support (cursor-based, load older messages)
+- [x] Load history when entering a room
 
 #### 1.3 Room Switching
 
