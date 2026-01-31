@@ -26,9 +26,9 @@
 *Goal: A functional, secure chat with proper room isolation*
 
 #### 1.1 Room-Scoped Message Routing (Critical Security Fix)
-- [ ] Track which room each client is currently viewing in the Hub
-- [ ] Broadcast messages only to clients in the same room
-- [ ] Add room membership validation before accepting messages
+- [x] Track which room each client is currently viewing in the Hub
+- [x] Broadcast messages only to clients in the same room
+- [x] Add room membership validation before accepting messages
 
 #### 1.2 Message History
 - [ ] Add API endpoint/WebSocket message to fetch room message history

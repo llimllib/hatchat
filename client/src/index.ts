@@ -26,14 +26,18 @@ function text(s: string): Text {
   return document.createTextNode(s);
 }
 
+interface Room {
+  ID: string;
+}
+
 interface InitialData {
-  // TODO
-  Rooms: any;
+  Rooms: Room[];
   User: {
     id: `usr_${string}`;
     username: string;
     avatar: string;
   };
+  current_room: string;
 }
 
 class Client {
@@ -137,7 +141,7 @@ class Client {
     );
   }
 
-  onSubmit(evt: MouseEvent) {
+  onSubmit(_evt: MouseEvent) {
     this.submitTextbox();
   }
 

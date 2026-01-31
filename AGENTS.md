@@ -144,6 +144,8 @@ just test         # Run linter and tests
 just lint         # Linter only
 ```
 
+**Important**: `just lint` must pass before reporting work as complete. Fix all linting errors before finishing a task.
+
 ## Key Design Decisions
 
 1. **Single workspace**: No multi-tenancy; one deployment = one workspace
