@@ -5,202 +5,242 @@
 ### What Works
 
 - User registration and login (password + cookie sessions)
-- Basic WebSocket connection with init handshake
-- Single default room created on startup
-- Messages can be sent and are stored in database
-- Messages broadcast to all connected clients (not room-scoped)
-- Basic chat UI with sidebar placeholder
+- WebSocket connection with init handshake
+- Multiple rooms with proper room-scoped message routing
+- Message history with cursor-based pagination
+- Room switching via sidebar without page reload
+- Messages cached per room with scroll position restoration
+- Message timestamps, user avatars, and message grouping
+- JSON Schema generation for WebSocket protocol (`server/protocol/protocol.go` → `schema/protocol.json`)
+- TypeScript type generation from schema (`client/src/protocol.generated.ts`)
 
-### What's Missing or Broken
+### Architecture Highlights
 
-- Messages broadcast to ALL clients regardless of room membership (security issue)
-- No message history loaded on room entry
-- No way to create/join/leave rooms
-- No direct messages
-- UI doesn't reflect actual rooms or update properly
-- No OpenAPI spec or REST API
+- **Backend**: Go 1.25+, SQLite with WAL mode, gorilla/websocket
+- **Frontend**: Vanilla TypeScript, esbuild bundling
+- **Protocol**: WebSocket for real-time, envelope pattern (`{type, data}`)
+- **Schema**: Protocol types defined in Go, generate JSON Schema + TypeScript
 
 ---
 
-## Feature Roadmap
+## Immediate Tasks: Schema Migration & Cleanup
 
-### Phase 1: Core Messaging Foundation
+_Goal: Complete the JSON Schema infrastructure work_
 
-_Goal: A functional, secure chat with proper room isolation_
+### 0.1 Migrate Client to Generated Types
 
-#### 1.1 Room-Scoped Message Routing (Critical Security Fix)
+- [ ] Update `client/src/types.ts` to re-export from `protocol.generated.ts`
+- [ ] Keep only client-specific types in `types.ts` (e.g., `PendingMessage`)
+- [ ] Update all imports throughout the client codebase
+- [ ] Remove duplicated type definitions
 
-- [x] Track which room each client is currently viewing in the Hub
-- [x] Broadcast messages only to clients in the same room
-- [x] Add room membership validation before accepting messages
+### 0.2 Add Required Field Tags
 
-#### 1.1a Testing Room-scoped message routing
+- [ ] Review `server/protocol/protocol.go` and add `jsonschema:"required"` tags
+- [ ] Regenerate schema with `just client-types`
+- [ ] Verify TypeScript types are now stricter (non-optional where appropriate)
 
-- [x] Add tests that verify that users only receive messages for the rooms they belong to
-  - Test this thoroughly, as it's an important security feature
+### 0.3 Server API Type Alignment
 
-#### 1.1b dependency upgrades
+- [ ] Update `server/api/*.go` handlers to use `protocol.*` types directly
+- [ ] Remove or consolidate duplicate type definitions in `apimodels/`
+- [ ] Ensure JSON field names match protocol spec exactly
 
-- [x] Upgrade go to the latest version (1.25) everywhere
-- [x] Upgrade the client to use biome instead of eslint
-  - make sure to replace all references to eslint
-- [x] Upgrade all node packages and node version to the latest versions
+### 0.4 Protocol Documentation
 
-#### 1.2 Message History
+- [ ] Generate HTML docs from `schema/protocol.json` using `json-schema-for-humans`
+- [ ] Add `just docs` command to justfile
+- [ ] Include generated docs in repo (or add to CI)
 
-- [x] Add API endpoint/WebSocket message to fetch room message history
-- [x] Pagination support (cursor-based, load older messages)
-- [x] Load history when entering a room
+---
 
-#### 1.3 Room Switching
+## Phase 1: Room Management
 
-- [ ] WebSocket message type for switching rooms ("join_room")
+_Goal: Users can create, join, and manage rooms_
+
+### 1.1 Room Switching Protocol
+
+- [ ] Add `join_room` WebSocket message type (backend)
 - [ ] Update user's `last_room` when switching
-- [ ] Client UI to switch between rooms in sidebar
+- [ ] Add protocol types to `server/protocol/protocol.go`
 
-#### 1.4 Room Management
+### 1.2 Join Room
 
-- [ ] Create new room (name, public/private)
-- [ ] List available rooms (public rooms + rooms user is member of)
-- [ ] Join public room
-- [ ] Leave room
-- [ ] Room details (name, member count, created date)
+- [ ] Implement `join_room` WebSocket handler
+- [ ] Client UI for joining rooms user isn't a member of
 
-#### 1.5 Basic REST API + OpenAPI
+### 1.3 Create Room
 
-- [ ] Define OpenAPI 3.0 spec for all endpoints
+- [ ] "Create Channel" button in sidebar
+- [ ] Modal/dialog for room creation
+- [ ] Room name input with validation
+- [ ] Public/private toggle
+- [ ] Backend: REST or WebSocket endpoint for room creation
+
+### 1.4 Room Discovery
+
+- [ ] "Browse Channels" view
+- [ ] List public rooms user isn't a member of
+- [ ] Join button for each room
+- [ ] Search/filter rooms by name
+
+### 1.5 Room Settings & Members
+
+- [ ] Room info panel (name, created date, member count)
+- [ ] Leave room option
+- [ ] View member list for current room
+- [ ] Click member to view profile or start DM
+
+### 1.6 REST API + OpenAPI
+
+- [ ] Define OpenAPI 3.0 spec for REST endpoints
 - [ ] REST endpoints for room CRUD operations
 - [ ] REST endpoint for user profile
-- [ ] Document WebSocket message protocol
 
 ---
 
-### Phase 2: Direct Messages & User Features
+## Phase 2: Direct Messages & User Features
 
 _Goal: Private conversations and user identity_
 
-#### 2.1 Direct Messages
+### 2.1 Direct Messages
 
 - [ ] Create DM "room" between two users (or find existing)
 - [ ] DM rooms are private, exactly 2 members
-- [ ] List DM conversations in sidebar separately from rooms
-- [ ] DM room naming (show other user's name, not room name)
+- [ ] DM section in sidebar (separate from rooms)
+- [ ] DM room naming (show other user's name)
+- [ ] "New Message" button with user picker/autocomplete
 
-#### 2.2 User Presence
+### 2.2 User Presence
 
 - [ ] Track online/offline status based on WebSocket connection
 - [ ] Broadcast presence changes to relevant users
-- [ ] Show presence indicators in UI
+- [ ] Show presence indicators in UI (green/gray dot)
 - [ ] "Last seen" timestamp for offline users
 
-#### 2.3 User Profiles
+### 2.3 User Profiles
 
 - [ ] Display name (separate from username)
 - [ ] Avatar upload/URL
 - [ ] Status message (custom text)
-- [ ] Profile viewing UI
+- [ ] Profile viewing panel (click username)
+- [ ] "Message" button to start DM from profile
 
-#### 2.4 Typing Indicators
+### 2.4 Typing Indicators
 
 - [ ] Client sends "typing" events (debounced)
 - [ ] Server broadcasts to room members
 - [ ] UI shows "X is typing..." indicator
 - [ ] Auto-clear after timeout
+- [ ] Handle multiple users typing
 
 ---
 
-### Phase 3: Rich Messaging
+## Phase 3: Rich Messaging
 
 _Goal: Messages beyond plain text_
 
-#### 3.1 Message Formatting
+### 3.1 Message Formatting
 
 - [ ] Markdown support (bold, italic, code, links)
 - [ ] Code blocks with syntax highlighting
-- [ ] Auto-link URLs
-- [ ] Emoji shortcodes (:smile: → 😄)
+- [ ] Auto-link URLs (open in new tab)
+- [ ] Emoji shortcodes (`:smile:` → 😄)
+- [ ] Emoji picker in input area
+- [ ] Sanitize HTML to prevent XSS
 
-#### 3.2 Message Editing & Deletion
+### 3.2 Message Editing & Deletion
 
-- [ ] Edit own messages (within time limit?)
-- [ ] Delete own messages
-- [ ] Show edit indicator and edit history
+- [ ] Edit own messages (inline editing UI)
+- [ ] Show "(edited)" indicator after edit
+- [ ] Delete own messages with confirmation
 - [ ] Broadcast edits/deletions to room
+- [ ] Handle edit/delete broadcasts in client
 
-#### 3.3 Reactions
+### 3.3 Reactions
 
 - [ ] Add emoji reaction to message
 - [ ] Remove own reaction
-- [ ] Aggregate reaction counts
-- [ ] Show who reacted (on hover)
+- [ ] Aggregate reaction counts below message
+- [ ] Show who reacted on hover
+- [ ] Toggle own reaction by clicking existing
 
-#### 3.4 File Uploads & Attachments
+### 3.4 File Uploads & Attachments
 
 - [ ] File upload endpoint (size limits, type restrictions)
+- [ ] Upload button in message input
+- [ ] Drag and drop onto chat area
+- [ ] Paste image from clipboard
+- [ ] Upload progress indicator
+- [ ] Inline image preview / file attachment card
 - [ ] Store files locally or S3-compatible storage
-- [ ] Image preview in chat
-- [ ] File download links
-- [ ] Image paste from clipboard
 
 ---
 
-### Phase 4: Threads & Organization
+## Phase 4: Threads & Organization
 
 _Goal: Better conversation organization_
 
-#### 4.1 Threaded Replies
+### 4.1 Threaded Replies
 
 - [ ] Reply to specific message (creates thread)
-- [ ] Thread view (slide-out panel or modal)
-- [ ] Thread reply count shown on parent message
+- [ ] Thread panel slides in from right
+- [ ] Shows parent message + replies
+- [ ] Thread reply count on parent message
 - [ ] "Also send to channel" option
 
-#### 4.2 Mentions
+### 4.2 Mentions
 
-- [ ] @username mentions with autocomplete
+- [ ] @username autocomplete (trigger on `@`)
 - [ ] @room (notify all room members)
+- [ ] #channel autocomplete
+- [ ] Style mentions differently in messages
 - [ ] Highlight messages where user is mentioned
-- [ ] Mention notifications
+- [ ] Make mentions clickable
 
-#### 4.3 Pinned Messages
+### 4.3 Pinned Messages
 
 - [ ] Pin important messages in room
 - [ ] View pinned messages list
 - [ ] Unpin messages
 
-#### 4.4 Search
+### 4.4 Search
 
-- [ ] Full-text search across messages
+- [ ] Global search input in header (Cmd/Ctrl+K)
+- [ ] Full-text search across messages (SQLite FTS5)
 - [ ] Filter by room, user, date range
 - [ ] Search result context (surrounding messages)
-- [ ] SQLite FTS5 for search index
+- [ ] Click to jump to message in context
+- [ ] Highlight search terms
 
 ---
 
-### Phase 5: Notifications & Polish
+## Phase 5: Notifications & Unread Tracking
 
 _Goal: Don't miss important messages_
 
-#### 5.1 Unread Tracking
+### 5.1 Unread Tracking
 
 - [ ] Track last-read message per user per room
 - [ ] Unread count badges in sidebar
+- [ ] Bold room name if unread
+- [ ] "New messages" divider line at first unread
 - [ ] "Mark as read" on room view
 - [ ] "Mark all as read" option
 
-#### 5.2 In-App Notifications
+### 5.2 In-App Notifications
 
 - [ ] Notification preferences per room (all, mentions, none)
 - [ ] Toast notifications for new messages
-- [ ] Sound notifications (optional)
 
-#### 5.3 Browser Notifications
+### 5.3 Browser Notifications
 
-- [ ] Push notification permission request
+- [ ] Request notification permission
 - [ ] Notifications when tab not focused
 - [ ] Click notification to jump to message
+- [ ] Sound notifications (optional, with user setting)
 
-#### 5.4 Email Notifications (Optional)
+### 5.4 Email Notifications (Optional)
 
 - [ ] Email for mentions when offline
 - [ ] Daily digest option
@@ -208,121 +248,135 @@ _Goal: Don't miss important messages_
 
 ---
 
-### Phase 6: Administration & Security
+## Phase 6: Administration & Security
 
 _Goal: Workspace management and hardening_
 
-#### 6.1 Password Reset
+### 6.1 Password Reset
 
 - [ ] "Forgot password" flow
 - [ ] Email-based reset tokens
 - [ ] Token expiration
 
-#### 6.2 Session Management
+### 6.2 Session Management
 
 - [ ] List active sessions
 - [ ] Revoke sessions
 - [ ] Session expiration and refresh
 
-#### 6.3 Room Administration
+### 6.3 Room Administration
 
 - [ ] Room owners/admins
 - [ ] Kick/ban users from room
 - [ ] Room settings (who can post, invite-only, etc.)
 - [ ] Archive/delete room
 
-#### 6.4 Workspace Administration
+### 6.4 Workspace Administration
 
 - [ ] Admin user role
 - [ ] User management (deactivate, delete)
 - [ ] Workspace settings
 - [ ] Usage statistics
 
-#### 6.5 Rate Limiting & Abuse Prevention
+### 6.5 Rate Limiting & Abuse Prevention
 
 - [ ] Message rate limiting
 - [ ] Connection rate limiting
 - [ ] Report message/user functionality
 
+### 6.6 Security Checklist
+
+- [ ] Room membership checked on every message ✓ (done)
+- [ ] Rate limiting on all endpoints
+- [ ] Input sanitization (XSS prevention)
+- [ ] SQL injection prevention (parameterized queries via dbtpl) ✓
+- [ ] CSRF protection for REST endpoints
+- [ ] Secure session cookie settings (HttpOnly, Secure, SameSite)
+
 ---
 
-### Phase 7: Advanced Features (Future)
+## Phase 7: Polish & Accessibility
+
+_Goal: Professional, accessible experience_
+
+### 7.1 Keyboard Navigation
+
+- [ ] Tab navigation through UI
+- [ ] Arrow keys in lists
+- [ ] Escape to close modals/panels
+- [ ] Focus management
+
+### 7.2 Accessibility
+
+- [ ] ARIA labels and roles
+- [ ] Screen reader announcements for new messages
+- [ ] Sufficient color contrast
+- [ ] Reduced motion support
+
+### 7.3 Responsive Design
+
+- [ ] Mobile-friendly layout
+- [ ] Collapsible sidebar on small screens
+- [ ] Touch-friendly targets
+- [ ] Swipe gestures (optional)
+
+### 7.4 Loading States & Error Handling
+
+- [ ] Skeleton loaders for content
+- [ ] Connection status indicator
+- [ ] Reconnection handling with UI feedback
+- [ ] Error states and retry options
+
+---
+
+## Phase 8: Advanced Features (Future)
 
 _Nice to have, lower priority_
 
-#### 7.1 OAuth Integration
+### 8.1 OAuth Integration
 
 - [ ] "Sign in with Google"
 - [ ] "Sign in with GitHub"
 - [ ] Account linking
 
-#### 7.2 Integrations & Bots
+### 8.2 Integrations & Bots
 
 - [ ] Incoming webhooks (post messages via HTTP)
 - [ ] Outgoing webhooks (notify external services)
 - [ ] Bot user accounts
 - [ ] Slash commands
 
-#### 7.3 Voice & Video (Major undertaking)
+### 8.3 Voice & Video (Major undertaking)
 
 - [ ] WebRTC integration
 - [ ] Huddles (quick audio calls)
 - [ ] Screen sharing
 
-#### 7.4 Mobile Apps
+### 8.4 Mobile Apps
 
 - [ ] React Native or native apps
 - [ ] Push notifications via APNs/FCM
 
 ---
 
-## Implementation Notes
-
-### API Strategy
-
-- WebSocket for real-time: messages, presence, typing indicators
-- REST for CRUD operations: rooms, users, file uploads
-- All REST endpoints documented in OpenAPI spec
-- Consider GraphQL for complex queries (search, history) - evaluate later
-
-### Database Considerations
-
-- Add indexes as query patterns emerge
-- Consider FTS5 virtual table for search early
-- May need message archival strategy for large deployments
-
-### Testing Strategy
-
-- Unit tests for API handlers
-- Integration tests for WebSocket flows
-- Load testing for Hub broadcast performance
-
-### Security Checklist
-
-- [ ] Room membership checked on every message
-- [ ] Rate limiting on all endpoints
-- [ ] Input sanitization (XSS prevention)
-- [ ] SQL injection prevention (parameterized queries via xo)
-- [ ] CSRF protection for REST endpoints
-- [ ] Secure session cookie settings (HttpOnly, Secure, SameSite)
-
----
-
 ## Milestones
 
-### M1: Secure Room Chat (Phase 1)
+### M1: Complete Multi-Room Chat (Current → Phase 1)
 
-- Multiple rooms working correctly
-- Message history loads
-- Messages only go to room members
+- ✅ Room-scoped message routing
+- ✅ Message history with pagination
+- ✅ Room switching in UI
+- Schema migration complete
+- Create/join/leave rooms
 - REST API with OpenAPI spec
-- **Target: Usable for small team internal chat**
+- **Target: Actually usable for basic team chat**
 
 ### M2: Private Messaging (Phase 2)
 
 - DMs working
 - User presence
 - Basic profiles
+- Typing indicators
 - **Target: Replace simple Slack workspace**
 
 ### M3: Rich Chat (Phase 3)
@@ -337,11 +391,46 @@ _Nice to have, lower priority_
 
 - Threads
 - Search
+- Mentions
 - Notifications
 - **Target: Feature parity with Slack essentials**
 
-### M5: Production Ready (Phase 6)
+### M5: Production Ready (Phases 6-7)
 
 - Admin features
 - Security hardening
+- Accessibility
 - **Target: Deploy for real teams**
+
+---
+
+## Implementation Notes
+
+### Adding New WebSocket Message Types
+
+1. Add type definition in `server/protocol/protocol.go`
+2. Add type to `tools/schemagen/main.go` types slice
+3. Run `just client-types` to regenerate schema + TypeScript
+4. Add handler in `server/api/`
+5. Add case in `client.go` `readPump()` switch
+6. Add client-side handler using generated types
+
+### Frontend Architecture
+
+- Keep vanilla TypeScript (no frameworks)
+- Consider Web Components for encapsulated UI elements
+- Virtual scrolling for large message lists (future)
+- Simple pub/sub or state container for app state
+
+### Database Considerations
+
+- Add indexes as query patterns emerge
+- Consider FTS5 virtual table for search early
+- May need message archival strategy for large deployments
+
+### Testing Strategy
+
+- Unit tests for utility functions and handlers
+- Integration tests for full request lifecycle
+- Load testing for Hub broadcast performance
+- `just test` must pass before marking work complete
