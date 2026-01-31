@@ -192,6 +192,16 @@ Integration tests check `testing.Short()` and skip themselves when `-short` is p
 - **New features**: Add both unit tests for new components and integration tests for user-facing behavior
 - **Refactors**: Existing tests should continue to pass; update them if interfaces change
 
+## Pull Requests
+
+When submitting a PR, export the session transcript using the `pr-transcript` skill:
+
+```bash
+./.pi/skills/pr-transcript/export-transcript.sh <pr-number> <description>
+```
+
+This saves an HTML transcript to `transcripts/` which should be committed with the PR.
+
 ## Key Design Decisions
 
 1. **Single workspace**: No multi-tenancy; one deployment = one workspace
