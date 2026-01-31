@@ -11,6 +11,14 @@ test: lint
 models:
     bash tools/models.sh
 
+# Generate JSON Schema from Go protocol types
+schema:
+    go run ./tools/schemagen > schema/protocol.json
+
+# Generate TypeScript types from JSON Schema
+client-types: schema
+    cd client && node gen-types.mjs && npx biome check --fix src/protocol.generated.ts
+
 build-js:
     cd client && npx tsc --noEmit && node esbuild.config.mjs
 
