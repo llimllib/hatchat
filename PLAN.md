@@ -51,7 +51,7 @@ _Goal: Complete the JSON Schema infrastructure work_
 - [x] Generate HTML docs from `schema/protocol.json` using `json-schema-for-humans`
 - [x] Add `just site` command to justfile
 - [x] GitHub Actions workflow to deploy docs to GitHub Pages
-- [ ] Fix empty protocol schema page (json-schema-for-humans not rendering definitions)
+- [x] Fix empty protocol schema page (added `anyOf` refs at root level so definitions render)
 
 ---
 

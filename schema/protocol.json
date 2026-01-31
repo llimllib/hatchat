@@ -224,6 +224,38 @@
   },
   "$id": "hatchat-protocol",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/User"
+    },
+    {
+      "$ref": "#/$defs/Room"
+    },
+    {
+      "$ref": "#/$defs/Message"
+    },
+    {
+      "$ref": "#/$defs/InitRequest"
+    },
+    {
+      "$ref": "#/$defs/SendMessageRequest"
+    },
+    {
+      "$ref": "#/$defs/HistoryRequest"
+    },
+    {
+      "$ref": "#/$defs/InitResponse"
+    },
+    {
+      "$ref": "#/$defs/HistoryResponse"
+    },
+    {
+      "$ref": "#/$defs/ErrorResponse"
+    },
+    {
+      "$ref": "#/$defs/Envelope"
+    }
+  ],
   "description": "JSON Schema for all WebSocket messages in the Hatchat chat application",
   "title": "Hatchat WebSocket Protocol"
 }

@@ -76,6 +76,15 @@ func main() {
 		}
 	}
 
+	// Build anyOf references for all top-level types so they show in documentation
+	anyOf := make([]map[string]any, 0, len(types))
+	for _, t := range types {
+		typeName := reflect.TypeOf(t).Name()
+		anyOf = append(anyOf, map[string]any{
+			"$ref": "#/$defs/" + typeName,
+		})
+	}
+
 	// Create the final combined schema
 	combined := map[string]any{
 		"$schema":     "https://json-schema.org/draft/2020-12/schema",
@@ -83,6 +92,7 @@ func main() {
 		"title":       "Hatchat WebSocket Protocol",
 		"description": "JSON Schema for all WebSocket messages in the Hatchat chat application",
 		"$defs":       allDefs,
+		"anyOf":       anyOf,
 	}
 
 	data, err := json.MarshalIndent(combined, "", "  ")
