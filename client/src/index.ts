@@ -1,60 +1,11 @@
-function $(
-  tagName: string,
-  attributes?: Record<string, string>,
-  ...children: (HTMLElement | Text)[]
-): HTMLElement {
-  const elt = document.createElement(tagName);
-  if (attributes) {
-    for (const [key, val] of Object.entries(attributes)) {
-      switch (key) {
-        case "text":
-          elt.innerText = val;
-          break;
-        default:
-          elt.setAttribute(key, val || "");
-      }
-    }
-  }
-  for (const child of children) {
-    elt.appendChild(child);
-  }
-
-  return elt;
-}
-
-function text(s: string): Text {
-  return document.createTextNode(s);
-}
-
-interface Room {
-  ID: string;
-}
-
-interface InitialData {
-  Rooms: Room[];
-  User: {
-    id: `usr_${string}`;
-    username: string;
-    avatar: string;
-  };
-  current_room: string;
-}
-
-interface HistoryMessage {
-  id: string;
-  room_id: string;
-  user_id: string;
-  username: string;
-  body: string;
-  created_at: string;
-  modified_at: string;
-}
-
-interface HistoryResponse {
-  messages: HistoryMessage[];
-  has_more: boolean;
-  next_cursor: string;
-}
+import { $, text } from "./dom";
+import {
+  type HistoryResponse,
+  type InitialData,
+  type Message,
+  makePendingKey,
+  type PendingMessage,
+} from "./types";
 
 class Client {
   conn: WebSocket;
@@ -64,6 +15,9 @@ class Client {
   historyCursor?: string;
   hasMoreHistory: boolean = false;
   isLoadingHistory: boolean = false;
+
+  // Track pending messages waiting for server confirmation
+  pendingMessages: Map<string, PendingMessage> = new Map();
 
   constructor(conn: WebSocket) {
     this.conn = conn;
@@ -93,9 +47,13 @@ class Client {
           const urlRoomID = parts[parts.length - 1];
           this.currentRoom = urlRoomID || body.Data.current_room;
 
+          // Render the sidebar with rooms
+          this.renderSidebar();
+
           // Request history for the current room
           if (this.currentRoom) {
             this.requestHistory(this.currentRoom);
+            this.updateChatHeader();
           }
           break;
         }
@@ -104,8 +62,8 @@ class Client {
           break;
         }
         case "message": {
-          // Handle incoming message from other users
-          this.appendMessage(body.Data.body, body.Data.username || "unknown");
+          // Handle incoming message - could be from us (confirmation) or others
+          this.handleIncomingMessage(body.Data as Message);
           break;
         }
         case "error": {
@@ -226,16 +184,138 @@ class Client {
     );
   }
 
-  appendMessage(body: string, username: string) {
+  handleIncomingMessage(msg: Message) {
+    // Check if this is a confirmation of our pending message
+    // We match by body + room_id + user_id since we don't have the server ID yet
+    const pendingKey = makePendingKey(msg.body, msg.room_id, msg.user_id);
+    const pending = this.pendingMessages.get(pendingKey);
+
+    if (pending) {
+      // This is our message confirmed by the server - update the element with real data
+      pending.element.setAttribute("data-message-id", msg.id);
+      pending.element.classList.remove("pending");
+      this.pendingMessages.delete(pendingKey);
+      console.debug("confirmed pending message", msg.id);
+    } else {
+      // This is a message from someone else - append it
+      this.appendMessage(msg.body, msg.username);
+    }
+  }
+
+  appendMessage(body: string, username: string): HTMLElement {
     const messageWindow = document.querySelector(".chat-messages");
     if (!messageWindow) {
       console.error("no message window found");
-      return;
+      throw new Error("no message window found");
     }
-    messageWindow.appendChild(this.createMessageElement(username, body));
+    const element = this.createMessageElement(username, body);
+    messageWindow.appendChild(element);
 
     // Scroll to the bottom to show the new message
     messageWindow.scrollTop = messageWindow.scrollHeight;
+
+    return element;
+  }
+
+  renderSidebar() {
+    if (!this.initialData) {
+      return;
+    }
+
+    const channelList = document.querySelector(".sidebar-channels ul");
+    if (!channelList) {
+      console.error("no channel list found");
+      return;
+    }
+
+    // Clear existing placeholder channels
+    channelList.innerHTML = "";
+
+    // Render each room
+    for (const room of this.initialData.Rooms) {
+      const li = $("li", { "data-room-id": room.id });
+      const link = $("a", {
+        href: `/chat/${room.id}`,
+        text: `# ${room.name}`,
+      });
+
+      // Mark the active room
+      if (room.id === this.currentRoom) {
+        li.classList.add("active");
+      }
+
+      // Add click handler for room switching
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.switchRoom(room.id);
+      });
+
+      li.appendChild(link);
+      channelList.appendChild(li);
+    }
+  }
+
+  switchRoom(roomId: string) {
+    if (roomId === this.currentRoom) {
+      return;
+    }
+
+    // Update current room
+    this.currentRoom = roomId;
+
+    // Update URL without reload
+    window.history.pushState({}, "", `/chat/${roomId}`);
+
+    // Update sidebar highlighting
+    this.updateSidebarHighlight();
+
+    // Update chat header
+    this.updateChatHeader();
+
+    // Clear messages and reset pagination state
+    this.clearMessages();
+    this.historyCursor = undefined;
+    this.hasMoreHistory = false;
+
+    // Request history for new room
+    this.requestHistory(roomId);
+  }
+
+  updateSidebarHighlight() {
+    // Remove active class from all rooms
+    const roomItems = document.querySelectorAll(".sidebar-channels li");
+    for (const item of roomItems) {
+      item.classList.remove("active");
+    }
+
+    // Add active class to current room
+    const activeItem = document.querySelector(
+      `.sidebar-channels li[data-room-id="${this.currentRoom}"]`,
+    );
+    if (activeItem) {
+      activeItem.classList.add("active");
+    }
+  }
+
+  updateChatHeader() {
+    const header = document.querySelector(".chat-header h2");
+    if (!header || !this.initialData) {
+      return;
+    }
+
+    const room = this.initialData.Rooms.find((r) => r.id === this.currentRoom);
+    if (room) {
+      header.textContent = `# ${room.name}`;
+    }
+  }
+
+  clearMessages() {
+    const messageWindow = document.querySelector(".chat-messages");
+    if (messageWindow) {
+      messageWindow.innerHTML = "";
+    }
+    // Clear pending messages for the old room
+    this.pendingMessages.clear();
   }
 
   submitTextbox() {
@@ -259,11 +339,12 @@ class Client {
     // get the room ID from the URL
     const parts = window.location.pathname.split("/");
     const roomID = parts[parts.length - 1];
+    const body = messageBox.value;
 
     const message = {
       type: "message",
       data: {
-        body: messageBox.value,
+        body: body,
         room_id: roomID,
       },
     };
@@ -271,7 +352,17 @@ class Client {
     this.conn.send(JSON.stringify(message));
 
     // Optimistically insert chat message into the chat window
-    this.appendMessage(messageBox.value, this.initialData.User.username);
+    const element = this.appendMessage(body, this.initialData.User.username);
+    element.classList.add("pending");
+
+    // Track the pending message so we can match it when the server confirms
+    const pendingKey = makePendingKey(body, roomID, this.initialData.User.id);
+    this.pendingMessages.set(pendingKey, {
+      tempId: pendingKey,
+      body: body,
+      roomId: roomID,
+      element: element,
+    });
 
     // Clear the input box
     messageBox.value = "";

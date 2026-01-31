@@ -31,6 +31,15 @@ FROM rooms_members
 WHERE user_id = %%userID string%%
 SQL
 
+# UserRoomsWithDetails - get full room info for a user's rooms
+go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T UserRoomDetails <<SQL
+SELECT r.id, r.name, r.is_private
+FROM rooms r
+JOIN rooms_members rm ON r.id = rm.room_id
+WHERE rm.user_id = %%userID string%%
+ORDER BY r.name
+SQL
+
 # RoomMessages - first page (no cursor)
 go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T RoomMessagesFirstPage <<SQL
 SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, u.username
