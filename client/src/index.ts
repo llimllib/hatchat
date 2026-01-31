@@ -2,11 +2,12 @@ import { $ } from "./dom";
 import { AppState } from "./state";
 import {
   type HistoryResponse,
-  type InitialData,
   type InitResponse,
+  type JoinRoomResponse,
   type Message,
   makePendingKey,
   type PendingMessage,
+  type ServerEnvelope,
 } from "./types";
 import {
   formatTimestamp,
@@ -45,27 +46,31 @@ class Client {
       return;
     }
     try {
-      const body = JSON.parse(evt.data);
-      switch (body.Type) {
+      const envelope = JSON.parse(evt.data) as ServerEnvelope;
+      switch (envelope.type) {
         case "init": {
-          this.handleInit(body.Data as InitialData);
+          this.handleInit(envelope.data);
           break;
         }
         case "history": {
-          this.handleHistory(body.Data as HistoryResponse);
+          this.handleHistory(envelope.data);
           break;
         }
         case "message": {
           // Handle incoming message - could be from us (confirmation) or others
-          this.handleIncomingMessage(body.Data as Message);
+          this.handleIncomingMessage(envelope.data);
+          break;
+        }
+        case "join_room": {
+          this.handleJoinRoom(envelope.data);
           break;
         }
         case "error": {
-          console.error("server error:", body.Data);
+          console.error("server error:", envelope.data);
           break;
         }
       }
-      console.debug("received: ", body);
+      console.debug("received: ", envelope);
     } catch (e) {
       console.error("unable to parse", evt.data, e);
     }
@@ -392,6 +397,19 @@ class Client {
       );
     }
 
+    // Tell the server we're switching rooms (updates last_room, validates membership)
+    const request = {
+      type: "join_room",
+      data: {
+        room_id: roomId,
+      },
+    };
+    console.debug("sending join_room", request);
+    this.conn.send(JSON.stringify(request));
+
+    // Note: we update the UI optimistically here; the server will confirm
+    // or send an error if the room switch is invalid
+
     // Update current room
     this.state.setCurrentRoom(roomId);
 
@@ -416,6 +434,15 @@ class Client {
       this.clearMessageUI();
       this.requestHistory(roomId);
     }
+  }
+
+  /**
+   * Handle server confirmation of room switch
+   */
+  handleJoinRoom(response: JoinRoomResponse) {
+    console.debug("join_room confirmed", response.room);
+    // The UI was already updated optimistically in switchRoom
+    // We could use this to verify the switch or handle edge cases
   }
 
   updateSidebarHighlight() {

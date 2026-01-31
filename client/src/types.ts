@@ -7,6 +7,8 @@ export type {
   HistoryResponse,
   InitRequest,
   InitResponse,
+  JoinRoomRequest,
+  JoinRoomResponse,
   Message,
   MessageType,
   Room,

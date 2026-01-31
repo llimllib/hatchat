@@ -110,6 +110,32 @@
       ],
       "type": "object"
     },
+    "JoinRoomRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "room_id": {
+          "description": "Room ID to switch to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id"
+      ],
+      "type": "object"
+    },
+    "JoinRoomResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "room": {
+          "$ref": "#/$defs/Room",
+          "description": "The room that was joined"
+        }
+      },
+      "required": [
+        "room"
+      ],
+      "type": "object"
+    },
     "Message": {
       "additionalProperties": false,
       "properties": {
@@ -244,10 +270,16 @@
       "$ref": "#/$defs/HistoryRequest"
     },
     {
+      "$ref": "#/$defs/JoinRoomRequest"
+    },
+    {
       "$ref": "#/$defs/InitResponse"
     },
     {
       "$ref": "#/$defs/HistoryResponse"
+    },
+    {
+      "$ref": "#/$defs/JoinRoomResponse"
     },
     {
       "$ref": "#/$defs/ErrorResponse"

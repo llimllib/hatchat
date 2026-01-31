@@ -53,6 +53,13 @@ _Goal: Complete the JSON Schema infrastructure work_
 - [x] GitHub Actions workflow to deploy docs to GitHub Pages
 - [x] Fix empty protocol schema page (added `anyOf` refs at root level so definitions render)
 
+### 0.5 Runtime Type Validation (Future)
+
+- [ ] Add Zod (or similar) for runtime validation of WebSocket messages
+- [ ] Generate Zod schemas from JSON Schema or define alongside protocol types
+- [ ] Validate incoming messages in client with clear error messages on mismatch
+- [ ] Consider server-side validation of client messages as well
+
 ---
 
 ## Phase 1: Room Management
@@ -61,9 +68,9 @@ _Goal: Users can create, join, and manage rooms_
 
 ### 1.1 Room Switching Protocol
 
-- [ ] Add `join_room` WebSocket message type (backend)
-- [ ] Update user's `last_room` when switching
-- [ ] Add protocol types to `server/protocol/protocol.go`
+- [x] Add `join_room` WebSocket message type (backend)
+- [x] Update user's `last_room` when switching
+- [x] Add protocol types to `server/protocol/protocol.go`
 
 ### 1.2 Join Room
 

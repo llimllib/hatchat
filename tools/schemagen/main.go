@@ -30,8 +30,10 @@ func main() {
 		protocol.InitRequest{},
 		protocol.SendMessageRequest{},
 		protocol.HistoryRequest{},
+		protocol.JoinRoomRequest{},
 		protocol.InitResponse{},
 		protocol.HistoryResponse{},
+		protocol.JoinRoomResponse{},
 		protocol.ErrorResponse{},
 		protocol.Envelope{},
 	}
