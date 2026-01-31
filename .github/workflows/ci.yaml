@@ -12,17 +12,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go }}
       - name: unit tests
         run: "go test ./..."
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.8.0
 
@@ -32,9 +32,9 @@ jobs:
       matrix:
         node: ["22"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       - name: Install dependencies
