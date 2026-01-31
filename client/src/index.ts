@@ -555,7 +555,7 @@ function main() {
   });
 
   document
-    .getElementById("sendmessage")
+    .getElementById("message")
     ?.addEventListener("keypress", client.onKeypress.bind(client));
   document
     .getElementById("sendmessage")
