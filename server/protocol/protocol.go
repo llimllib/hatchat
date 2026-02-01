@@ -84,11 +84,27 @@ type HistoryRequest struct {
 	Limit  int    `json:"limit" jsonschema:"description=Maximum messages to return (default 50; max 100),minimum=1,maximum=100"`
 }
 
-// JoinRoomRequest is sent by the client to switch to a different room
+// JoinRoomRequest is sent by the client to switch to a different room.
+// If the user is not a member of a public room, they will be added as a member.
 // Direction: client → server
 // Response: JoinRoomResponse
 type JoinRoomRequest struct {
 	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to switch to"`
+}
+
+// CreateRoomRequest is sent by the client to create a new room
+// Direction: client → server
+// Response: CreateRoomResponse
+type CreateRoomRequest struct {
+	Name      string `json:"name" jsonschema:"required,description=Room display name,minLength=1,maxLength=80"`
+	IsPrivate bool   `json:"is_private" jsonschema:"description=Whether the room is private (invite-only)"`
+}
+
+// ListRoomsRequest is sent by the client to get a list of public rooms
+// Direction: client → server
+// Response: ListRoomsResponse
+type ListRoomsRequest struct {
+	// Currently empty, but reserved for future filters (e.g., search query)
 }
 
 // =============================================================================
@@ -120,7 +136,21 @@ type ErrorResponse struct {
 // JoinRoomResponse is sent by the server in response to JoinRoomRequest
 // Direction: server → client
 type JoinRoomResponse struct {
-	Room Room `json:"room" jsonschema:"required,description=The room that was joined"`
+	Room   Room `json:"room" jsonschema:"required,description=The room that was joined"`
+	Joined bool `json:"joined" jsonschema:"required,description=True if user was added as a new member (vs already being a member)"`
+}
+
+// CreateRoomResponse is sent by the server in response to CreateRoomRequest
+// Direction: server → client
+type CreateRoomResponse struct {
+	Room Room `json:"room" jsonschema:"required,description=The newly created room"`
+}
+
+// ListRoomsResponse is sent by the server in response to ListRoomsRequest
+// Direction: server → client
+type ListRoomsResponse struct {
+	Rooms    []*Room `json:"rooms" jsonschema:"required,description=List of public rooms"`
+	IsMember []bool  `json:"is_member" jsonschema:"required,description=Whether the user is a member of each room (parallel array)"`
 }
 
 // =============================================================================
@@ -167,11 +197,31 @@ var MessageTypes = []MessageMeta{
 	{
 		Type:        "join_room",
 		Direction:   ClientToServer,
-		Description: "Switch to a different room (updates last_room)",
+		Description: "Switch to a different room (updates last_room). Joins public rooms if not a member.",
 	},
 	{
 		Type:        "join_room",
 		Direction:   ServerToClient,
 		Description: "Response confirming room switch",
+	},
+	{
+		Type:        "create_room",
+		Direction:   ClientToServer,
+		Description: "Create a new room",
+	},
+	{
+		Type:        "create_room",
+		Direction:   ServerToClient,
+		Description: "Response with the newly created room",
+	},
+	{
+		Type:        "list_rooms",
+		Direction:   ClientToServer,
+		Description: "Request list of public rooms",
+	},
+	{
+		Type:        "list_rooms",
+		Direction:   ServerToClient,
+		Description: "Response with list of public rooms",
 	},
 }

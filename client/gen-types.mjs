@@ -23,9 +23,13 @@ const typeOrder = [
   "SendMessageRequest",
   "HistoryRequest",
   "JoinRoomRequest",
+  "CreateRoomRequest",
+  "ListRoomsRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
+  "CreateRoomResponse",
+  "ListRoomsResponse",
   "ErrorResponse",
   "Envelope",
 ];
@@ -156,6 +160,8 @@ export type MessageType =
   | "message"
   | "history"
   | "join_room"
+  | "create_room"
+  | "list_rooms"
   | "error";
 
 /**
@@ -165,7 +171,9 @@ export type ClientEnvelope =
   | { type: "init"; data: InitRequest }
   | { type: "message"; data: SendMessageRequest }
   | { type: "history"; data: HistoryRequest }
-  | { type: "join_room"; data: JoinRoomRequest };
+  | { type: "join_room"; data: JoinRoomRequest }
+  | { type: "create_room"; data: CreateRoomRequest }
+  | { type: "list_rooms"; data: ListRoomsRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -175,6 +183,8 @@ export type ServerEnvelope =
   | { type: "message"; data: Message }
   | { type: "history"; data: HistoryResponse }
   | { type: "join_room"; data: JoinRoomResponse }
+  | { type: "create_room"; data: CreateRoomResponse }
+  | { type: "list_rooms"; data: ListRoomsResponse }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -201,6 +211,16 @@ export const JoinRoomEnvelopeSchema = z.object({
   data: JoinRoomResponseSchema,
 });
 
+export const CreateRoomEnvelopeSchema = z.object({
+  type: z.literal("create_room"),
+  data: CreateRoomResponseSchema,
+});
+
+export const ListRoomsEnvelopeSchema = z.object({
+  type: z.literal("list_rooms"),
+  data: ListRoomsResponseSchema,
+});
+
 export const ErrorEnvelopeSchema = z.object({
   type: z.literal("error"),
   data: ErrorResponseSchema,
@@ -214,6 +234,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   MessageEnvelopeSchema,
   HistoryEnvelopeSchema,
   JoinRoomEnvelopeSchema,
+  CreateRoomEnvelopeSchema,
+  ListRoomsEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

@@ -173,6 +173,7 @@ describe("Zod Schema Validation", () => {
             name: "general",
             is_private: false,
           },
+          joined: true,
         },
       };
       const result = ServerEnvelopeSchema.safeParse(envelope);
@@ -184,6 +185,36 @@ describe("Zod Schema Validation", () => {
         type: "error",
         data: {
           message: "Something went wrong",
+        },
+      };
+      const result = ServerEnvelopeSchema.safeParse(envelope);
+      expect(result.success).toBe(true);
+    });
+
+    it("validates create_room envelope", () => {
+      const envelope = {
+        type: "create_room",
+        data: {
+          room: {
+            id: "roo_123456789abc",
+            name: "new-channel",
+            is_private: false,
+          },
+        },
+      };
+      const result = ServerEnvelopeSchema.safeParse(envelope);
+      expect(result.success).toBe(true);
+    });
+
+    it("validates list_rooms envelope", () => {
+      const envelope = {
+        type: "list_rooms",
+        data: {
+          rooms: [
+            { id: "roo_123456789abc", name: "general", is_private: false },
+            { id: "roo_abcdef123456", name: "random", is_private: true },
+          ],
+          is_member: [true, false],
         },
       };
       const result = ServerEnvelopeSchema.safeParse(envelope);

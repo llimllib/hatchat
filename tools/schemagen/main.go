@@ -31,9 +31,13 @@ func main() {
 		protocol.SendMessageRequest{},
 		protocol.HistoryRequest{},
 		protocol.JoinRoomRequest{},
+		protocol.CreateRoomRequest{},
+		protocol.ListRoomsRequest{},
 		protocol.InitResponse{},
 		protocol.HistoryResponse{},
 		protocol.JoinRoomResponse{},
+		protocol.CreateRoomResponse{},
+		protocol.ListRoomsResponse{},
 		protocol.ErrorResponse{},
 		protocol.Envelope{},
 	}

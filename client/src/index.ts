@@ -1,13 +1,16 @@
 import { $ } from "./dom";
 import { AppState } from "./state";
 import {
+  type CreateRoomResponse,
   type HistoryResponse,
   type InitResponse,
   type JoinRoomResponse,
+  type ListRoomsResponse,
   type Message,
   makePendingKey,
   type PendingMessage,
   parseServerEnvelope,
+  type Room,
 } from "./types";
 import {
   formatTimestamp,
@@ -64,6 +67,14 @@ class Client {
         }
         case "join_room": {
           this.handleJoinRoom(envelope.data);
+          break;
+        }
+        case "create_room": {
+          this.handleCreateRoom(envelope.data);
+          break;
+        }
+        case "list_rooms": {
+          this.handleListRooms(envelope.data);
           break;
         }
         case "error": {
@@ -382,6 +393,35 @@ class Client {
       li.appendChild(link);
       channelList.appendChild(li);
     }
+
+    // Add action buttons at the bottom
+    const actionsContainer = document.querySelector(".sidebar-channels");
+    if (actionsContainer) {
+      // Remove existing action buttons if any
+      const existingActions =
+        actionsContainer.querySelector(".channel-actions");
+      if (existingActions) {
+        existingActions.remove();
+      }
+
+      const actions = $("div", { class: "channel-actions" });
+
+      const createBtn = $("button", {
+        class: "channel-action-btn",
+        text: "+ Create channel",
+      });
+      createBtn.addEventListener("click", () => this.showCreateChannelModal());
+
+      const browseBtn = $("button", {
+        class: "channel-action-btn",
+        text: "Browse channels",
+      });
+      browseBtn.addEventListener("click", () => this.requestListRooms());
+
+      actions.appendChild(createBtn);
+      actions.appendChild(browseBtn);
+      actionsContainer.appendChild(actions);
+    }
   }
 
   switchRoom(roomId: string) {
@@ -441,9 +481,276 @@ class Client {
    * Handle server confirmation of room switch
    */
   handleJoinRoom(response: JoinRoomResponse) {
-    console.debug("join_room confirmed", response.room);
-    // The UI was already updated optimistically in switchRoom
-    // We could use this to verify the switch or handle edge cases
+    console.debug(
+      "join_room confirmed",
+      response.room,
+      "joined:",
+      response.joined,
+    );
+
+    // If user was newly joined (not already a member), add to state and re-render sidebar
+    if (response.joined) {
+      this.state.addRoom(response.room);
+      this.renderSidebar();
+      // Update the header now that the room is in state
+      this.updateChatHeader();
+    }
+  }
+
+  /**
+   * Handle server response to room creation
+   */
+  handleCreateRoom(response: CreateRoomResponse) {
+    console.debug("create_room confirmed", response.room);
+
+    // Add the new room to state
+    this.state.addRoom(response.room);
+
+    // Re-render sidebar to show new room
+    this.renderSidebar();
+
+    // Switch to the new room
+    this.switchRoom(response.room.id);
+
+    // Close the modal if open
+    this.closeModal();
+  }
+
+  /**
+   * Handle server response to list rooms request
+   */
+  handleListRooms(response: ListRoomsResponse) {
+    console.debug("list_rooms response", response);
+    this.showBrowseChannelsModal(response.rooms, response.is_member);
+  }
+
+  /**
+   * Request list of public rooms from server
+   */
+  requestListRooms() {
+    const request = {
+      type: "list_rooms",
+      data: {},
+    };
+    console.debug("requesting list_rooms", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Send request to create a new room
+   */
+  createRoom(name: string, isPrivate: boolean) {
+    const request = {
+      type: "create_room",
+      data: {
+        name: name,
+        is_private: isPrivate,
+      },
+    };
+    console.debug("creating room", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Join a room the user is not currently a member of
+   */
+  joinRoom(roomId: string) {
+    const request = {
+      type: "join_room",
+      data: {
+        room_id: roomId,
+      },
+    };
+    console.debug("joining room", request);
+    this.conn.send(JSON.stringify(request));
+
+    // Switch to the room
+    this.switchRoom(roomId);
+
+    // Close the modal
+    this.closeModal();
+  }
+
+  /**
+   * Show modal for creating a new channel
+   */
+  showCreateChannelModal() {
+    const modal = this.createModal("Create a channel");
+
+    const form = $("form", { class: "modal-form" });
+
+    const nameLabel = $("label", { text: "Channel name", for: "channel-name" });
+    const nameInput = $("input", {
+      type: "text",
+      id: "channel-name",
+      name: "name",
+      placeholder: "e.g. project-updates",
+      maxlength: "80",
+      required: "true",
+    }) as HTMLInputElement;
+
+    const privateLabel = $("label", { class: "checkbox-label" });
+    const privateCheckbox = $("input", {
+      type: "checkbox",
+      id: "channel-private",
+      name: "is_private",
+    }) as HTMLInputElement;
+    const privateText = $("span", { text: " Make this channel private" });
+    privateLabel.appendChild(privateCheckbox);
+    privateLabel.appendChild(privateText);
+
+    const privateHint = $("p", {
+      class: "form-hint",
+      text: "Private channels are only visible to invited members.",
+    });
+
+    const buttonRow = $("div", { class: "button-row" });
+    const cancelBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Cancel",
+    });
+    const createBtn = $("button", {
+      type: "submit",
+      class: "btn btn-primary",
+      text: "Create Channel",
+    });
+
+    cancelBtn.addEventListener("click", () => this.closeModal());
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const name = nameInput.value.trim();
+      if (name) {
+        this.createRoom(name, privateCheckbox.checked);
+      }
+    });
+
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(createBtn);
+
+    form.appendChild(nameLabel);
+    form.appendChild(nameInput);
+    form.appendChild(privateLabel);
+    form.appendChild(privateHint);
+    form.appendChild(buttonRow);
+
+    modal.appendChild(form);
+
+    // Focus the input
+    nameInput.focus();
+  }
+
+  /**
+   * Show modal for browsing and joining public channels
+   */
+  showBrowseChannelsModal(rooms: Room[], isMember: boolean[]) {
+    const modal = this.createModal("Browse channels");
+
+    if (rooms.length === 0) {
+      const emptyState = $("p", {
+        class: "empty-state",
+        text: "No public channels available. Create one to get started!",
+      });
+      modal.appendChild(emptyState);
+    } else {
+      const list = $("ul", { class: "channel-list" });
+
+      for (let i = 0; i < rooms.length; i++) {
+        const room = rooms[i];
+        const member = isMember[i];
+
+        const li = $("li", { class: "channel-list-item" });
+        const nameSpan = $("span", {
+          class: "channel-name",
+          text: `# ${room.name}`,
+        });
+
+        li.appendChild(nameSpan);
+
+        if (member) {
+          const badge = $("span", {
+            class: "badge badge-member",
+            text: "Joined",
+          });
+          li.appendChild(badge);
+        } else {
+          const joinBtn = $("button", {
+            class: "btn btn-small btn-primary",
+            text: "Join",
+          });
+          joinBtn.addEventListener("click", () => this.joinRoom(room.id));
+          li.appendChild(joinBtn);
+        }
+
+        list.appendChild(li);
+      }
+
+      modal.appendChild(list);
+    }
+
+    const buttonRow = $("div", { class: "button-row" });
+    const closeBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Close",
+    });
+    closeBtn.addEventListener("click", () => this.closeModal());
+    buttonRow.appendChild(closeBtn);
+    modal.appendChild(buttonRow);
+  }
+
+  /**
+   * Create a modal container with title.
+   * Returns the modal content element (not the overlay) for appending content.
+   * The overlay is automatically added to the DOM.
+   */
+  createModal(title: string): HTMLElement {
+    // Close any existing modal first
+    this.closeModal();
+
+    const overlay = $("div", { class: "modal-overlay" });
+    const modal = $("div", { class: "modal" });
+    const header = $("div", { class: "modal-header" });
+    const titleEl = $("h3", { text: title });
+    const closeBtn = $("button", { class: "modal-close", text: "×" });
+
+    closeBtn.addEventListener("click", () => this.closeModal());
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        this.closeModal();
+      }
+    });
+
+    // Close on Escape key
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        this.closeModal();
+        document.removeEventListener("keydown", handleEscape);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    header.appendChild(titleEl);
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+    overlay.appendChild(modal);
+
+    // Add overlay to DOM
+    document.body.appendChild(overlay);
+
+    // Return the modal content element for appending content
+    return modal;
+  }
+
+  /**
+   * Close any open modal
+   */
+  closeModal() {
+    const modal = document.querySelector(".modal-overlay");
+    if (modal) {
+      modal.remove();
+    }
   }
 
   updateSidebarHighlight() {
