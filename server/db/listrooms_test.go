@@ -77,7 +77,7 @@ func TestListPublicRoomsWithMembership_Empty(t *testing.T) {
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
-	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID)
+	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID, "")
 	if err != nil {
 		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestListPublicRoomsWithMembership_WithMembership(t *testing.T) {
 	room2 := createTestRoom(t, database, "roo_bbbbbbbbbbbb", "beta-channel", false)
 	addUserToRoom(t, database, user.ID, room1.ID)
 
-	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID)
+	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID, "")
 	if err != nil {
 		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
 	}
@@ -128,6 +128,56 @@ func TestListPublicRoomsWithMembership_WithMembership(t *testing.T) {
 	}
 }
 
+func TestListPublicRoomsWithMembership_SearchFilter(t *testing.T) {
+	database := testDB(t)
+	defer func() { _ = database.Close() }()
+
+	ctx := context.Background()
+
+	user := createTestUser(t, database, "usr_test123456789", "testuser")
+
+	// Create rooms with different names
+	createTestRoom(t, database, "roo_aaaaaaaaaaaa", "general", false)
+	createTestRoom(t, database, "roo_bbbbbbbbbbbb", "general-announcements", false)
+	createTestRoom(t, database, "roo_cccccccccccc", "random", false)
+
+	// Search for "general" should find 2 rooms
+	rooms, _, err := ListPublicRoomsWithMembership(ctx, database, user.ID, "general")
+	if err != nil {
+		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
+	}
+	if len(rooms) != 2 {
+		t.Errorf("Expected 2 rooms matching 'general', got %d", len(rooms))
+	}
+
+	// Search for "random" should find 1 room
+	rooms, _, err = ListPublicRoomsWithMembership(ctx, database, user.ID, "random")
+	if err != nil {
+		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
+	}
+	if len(rooms) != 1 {
+		t.Errorf("Expected 1 room matching 'random', got %d", len(rooms))
+	}
+
+	// Search for "nonexistent" should find 0 rooms
+	rooms, _, err = ListPublicRoomsWithMembership(ctx, database, user.ID, "nonexistent")
+	if err != nil {
+		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
+	}
+	if len(rooms) != 0 {
+		t.Errorf("Expected 0 rooms matching 'nonexistent', got %d", len(rooms))
+	}
+
+	// Empty search should find all rooms
+	rooms, _, err = ListPublicRoomsWithMembership(ctx, database, user.ID, "")
+	if err != nil {
+		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
+	}
+	if len(rooms) != 3 {
+		t.Errorf("Expected 3 rooms with empty search, got %d", len(rooms))
+	}
+}
+
 func TestListPublicRoomsWithMembership_OnlyPublic(t *testing.T) {
 	database := testDB(t)
 	defer func() { _ = database.Close() }()
@@ -144,7 +194,7 @@ func TestListPublicRoomsWithMembership_OnlyPublic(t *testing.T) {
 	addUserToRoom(t, database, user.ID, publicRoom.ID)
 	addUserToRoom(t, database, user.ID, privateRoom.ID)
 
-	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID)
+	rooms, membership, err := ListPublicRoomsWithMembership(ctx, database, user.ID, "")
 	if err != nil {
 		t.Fatalf("ListPublicRoomsWithMembership failed: %v", err)
 	}

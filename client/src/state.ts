@@ -68,6 +68,20 @@ export class AppState {
   }
 
   /**
+   * Remove a room from the user's room list
+   */
+  removeRoom(roomId: string) {
+    if (!this.initialData) {
+      throw new Error("Not yet initialized");
+    }
+    this.initialData.Rooms = this.initialData.Rooms.filter(
+      (r) => r.id !== roomId,
+    );
+    // Also clear the room state cache
+    this.roomStates.delete(roomId);
+  }
+
+  /**
    * Get state for a specific room, creating it if needed
    */
   getRoomState(roomId: string): RoomState {

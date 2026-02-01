@@ -101,6 +101,37 @@ describe("AppState", () => {
         state.addRoom({ id: "roo_new", name: "test", is_private: false }),
       ).toThrow("Not yet initialized");
     });
+
+    it("removes a room", () => {
+      state.setInitialData(createMockInitialData());
+      expect(state.rooms).toHaveLength(2);
+      state.removeRoom("roo_123");
+      expect(state.rooms).toHaveLength(1);
+      expect(state.getRoom("roo_123")).toBeUndefined();
+      expect(state.getRoom("roo_456")?.name).toBe("random");
+    });
+
+    it("clears room state cache when removing a room", () => {
+      state.setInitialData(createMockInitialData());
+      // Add some messages to the room
+      state.addMessage("roo_123", {
+        id: "msg_test",
+        room_id: "roo_123",
+        user_id: "usr_abc123",
+        username: "testuser",
+        body: "Hello",
+        created_at: new Date().toISOString(),
+        modified_at: new Date().toISOString(),
+      });
+      expect(state.hasMessagesForRoom("roo_123")).toBe(true);
+
+      state.removeRoom("roo_123");
+      expect(state.hasMessagesForRoom("roo_123")).toBe(false);
+    });
+
+    it("throws when removing room before initialization", () => {
+      expect(() => state.removeRoom("roo_123")).toThrow("Not yet initialized");
+    });
   });
 
   describe("room state", () => {

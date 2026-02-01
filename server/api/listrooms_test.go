@@ -161,8 +161,7 @@ func TestListRooms_OrderedByName(t *testing.T) {
 	}
 }
 
-// TestListRooms_InvalidJSON tests that the handler doesn't fail on invalid/empty JSON
-// (since the request body is currently unused)
+// TestListRooms_InvalidJSON tests that the handler fails on invalid JSON
 func TestListRooms_InvalidJSON(t *testing.T) {
 	database := testDB(t)
 	defer func() { _ = database.Close() }()
@@ -172,13 +171,56 @@ func TestListRooms_InvalidJSON(t *testing.T) {
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
-	// This should not fail since we don't parse the request body
-	response, err := api.ListRooms(user, []byte("not valid json"))
-	if err != nil {
-		t.Fatalf("ListRooms should not fail on invalid JSON: %v", err)
+	// Invalid JSON should return an error
+	_, err := api.ListRooms(user, []byte("not valid json"))
+	if err == nil {
+		t.Fatal("ListRooms should fail on invalid JSON")
 	}
-	if response.Type != "list_rooms" {
-		t.Errorf("Expected type 'list_rooms', got '%s'", response.Type)
+}
+
+// TestListRooms_WithQuery tests the search functionality
+func TestListRooms_WithQuery(t *testing.T) {
+	database := testDB(t)
+	defer func() { _ = database.Close() }()
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	api := NewApi(database, logger)
+
+	user := createTestUser(t, database, "usr_test123456789", "testuser")
+
+	// Create rooms with different names
+	createTestRoom(t, database, "roo_general12345", "general", false)
+	createTestRoom(t, database, "roo_random123456", "random", false)
+	createTestRoom(t, database, "roo_generalann12", "general-announcements", false)
+
+	// Search for "general"
+	response, err := api.ListRooms(user, []byte(`{"query": "general"}`))
+	if err != nil {
+		t.Fatalf("ListRooms failed: %v", err)
+	}
+
+	data, ok := response.Data.(protocol.ListRoomsResponse)
+	if !ok {
+		t.Fatalf("Expected ListRoomsResponse, got %T", response.Data)
+	}
+
+	if len(data.Rooms) != 2 {
+		t.Errorf("Expected 2 rooms matching 'general', got %d", len(data.Rooms))
+	}
+
+	// Search for "random"
+	response, err = api.ListRooms(user, []byte(`{"query": "random"}`))
+	if err != nil {
+		t.Fatalf("ListRooms failed: %v", err)
+	}
+
+	data, ok = response.Data.(protocol.ListRoomsResponse)
+	if !ok {
+		t.Fatalf("Expected ListRoomsResponse, got %T", response.Data)
+	}
+
+	if len(data.Rooms) != 1 {
+		t.Errorf("Expected 1 room matching 'random', got %d", len(data.Rooms))
 	}
 }
 

@@ -56,6 +56,18 @@ export function formatTimestampFull(isoString: string): string {
 }
 
 /**
+ * Format a date for display (just the date, no time)
+ */
+export function formatDate(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+/**
  * Get initials from a username for avatar placeholder
  */
 export function getInitials(username: string): string {

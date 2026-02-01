@@ -184,6 +184,30 @@ func (c *Client) readPump() {
 					return
 				}
 			}
+		case "leave_room":
+			res, err := c.api.LeaveRoom(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle leave_room", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to leave room")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write leave_room json", "error", err)
+					return
+				}
+			}
+		case "room_info":
+			res, err := c.api.RoomInfo(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle room_info", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get room info")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write room_info json", "error", err)
+					return
+				}
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

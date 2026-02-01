@@ -19,17 +19,22 @@ const typeOrder = [
   "User",
   "Room",
   "Message",
+  "RoomMember",
   "InitRequest",
   "SendMessageRequest",
   "HistoryRequest",
   "JoinRoomRequest",
   "CreateRoomRequest",
   "ListRoomsRequest",
+  "LeaveRoomRequest",
+  "RoomInfoRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
   "CreateRoomResponse",
   "ListRoomsResponse",
+  "LeaveRoomResponse",
+  "RoomInfoResponse",
   "ErrorResponse",
   "Envelope",
 ];
@@ -162,6 +167,8 @@ export type MessageType =
   | "join_room"
   | "create_room"
   | "list_rooms"
+  | "leave_room"
+  | "room_info"
   | "error";
 
 /**
@@ -173,7 +180,9 @@ export type ClientEnvelope =
   | { type: "history"; data: HistoryRequest }
   | { type: "join_room"; data: JoinRoomRequest }
   | { type: "create_room"; data: CreateRoomRequest }
-  | { type: "list_rooms"; data: ListRoomsRequest };
+  | { type: "list_rooms"; data: ListRoomsRequest }
+  | { type: "leave_room"; data: LeaveRoomRequest }
+  | { type: "room_info"; data: RoomInfoRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -185,6 +194,8 @@ export type ServerEnvelope =
   | { type: "join_room"; data: JoinRoomResponse }
   | { type: "create_room"; data: CreateRoomResponse }
   | { type: "list_rooms"; data: ListRoomsResponse }
+  | { type: "leave_room"; data: LeaveRoomResponse }
+  | { type: "room_info"; data: RoomInfoResponse }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -221,6 +232,16 @@ export const ListRoomsEnvelopeSchema = z.object({
   data: ListRoomsResponseSchema,
 });
 
+export const LeaveRoomEnvelopeSchema = z.object({
+  type: z.literal("leave_room"),
+  data: LeaveRoomResponseSchema,
+});
+
+export const RoomInfoEnvelopeSchema = z.object({
+  type: z.literal("room_info"),
+  data: RoomInfoResponseSchema,
+});
+
 export const ErrorEnvelopeSchema = z.object({
   type: z.literal("error"),
   data: ErrorResponseSchema,
@@ -236,6 +257,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   JoinRoomEnvelopeSchema,
   CreateRoomEnvelopeSchema,
   ListRoomsEnvelopeSchema,
+  LeaveRoomEnvelopeSchema,
+  RoomInfoEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

@@ -5,14 +5,17 @@ import {
   type HistoryResponse,
   type InitResponse,
   type JoinRoomResponse,
+  type LeaveRoomResponse,
   type ListRoomsResponse,
   type Message,
   makePendingKey,
   type PendingMessage,
   parseServerEnvelope,
   type Room,
+  type RoomInfoResponse,
 } from "./types";
 import {
+  formatDate,
   formatTimestamp,
   formatTimestampFull,
   getInitials,
@@ -75,6 +78,14 @@ class Client {
         }
         case "list_rooms": {
           this.handleListRooms(envelope.data);
+          break;
+        }
+        case "leave_room": {
+          this.handleLeaveRoom(envelope.data);
+          break;
+        }
+        case "room_info": {
+          this.handleRoomInfo(envelope.data);
           break;
         }
         case "error": {
@@ -525,14 +536,76 @@ class Client {
   }
 
   /**
+   * Handle server response to leave room request
+   */
+  handleLeaveRoom(response: LeaveRoomResponse) {
+    console.debug("leave_room response", response);
+
+    // Remove the room from state
+    this.state.removeRoom(response.room_id);
+
+    // Close the modal
+    this.closeModal();
+
+    // If we left the current room, switch to the first available room
+    if (response.room_id === this.state.currentRoom) {
+      const firstRoom = this.state.rooms[0];
+      if (firstRoom) {
+        this.switchRoom(firstRoom.id);
+      }
+    }
+
+    // Re-render sidebar
+    this.renderSidebar();
+  }
+
+  /**
+   * Handle server response to room info request
+   */
+  handleRoomInfo(response: RoomInfoResponse) {
+    console.debug("room_info response", response);
+    this.showRoomInfoModal(response);
+  }
+
+  /**
    * Request list of public rooms from server
    */
-  requestListRooms() {
+  requestListRooms(query?: string) {
     const request = {
       type: "list_rooms",
-      data: {},
+      data: {
+        query: query || "",
+      },
     };
     console.debug("requesting list_rooms", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request room info from server
+   */
+  requestRoomInfo(roomId: string) {
+    const request = {
+      type: "room_info",
+      data: {
+        room_id: roomId,
+      },
+    };
+    console.debug("requesting room_info", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request to leave a room
+   */
+  requestLeaveRoom(roomId: string) {
+    const request = {
+      type: "leave_room",
+      data: {
+        room_id: roomId,
+      },
+    };
+    console.debug("requesting leave_room", request);
     this.conn.send(JSON.stringify(request));
   }
 
@@ -647,47 +720,29 @@ class Client {
   showBrowseChannelsModal(rooms: Room[], isMember: boolean[]) {
     const modal = this.createModal("Browse channels");
 
-    if (rooms.length === 0) {
-      const emptyState = $("p", {
-        class: "empty-state",
-        text: "No public channels available. Create one to get started!",
-      });
-      modal.appendChild(emptyState);
-    } else {
-      const list = $("ul", { class: "channel-list" });
+    // Search input
+    const searchContainer = $("div", { class: "modal-search" });
+    const searchInput = $("input", {
+      type: "text",
+      placeholder: "Search channels...",
+      class: "search-input",
+    }) as HTMLInputElement;
 
-      for (let i = 0; i < rooms.length; i++) {
-        const room = rooms[i];
-        const member = isMember[i];
+    let searchTimeout: ReturnType<typeof setTimeout>;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.requestListRooms(searchInput.value.trim());
+      }, 300);
+    });
 
-        const li = $("li", { class: "channel-list-item" });
-        const nameSpan = $("span", {
-          class: "channel-name",
-          text: `# ${room.name}`,
-        });
+    searchContainer.appendChild(searchInput);
+    modal.appendChild(searchContainer);
 
-        li.appendChild(nameSpan);
-
-        if (member) {
-          const badge = $("span", {
-            class: "badge badge-member",
-            text: "Joined",
-          });
-          li.appendChild(badge);
-        } else {
-          const joinBtn = $("button", {
-            class: "btn btn-small btn-primary",
-            text: "Join",
-          });
-          joinBtn.addEventListener("click", () => this.joinRoom(room.id));
-          li.appendChild(joinBtn);
-        }
-
-        list.appendChild(li);
-      }
-
-      modal.appendChild(list);
-    }
+    // Channel list container
+    const listContainer = $("div", { class: "channel-list-container" });
+    this.renderChannelList(listContainer, rooms, isMember);
+    modal.appendChild(listContainer);
 
     const buttonRow = $("div", { class: "button-row" });
     const closeBtn = $("button", {
@@ -697,6 +752,168 @@ class Client {
     });
     closeBtn.addEventListener("click", () => this.closeModal());
     buttonRow.appendChild(closeBtn);
+    modal.appendChild(buttonRow);
+
+    // Focus the search input
+    searchInput.focus();
+  }
+
+  /**
+   * Render the channel list (used by browse channels modal)
+   */
+  renderChannelList(
+    container: Element,
+    rooms: Room[],
+    isMember: boolean[],
+  ): void {
+    container.innerHTML = "";
+
+    if (rooms.length === 0) {
+      const emptyState = $("p", {
+        class: "empty-state",
+        text: "No channels found. Try a different search or create a new channel.",
+      });
+      container.appendChild(emptyState);
+      return;
+    }
+
+    const list = $("ul", { class: "channel-list" });
+
+    for (let i = 0; i < rooms.length; i++) {
+      const room = rooms[i];
+      const member = isMember[i];
+
+      const li = $("li", { class: "channel-list-item" });
+      const nameSpan = $("span", {
+        class: "channel-name",
+        text: `# ${room.name}`,
+      });
+
+      li.appendChild(nameSpan);
+
+      if (member) {
+        const badge = $("span", {
+          class: "badge badge-member",
+          text: "Joined",
+        });
+        li.appendChild(badge);
+      } else {
+        const joinBtn = $("button", {
+          class: "btn btn-small btn-primary",
+          text: "Join",
+        });
+        joinBtn.addEventListener("click", () => this.joinRoom(room.id));
+        li.appendChild(joinBtn);
+      }
+
+      list.appendChild(li);
+    }
+
+    container.appendChild(list);
+  }
+
+  /**
+   * Show modal with room info and members
+   */
+  showRoomInfoModal(info: RoomInfoResponse) {
+    const modal = this.createModal(`# ${info.room.name}`);
+
+    const content = $("div", { class: "room-info-content" });
+
+    // Room details section
+    const details = $("div", { class: "room-info-details" });
+
+    const createdRow = $("div", { class: "info-row" });
+    createdRow.appendChild(
+      $("span", { class: "info-label", text: "Created:" }),
+    );
+    createdRow.appendChild(
+      $("span", { class: "info-value", text: formatDate(info.created_at) }),
+    );
+    details.appendChild(createdRow);
+
+    const memberCountRow = $("div", { class: "info-row" });
+    memberCountRow.appendChild(
+      $("span", { class: "info-label", text: "Members:" }),
+    );
+    memberCountRow.appendChild(
+      $("span", {
+        class: "info-value",
+        text: `${info.member_count} member${info.member_count !== 1 ? "s" : ""}`,
+      }),
+    );
+    details.appendChild(memberCountRow);
+
+    if (info.room.is_private) {
+      const privateRow = $("div", { class: "info-row" });
+      privateRow.appendChild(
+        $("span", { class: "badge badge-private", text: "Private" }),
+      );
+      details.appendChild(privateRow);
+    }
+
+    content.appendChild(details);
+
+    // Members section
+    const membersSection = $("div", { class: "room-members-section" });
+    membersSection.appendChild(
+      $("h4", { class: "section-title", text: "Members" }),
+    );
+
+    const membersList = $("ul", { class: "members-list" });
+    for (const member of info.members) {
+      const li = $("li", { class: "member-item" });
+
+      // Avatar
+      const avatar = this.createAvatar(member.username);
+      avatar.classList.add("member-avatar");
+      li.appendChild(avatar);
+
+      // Username
+      const usernameSpan = $("span", {
+        class: "member-username",
+        text: member.username,
+      });
+      li.appendChild(usernameSpan);
+
+      // Mark current user
+      if (member.id === this.state.user.id) {
+        const youBadge = $("span", { class: "badge badge-you", text: "You" });
+        li.appendChild(youBadge);
+      }
+
+      membersList.appendChild(li);
+    }
+    membersSection.appendChild(membersList);
+    content.appendChild(membersSection);
+
+    modal.appendChild(content);
+
+    // Button row with Leave button (unless it's the default room)
+    const buttonRow = $("div", { class: "button-row" });
+
+    // Check if this is the default room (we'll need to track this)
+    // For now, we don't have a way to know if it's the default room from the response
+    // We could add it to the protocol, but for now we'll just always show the leave button
+    // and let the server reject it
+    const leaveBtn = $("button", {
+      type: "button",
+      class: "btn btn-danger",
+      text: "Leave Channel",
+    });
+    leaveBtn.addEventListener("click", () => {
+      this.requestLeaveRoom(info.room.id);
+    });
+    buttonRow.appendChild(leaveBtn);
+
+    const closeBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Close",
+    });
+    closeBtn.addEventListener("click", () => this.closeModal());
+    buttonRow.appendChild(closeBtn);
+
     modal.appendChild(buttonRow);
   }
 
@@ -770,12 +987,34 @@ class Client {
   }
 
   updateChatHeader() {
-    const header = document.querySelector(".chat-header h2");
+    const header = document.querySelector(".chat-header");
     if (!header) return;
 
     const room = this.state.getRoom(this.state.currentRoom || "");
-    if (room) {
-      header.textContent = `# ${room.name}`;
+    if (!room) return;
+
+    // Update or create the header content
+    let h2 = header.querySelector("h2") as HTMLHeadingElement | null;
+    if (!h2) {
+      h2 = $("h2", {}) as HTMLHeadingElement;
+      header.appendChild(h2);
+    }
+    h2.textContent = `# ${room.name}`;
+
+    // Add info button if not present
+    let infoBtn = header.querySelector(".room-info-btn");
+    if (!infoBtn) {
+      infoBtn = $("button", {
+        class: "room-info-btn",
+        title: "View channel details",
+        text: "ℹ️",
+      });
+      infoBtn.addEventListener("click", () => {
+        if (this.state.currentRoom) {
+          this.requestRoomInfo(this.state.currentRoom);
+        }
+      });
+      header.appendChild(infoBtn);
     }
   }
 
