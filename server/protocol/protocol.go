@@ -104,7 +104,21 @@ type CreateRoomRequest struct {
 // Direction: client → server
 // Response: ListRoomsResponse
 type ListRoomsRequest struct {
-	// Currently empty, but reserved for future filters (e.g., search query)
+	Query string `json:"query" jsonschema:"description=Optional search query to filter rooms by name"`
+}
+
+// LeaveRoomRequest is sent by the client to leave a room
+// Direction: client → server
+// Response: LeaveRoomResponse
+type LeaveRoomRequest struct {
+	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to leave"`
+}
+
+// RoomInfoRequest is sent by the client to get details about a room
+// Direction: client → server
+// Response: RoomInfoResponse
+type RoomInfoRequest struct {
+	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to get info for"`
 }
 
 // =============================================================================
@@ -151,6 +165,28 @@ type CreateRoomResponse struct {
 type ListRoomsResponse struct {
 	Rooms    []*Room `json:"rooms" jsonschema:"required,description=List of public rooms"`
 	IsMember []bool  `json:"is_member" jsonschema:"required,description=Whether the user is a member of each room (parallel array)"`
+}
+
+// LeaveRoomResponse is sent by the server in response to LeaveRoomRequest
+// Direction: server → client
+type LeaveRoomResponse struct {
+	RoomID string `json:"room_id" jsonschema:"required,description=Room ID that was left"`
+}
+
+// RoomMember represents a member of a room
+type RoomMember struct {
+	ID       string `json:"id" jsonschema:"required,description=User ID"`
+	Username string `json:"username" jsonschema:"required,description=Username"`
+	Avatar   string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
+}
+
+// RoomInfoResponse is sent by the server in response to RoomInfoRequest
+// Direction: server → client
+type RoomInfoResponse struct {
+	Room        Room         `json:"room" jsonschema:"required,description=Room details"`
+	MemberCount int          `json:"member_count" jsonschema:"required,description=Number of members in the room"`
+	Members     []RoomMember `json:"members" jsonschema:"required,description=List of room members"`
+	CreatedAt   string       `json:"created_at" jsonschema:"required,description=RFC3339 timestamp of when the room was created"`
 }
 
 // =============================================================================
@@ -223,5 +259,25 @@ var MessageTypes = []MessageMeta{
 		Type:        "list_rooms",
 		Direction:   ServerToClient,
 		Description: "Response with list of public rooms",
+	},
+	{
+		Type:        "leave_room",
+		Direction:   ClientToServer,
+		Description: "Leave a room",
+	},
+	{
+		Type:        "leave_room",
+		Direction:   ServerToClient,
+		Description: "Response confirming room leave",
+	},
+	{
+		Type:        "room_info",
+		Direction:   ClientToServer,
+		Description: "Request information about a room",
+	},
+	{
+		Type:        "room_info",
+		Direction:   ServerToClient,
+		Description: "Response with room details and members",
 	},
 }

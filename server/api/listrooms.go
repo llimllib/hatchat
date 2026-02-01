@@ -11,13 +11,16 @@ import (
 
 // ListRooms handles a request from the client to list public rooms.
 // Returns all public rooms along with membership status for the user.
+// Optionally filters by a search query.
 func (a *Api) ListRooms(user *models.User, msg json.RawMessage) (*Envelope, error) {
-	// msg is currently unused but included for consistency with other handlers
-	_ = msg
+	var req protocol.ListRoomsRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return nil, err
+	}
 
 	ctx := context.Background()
 
-	rooms, membership, err := db.ListPublicRoomsWithMembership(ctx, a.db, user.ID)
+	rooms, membership, err := db.ListPublicRoomsWithMembership(ctx, a.db, user.ID, req.Query)
 	if err != nil {
 		a.logger.Error("failed to list public rooms", "error", err)
 		return nil, err

@@ -90,13 +90,13 @@ _Goal: Users can create, join, and manage rooms_
 - [x] "Browse Channels" view
 - [x] List public rooms user isn't a member of
 - [x] Join button for each room
-- [ ] Search/filter rooms by name
+- [x] Search/filter rooms by name
 
 ### 1.5 Room Settings & Members
 
-- [ ] Room info panel (name, created date, member count)
-- [ ] Leave room option
-- [ ] View member list for current room
+- [x] Room info panel (name, created date, member count)
+- [x] Leave room option
+- [x] View member list for current room
 - [ ] Click member to view profile or start DM
 
 ### 1.6 REST API + OpenAPI

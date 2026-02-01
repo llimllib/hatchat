@@ -173,9 +173,40 @@
       ],
       "type": "object"
     },
+    "LeaveRoomRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "room_id": {
+          "description": "Room ID to leave",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id"
+      ],
+      "type": "object"
+    },
+    "LeaveRoomResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "room_id": {
+          "description": "Room ID that was left",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id"
+      ],
+      "type": "object"
+    },
     "ListRoomsRequest": {
       "additionalProperties": false,
-      "properties": {},
+      "properties": {
+        "query": {
+          "description": "Optional search query to filter rooms by name",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "ListRoomsResponse": {
@@ -270,6 +301,72 @@
       ],
       "type": "object"
     },
+    "RoomInfoRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "room_id": {
+          "description": "Room ID to get info for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id"
+      ],
+      "type": "object"
+    },
+    "RoomInfoResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "description": "RFC3339 timestamp of when the room was created",
+          "type": "string"
+        },
+        "member_count": {
+          "description": "Number of members in the room",
+          "type": "integer"
+        },
+        "members": {
+          "description": "List of room members",
+          "items": {
+            "$ref": "#/$defs/RoomMember"
+          },
+          "type": "array"
+        },
+        "room": {
+          "$ref": "#/$defs/Room",
+          "description": "Room details"
+        }
+      },
+      "required": [
+        "room",
+        "member_count",
+        "members",
+        "created_at"
+      ],
+      "type": "object"
+    },
+    "RoomMember": {
+      "additionalProperties": false,
+      "properties": {
+        "avatar": {
+          "description": "Avatar URL (may be empty)",
+          "type": "string"
+        },
+        "id": {
+          "description": "User ID",
+          "type": "string"
+        },
+        "username": {
+          "description": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "username"
+      ],
+      "type": "object"
+    },
     "SendMessageRequest": {
       "additionalProperties": false,
       "properties": {
@@ -327,6 +424,9 @@
       "$ref": "#/$defs/Message"
     },
     {
+      "$ref": "#/$defs/RoomMember"
+    },
+    {
       "$ref": "#/$defs/InitRequest"
     },
     {
@@ -345,6 +445,12 @@
       "$ref": "#/$defs/ListRoomsRequest"
     },
     {
+      "$ref": "#/$defs/LeaveRoomRequest"
+    },
+    {
+      "$ref": "#/$defs/RoomInfoRequest"
+    },
+    {
       "$ref": "#/$defs/InitResponse"
     },
     {
@@ -358,6 +464,12 @@
     },
     {
       "$ref": "#/$defs/ListRoomsResponse"
+    },
+    {
+      "$ref": "#/$defs/LeaveRoomResponse"
+    },
+    {
+      "$ref": "#/$defs/RoomInfoResponse"
     },
     {
       "$ref": "#/$defs/ErrorResponse"
