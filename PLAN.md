@@ -221,6 +221,13 @@ _Goal: Better conversation organization_
 - [ ] Click to jump to message in context
 - [ ] Highlight search terms
 
+### 4.5 Message Permalinks
+
+- [ ] Generate unique permalink URL for each message
+- [ ] Clicking permalink navigates to room and scrolls to message in context
+- [ ] Highlight the linked message briefly
+- [ ] Copy permalink button on message hover/menu
+
 ---
 
 ## Phase 5: Notifications & Unread Tracking
@@ -268,6 +275,8 @@ _Goal: Workspace management and hardening_
 
 ### 6.2 Session Management
 
+- [ ] Logout endpoint (clear session, redirect to login with message)
+- [ ] Logout button in UI
 - [ ] List active sessions
 - [ ] Revoke sessions
 - [ ] Session expiration and refresh
@@ -331,9 +340,54 @@ _Goal: Professional, accessible experience_
 ### 7.4 Loading States & Error Handling
 
 - [ ] Skeleton loaders for content
-- [ ] Connection status indicator
+- [ ] Connection status indicator (visual feedback when WebSocket disconnects)
+- [ ] WebSocket auto-reconnection with exponential backoff
 - [ ] Reconnection handling with UI feedback
 - [ ] Error states and retry options
+
+### 7.5 Sign-In Page Polish
+
+- [ ] Restyle sign-in page to match app design
+- [ ] Add "hatchat" branding and app description
+- [ ] Display error messages on failed login/registration (flash messages or query params)
+- [ ] Show success message after logout
+- [ ] Auto-login after successful registration (skip the extra login step)
+
+### 7.6 Visual Design
+
+- [ ] Design new color scheme (replace Slack aubergine)
+- [ ] Apply consistent color palette across app
+- [ ] Update CSS variables for theming
+
+---
+
+## Developer Experience
+
+_Goal: Make development faster and debugging easier_
+
+### DX.1 Panic Stack Traces
+
+- [ ] Add stack trace logging to panic recovery middleware
+- [ ] Use `runtime/debug.Stack()` or similar to capture full traceback
+- [ ] Ensure stack traces appear in development logs
+
+### DX.2 CI Optimization
+
+- [ ] Use path filters in GitHub Actions to run Go CI only when Go files change
+- [ ] Run JS CI only when client/ files change
+- [ ] Keep full CI on main branch merges
+
+### DX.3 End-to-End Tests
+
+- [ ] Set up Playwright for e2e testing
+- [ ] Test user registration and login flow
+- [ ] Test room creation and switching
+- [ ] Test real-time message sending/receiving
+- [ ] Add e2e tests to CI pipeline
+
+### DX.4 Build Tooling
+
+- [ ] Add `just clean` command to remove build artifacts (hatchat binary, node_modules, etc.)
 
 ---
 
