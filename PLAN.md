@@ -97,7 +97,6 @@ _Goal: Users can create, join, and manage rooms_
 - [x] Room info panel (name, created date, member count)
 - [x] Leave room option
 - [x] View member list for current room
-- [ ] Click member to view profile or start DM
 
 ### 1.6 REST API + OpenAPI
 
@@ -131,7 +130,7 @@ _Goal: Private conversations and user identity_
 - [ ] Display name (separate from username)
 - [ ] Avatar upload/URL
 - [ ] Status message (custom text)
-- [ ] Profile viewing panel (click username)
+- [ ] Profile viewing panel (click username or member in room info)
 - [ ] "Message" button to start DM from profile
 
 ### 2.4 Typing Indicators
