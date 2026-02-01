@@ -100,9 +100,9 @@ _Goal: Users can create, join, and manage rooms_
 
 ### 1.6 REST API + OpenAPI
 
-- [ ] Define OpenAPI 3.0 spec for REST endpoints
-- [ ] REST endpoints for room CRUD operations
-- [ ] REST endpoint for user profile
+- [x] Define OpenAPI 3.0 spec for REST endpoints
+- [x] REST endpoints for room CRUD operations
+- [x] REST endpoint for user profile
 
 ---
 
