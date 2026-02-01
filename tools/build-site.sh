@@ -25,15 +25,17 @@ pandoc "$PROJECT_ROOT/README.md" \
 # Build transcripts list page
 echo "  Building transcripts.html..."
 TRANSCRIPT_LIST=""
-for f in "$PROJECT_ROOT"/transcripts/*.html; do
+# Sort by PR number in descending order (newest first)
+# Extract filenames, sort numerically by PR number (first field), then reconstruct full paths
+for filename in $(ls -1 "$PROJECT_ROOT"/transcripts/*.html 2>/dev/null | xargs -n1 basename | sort -t'-' -k1 -rn); do
+    f="$PROJECT_ROOT/transcripts/$filename"
     if [ -f "$f" ]; then
-        filename=$(basename "$f")
         # Extract PR number and description from filename like "12-room-scoped-message-routing.html"
         pr_num=$(echo "$filename" | cut -d'-' -f1)
         title=$(echo "$filename" | sed 's/^[0-9]*-//; s/\.html$//; s/-/ /g')
         # Capitalize first letter of each word
         title=$(echo "$title" | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
-        TRANSCRIPT_LIST="$TRANSCRIPT_LIST<li><a href=\"transcripts/$filename\"><span class=\"transcript-number\">PR #$pr_num:</span> <span class=\"transcript-title\">$title</span></a></li>"
+        TRANSCRIPT_LIST="$TRANSCRIPT_LIST<li class=\"transcript-row\"><a href=\"https://github.com/llimllib/hatchat/pull/$pr_num\" class=\"transcript-number\">PR #$pr_num</a>: <a href=\"transcripts/$filename\" class=\"transcript-link\"><span class=\"transcript-title\">$title</span></a></li>"
         
         # Copy transcript to site
         cp "$f" "$SITE_DIR/transcripts/"
