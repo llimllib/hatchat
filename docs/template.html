@@ -166,22 +166,26 @@
         }
 
         .transcript-list li {
-            margin: 0.5em 0;
-        }
-
-        .transcript-list a {
             display: block;
             padding: 1rem;
+            margin: 0.5em 0;
             background-color: var(--surface-color);
             border-radius: 8px;
             border: 1px solid var(--border-color);
             transition: all 0.2s ease;
         }
 
-        .transcript-list a:hover {
+        .transcript-list li:hover {
             background-color: var(--primary-color);
-            text-decoration: none;
             transform: translateX(4px);
+        }
+
+        .transcript-list a {
+            text-decoration: none;
+        }
+
+        .transcript-list a:hover {
+            text-decoration: underline;
         }
 
         .transcript-number {
