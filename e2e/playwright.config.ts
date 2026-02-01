@@ -34,7 +34,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "cd .. && just run-e2e",
+    command: "cd .. && rm -f e2e-test.db && ./hatchat -db file:e2e-test.db",
     url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
