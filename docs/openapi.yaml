@@ -1,0 +1,405 @@
+openapi: 3.0.3
+info:
+  title: Hatchat REST API
+  description: |
+    REST API for Hatchat, a Slack-like chat application.
+    
+    This API complements the WebSocket API for scenarios where REST is more appropriate,
+    such as external integrations, simple queries, and tooling.
+    
+    ## Authentication
+    
+    All endpoints require authentication via session cookie. The cookie is set
+    after successful login via the `/login` endpoint.
+    
+    ## Real-time Updates
+    
+    For real-time messaging, use the WebSocket API at `/ws`. This REST API is
+    primarily for CRUD operations and querying state.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: me
+    description: Current user operations
+  - name: rooms
+    description: Room management
+  - name: users
+    description: User profiles
+
+paths:
+  /me:
+    get:
+      tags: [me]
+      summary: Get current user profile
+      description: Returns the authenticated user's profile information.
+      operationId: getMe
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me/rooms:
+    get:
+      tags: [me]
+      summary: List user's rooms
+      description: Returns all rooms the authenticated user is a member of.
+      operationId: getMyRooms
+      responses:
+        '200':
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /rooms:
+    get:
+      tags: [rooms]
+      summary: List public rooms
+      description: Returns all public (non-private) rooms.
+      operationId: getRooms
+      responses:
+        '200':
+          description: List of public rooms
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [rooms]
+      summary: Create a room
+      description: Creates a new room. The authenticated user is automatically added as a member.
+      operationId: createRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoomRequest'
+      responses:
+        '201':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /rooms/{roomId}:
+    get:
+      tags: [rooms]
+      summary: Get room details
+      description: |
+        Returns details about a room including its members.
+        For private rooms, the user must be a member to access.
+      operationId: getRoom
+      parameters:
+        - $ref: '#/components/parameters/roomId'
+      responses:
+        '200':
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /rooms/{roomId}/join:
+    post:
+      tags: [rooms]
+      summary: Join a room
+      description: |
+        Adds the authenticated user to a public room.
+        Cannot be used to join private rooms (requires invitation).
+      operationId: joinRoom
+      parameters:
+        - $ref: '#/components/parameters/roomId'
+      responses:
+        '200':
+          description: Successfully joined (or already a member)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /rooms/{roomId}/leave:
+    post:
+      tags: [rooms]
+      summary: Leave a room
+      description: |
+        Removes the authenticated user from a room.
+        Cannot leave the default room.
+      operationId: leaveRoom
+      parameters:
+        - $ref: '#/components/parameters/roomId'
+      responses:
+        '204':
+          description: Successfully left the room
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}:
+    get:
+      tags: [users]
+      summary: Get user profile
+      description: Returns a user's public profile information.
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - created_at
+      properties:
+        id:
+          type: string
+          description: Unique user identifier
+          pattern: '^usr_[a-f0-9]{16}$'
+          example: usr_1234567890abcdef
+        username:
+          type: string
+          description: Display name
+          example: alice
+        avatar:
+          type: string
+          description: Avatar URL (may be empty)
+          example: https://example.com/avatar.png
+        created_at:
+          type: string
+          format: date-time
+          description: RFC3339 timestamp of account creation
+          example: '2024-01-15T10:30:00Z'
+
+    Room:
+      type: object
+      required:
+        - id
+        - name
+        - is_private
+        - is_default
+        - created_at
+      properties:
+        id:
+          type: string
+          description: Unique room identifier
+          pattern: '^roo_[a-f0-9]{12}$'
+          example: roo_abc123def456
+        name:
+          type: string
+          description: Room display name
+          maxLength: 80
+          example: general
+        is_private:
+          type: boolean
+          description: Whether the room is private (invite-only)
+          example: false
+        is_default:
+          type: boolean
+          description: Whether this is the default room for new users
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: RFC3339 timestamp of room creation
+          example: '2024-01-15T10:30:00Z'
+
+    RoomDetail:
+      allOf:
+        - $ref: '#/components/schemas/Room'
+        - type: object
+          required:
+            - member_count
+            - members
+          properties:
+            member_count:
+              type: integer
+              description: Number of members in the room
+              example: 5
+            members:
+              type: array
+              description: List of room members
+              items:
+                $ref: '#/components/schemas/Member'
+
+    Member:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          description: User ID
+          pattern: '^usr_[a-f0-9]{16}$'
+          example: usr_1234567890abcdef
+        username:
+          type: string
+          description: Username
+          example: alice
+        avatar:
+          type: string
+          description: Avatar URL (may be empty)
+          example: https://example.com/avatar.png
+
+    RoomList:
+      type: object
+      required:
+        - rooms
+      properties:
+        rooms:
+          type: array
+          items:
+            $ref: '#/components/schemas/Room'
+
+    CreateRoomRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Room display name
+          minLength: 1
+          maxLength: 80
+          example: project-updates
+        is_private:
+          type: boolean
+          description: Whether the room is private (invite-only)
+          default: false
+          example: false
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+          example: not_found
+        message:
+          type: string
+          description: Human-readable error message
+          example: Room not found
+
+  parameters:
+    roomId:
+      name: roomId
+      in: path
+      required: true
+      description: Room ID
+      schema:
+        type: string
+        pattern: '^roo_[a-f0-9]{12}$'
+      example: roo_abc123def456
+
+    userId:
+      name: userId
+      in: path
+      required: true
+      description: User ID
+      schema:
+        type: string
+        pattern: '^usr_[a-f0-9]{16}$'
+      example: usr_1234567890abcdef
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: validation_error
+            message: Room name is required
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Authentication required
+
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: forbidden
+            message: You are not a member of this room
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: Room not found
+
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: hatchat-session-key
+
+security:
+  - cookieAuth: []

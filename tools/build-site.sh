@@ -79,6 +79,57 @@ pandoc /tmp/protocol.md \
     --metadata is_protocol=true \
     -o "$SITE_DIR/protocol.html"
 
-# Schema HTML already generated directly to site dir
+# Build REST API docs page
+echo "  Building rest-api.html..."
+
+# Copy the OpenAPI spec to site directory
+cp "$PROJECT_ROOT/docs/openapi.yaml" "$SITE_DIR/"
+
+# Create a page that uses Swagger UI to display the REST API
+# We'll use a simple embedded view with Swagger UI from CDN
+cat > "$SITE_DIR/rest-api-schema.html" << 'SWAGGEREOF'
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hatchat REST API</title>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; padding: 0; }
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info { margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = function() {
+      SwaggerUIBundle({
+        url: "openapi.yaml",
+        dom_id: '#swagger-ui',
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout"
+      })
+    }
+  </script>
+</body>
+</html>
+SWAGGEREOF
+
+# Create a page that embeds the REST API docs
+cat > /tmp/rest-api.md << EOF
+# REST API Documentation
+
+<iframe src="rest-api-schema.html" class="protocol-frame" title="REST API Documentation"></iframe>
+EOF
+
+pandoc /tmp/rest-api.md \
+    --template="$TEMPLATE" \
+    --metadata title="REST API" \
+    --metadata is_rest_api=true \
+    -o "$SITE_DIR/rest-api.html"
 
 echo "Done! Site built at $SITE_DIR"

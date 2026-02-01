@@ -15,6 +15,7 @@ import (
 	"github.com/llimllib/hatchat/server/db"
 	"github.com/llimllib/hatchat/server/middleware"
 	"github.com/llimllib/hatchat/server/models"
+	"github.com/llimllib/hatchat/server/rest"
 )
 
 func fatal(logger *slog.Logger, message string, err error, args ...any) {
@@ -243,7 +244,8 @@ func (h *ChatServer) Run(addr string) {
 	hub := newHub(h.db, h.logger)
 	go hub.run()
 
-	api := api.NewApi(h.db, h.logger)
+	wsAPI := api.NewApi(h.db, h.logger)
+	restAPI := rest.NewAPI(h.db, h.logger)
 
 	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)
 
@@ -253,8 +255,16 @@ func (h *ChatServer) Run(addr string) {
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
 	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, api, w, r)
+		serveWs(hub, wsAPI, w, r)
 	})))
+
+	// REST API routes
+	http.HandleFunc("/api/v1/me", h.middleware("/api/v1/me", authRequired(restAPI.MeHandler)))
+	http.HandleFunc("/api/v1/me/", h.middleware("/api/v1/me/", authRequired(restAPI.MeHandler)))
+	http.HandleFunc("/api/v1/rooms", h.middleware("/api/v1/rooms", authRequired(restAPI.RoomsHandler)))
+	http.HandleFunc("/api/v1/rooms/", h.middleware("/api/v1/rooms/", authRequired(restAPI.RoomsHandler)))
+	http.HandleFunc("/api/v1/users/", h.middleware("/api/v1/users/", authRequired(restAPI.GetUser)))
+
 	http.HandleFunc("/", h.middleware("/", h.serveHome))
 
 	server := &http.Server{
