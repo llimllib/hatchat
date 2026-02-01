@@ -2,21 +2,21 @@
 // Generate TypeScript types from JSON Schema
 // Usage: node gen-types.mjs (run from client/ directory)
 
-import { compile } from 'json-schema-to-typescript';
-import { readFileSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compile } from "json-schema-to-typescript";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectRoot = join(__dirname, '..');
+const projectRoot = join(__dirname, "..");
 
-const schemaPath = join(projectRoot, 'schema', 'protocol.json');
-const outputPath = join(__dirname, 'src', 'protocol.generated.ts');
+const schemaPath = join(projectRoot, "schema", "protocol.json");
+const outputPath = join(__dirname, "src", "protocol.generated.ts");
 
-const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'));
+const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
 const options = {
-  bannerComment: '',
+  bannerComment: "",
   additionalProperties: false,
   strictIndexSignatures: true,
   enableConstEnums: true,
@@ -27,23 +27,23 @@ const options = {
  * Resolve $refs in a schema by looking them up in the definitions
  */
 function resolveRefs(obj, defs) {
-  if (!obj || typeof obj !== 'object') return obj;
-  
+  if (!obj || typeof obj !== "object") return obj;
+
   if (Array.isArray(obj)) {
-    return obj.map(item => resolveRefs(item, defs));
+    return obj.map((item) => resolveRefs(item, defs));
   }
-  
+
   // If this is a $ref, resolve it
   if (obj.$ref) {
-    const refPath = obj.$ref.replace('#/$defs/', '');
+    const refPath = obj.$ref.replace("#/$defs/", "");
     const resolved = defs[refPath];
     if (resolved) {
       // Merge the resolved ref with any additional properties (like description)
-      const { $ref, ...rest } = obj;
+      const { $ref: _ref, ...rest } = obj;
       return { ...resolveRefs(resolved, defs), ...rest };
     }
   }
-  
+
   // Recursively resolve refs in nested objects
   const result = {};
   for (const [key, value] of Object.entries(obj)) {
@@ -56,49 +56,52 @@ async function main() {
   try {
     const defs = schema.$defs || schema.definitions || {};
     const types = [];
-    
+
     // Order matters - define base types first
     const typeOrder = [
-      'User',
-      'Room', 
-      'Message',
-      'InitRequest',
-      'SendMessageRequest',
-      'HistoryRequest',
-      'JoinRoomRequest',
-      'InitResponse',
-      'HistoryResponse',
-      'JoinRoomResponse',
-      'ErrorResponse',
-      'Envelope',
+      "User",
+      "Room",
+      "Message",
+      "InitRequest",
+      "SendMessageRequest",
+      "HistoryRequest",
+      "JoinRoomRequest",
+      "InitResponse",
+      "HistoryResponse",
+      "JoinRoomResponse",
+      "ErrorResponse",
+      "Envelope",
     ];
-    
+
     for (const name of typeOrder) {
       const defSchema = defs[name];
       if (!defSchema) {
         console.warn(`Warning: type ${name} not found in schema`);
         continue;
       }
-      
+
       // Resolve any $refs in this schema
       const resolved = resolveRefs(defSchema, defs);
-      
+
       // Create a standalone schema for this type
       const standaloneSchema = {
         $schema: schema.$schema,
         title: name,
         ...resolved,
       };
-      
+
       const ts = await compile(standaloneSchema, name, options);
-      
+
       // Post-process to fix biome complaints
       let processed = ts.trim();
       // Fix empty interfaces (biome prefers type aliases)
-      processed = processed.replace(/export interface (\w+) \{\}/g, 'export type $1 = Record<string, never>');
+      processed = processed.replace(
+        /export interface (\w+) \{\}/g,
+        "export type $1 = Record<string, never>",
+      );
       types.push(processed);
     }
-    
+
     // Add header
     const header = `/* eslint-disable */
 /**
@@ -149,11 +152,11 @@ export function isMessageType<T extends MessageType>(
   return envelope.type === type;
 }
 `;
-    
-    writeFileSync(outputPath, header + types.join('\n\n') + helpers);
+
+    writeFileSync(outputPath, header + types.join("\n\n") + helpers);
     console.log(`Generated ${outputPath}`);
   } catch (err) {
-    console.error('Error generating types:', err);
+    console.error("Error generating types:", err);
     process.exit(1);
   }
 }
