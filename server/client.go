@@ -158,6 +158,32 @@ func (c *Client) readPump() {
 					return
 				}
 			}
+		case "create_room":
+			res, err := c.api.CreateRoom(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle create_room", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to create room")))
+			} else {
+				// Update the client's current room to the new room
+				c.currentRoom = res.RoomID
+				err = c.conn.WriteJSON(res.Envelope)
+				if err != nil {
+					c.logger.Error("failed to write create_room json", "error", err)
+					return
+				}
+			}
+		case "list_rooms":
+			res, err := c.api.ListRooms(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle list_rooms", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to list rooms")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write list_rooms json", "error", err)
+					return
+				}
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

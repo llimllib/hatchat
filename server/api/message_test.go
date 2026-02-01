@@ -90,15 +90,25 @@ func createTestUser(t *testing.T, database *db.DB, id, username string) *models.
 // createTestRoom creates a room in the database for testing
 func createTestRoom(t *testing.T, database *db.DB, id, name string, isDefault bool) *models.Room {
 	t.Helper()
+	return createTestRoomWithPrivate(t, database, id, name, isDefault, false)
+}
+
+// createTestRoomWithPrivate creates a room in the database for testing with explicit private flag
+func createTestRoomWithPrivate(t *testing.T, database *db.DB, id, name string, isDefault, isPrivate bool) *models.Room {
+	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	isDefaultInt := models.FALSE
 	if isDefault {
 		isDefaultInt = models.TRUE
 	}
+	isPrivateInt := models.FALSE
+	if isPrivate {
+		isPrivateInt = models.TRUE
+	}
 	room := &models.Room{
 		ID:        id,
 		Name:      name,
-		IsPrivate: models.FALSE,
+		IsPrivate: isPrivateInt,
 		IsDefault: isDefaultInt,
 		CreatedAt: now,
 	}

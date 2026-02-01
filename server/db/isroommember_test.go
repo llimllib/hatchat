@@ -122,6 +122,32 @@ func createTestRoom(t *testing.T, database *DB, id, name string, isDefault bool)
 	return room
 }
 
+// createTestRoomWithPrivate creates a room in the database for testing with explicit private flag
+func createTestRoomWithPrivate(t *testing.T, database *DB, id, name string, isDefault, isPrivate bool) *models.Room {
+	t.Helper()
+	now := time.Now().Format(time.RFC3339)
+	isDefaultInt := models.FALSE
+	if isDefault {
+		isDefaultInt = models.TRUE
+	}
+	isPrivateInt := models.FALSE
+	if isPrivate {
+		isPrivateInt = models.TRUE
+	}
+	room := &models.Room{
+		ID:        id,
+		Name:      name,
+		IsPrivate: isPrivateInt,
+		IsDefault: isDefaultInt,
+		CreatedAt: now,
+	}
+	err := room.Insert(context.Background(), database)
+	if err != nil {
+		t.Fatalf("Failed to create test room: %v", err)
+	}
+	return room
+}
+
 // addUserToRoom adds a user to a room
 func addUserToRoom(t *testing.T, database *DB, userID, roomID string) {
 	t.Helper()

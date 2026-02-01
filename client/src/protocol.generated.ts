@@ -49,6 +49,13 @@ export const JoinRoomRequestSchema = z.object({
   room_id: z.string(),
 });
 
+export const CreateRoomRequestSchema = z.object({
+  is_private: z.boolean().optional(),
+  name: z.string().min(1).max(80),
+});
+
+export const ListRoomsRequestSchema = z.object({});
+
 export const InitResponseSchema = z.object({
   Rooms: z.array(RoomSchema),
   User: UserSchema,
@@ -62,7 +69,17 @@ export const HistoryResponseSchema = z.object({
 });
 
 export const JoinRoomResponseSchema = z.object({
+  joined: z.boolean(),
   room: RoomSchema,
+});
+
+export const CreateRoomResponseSchema = z.object({
+  room: RoomSchema,
+});
+
+export const ListRoomsResponseSchema = z.object({
+  is_member: z.array(z.boolean()),
+  rooms: z.array(RoomSchema),
 });
 
 export const ErrorResponseSchema = z.object({
@@ -85,9 +102,13 @@ export type InitRequest = z.infer<typeof InitRequestSchema>;
 export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
 export type HistoryRequest = z.infer<typeof HistoryRequestSchema>;
 export type JoinRoomRequest = z.infer<typeof JoinRoomRequestSchema>;
+export type CreateRoomRequest = z.infer<typeof CreateRoomRequestSchema>;
+export type ListRoomsRequest = z.infer<typeof ListRoomsRequestSchema>;
 export type InitResponse = z.infer<typeof InitResponseSchema>;
 export type HistoryResponse = z.infer<typeof HistoryResponseSchema>;
 export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
+export type CreateRoomResponse = z.infer<typeof CreateRoomResponseSchema>;
+export type ListRoomsResponse = z.infer<typeof ListRoomsResponseSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
@@ -103,6 +124,8 @@ export type MessageType =
   | "message"
   | "history"
   | "join_room"
+  | "create_room"
+  | "list_rooms"
   | "error";
 
 /**
@@ -112,7 +135,9 @@ export type ClientEnvelope =
   | { type: "init"; data: InitRequest }
   | { type: "message"; data: SendMessageRequest }
   | { type: "history"; data: HistoryRequest }
-  | { type: "join_room"; data: JoinRoomRequest };
+  | { type: "join_room"; data: JoinRoomRequest }
+  | { type: "create_room"; data: CreateRoomRequest }
+  | { type: "list_rooms"; data: ListRoomsRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -122,6 +147,8 @@ export type ServerEnvelope =
   | { type: "message"; data: Message }
   | { type: "history"; data: HistoryResponse }
   | { type: "join_room"; data: JoinRoomResponse }
+  | { type: "create_room"; data: CreateRoomResponse }
+  | { type: "list_rooms"; data: ListRoomsResponse }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -148,6 +175,16 @@ export const JoinRoomEnvelopeSchema = z.object({
   data: JoinRoomResponseSchema,
 });
 
+export const CreateRoomEnvelopeSchema = z.object({
+  type: z.literal("create_room"),
+  data: CreateRoomResponseSchema,
+});
+
+export const ListRoomsEnvelopeSchema = z.object({
+  type: z.literal("list_rooms"),
+  data: ListRoomsResponseSchema,
+});
+
 export const ErrorEnvelopeSchema = z.object({
   type: z.literal("error"),
   data: ErrorResponseSchema,
@@ -161,6 +198,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   MessageEnvelopeSchema,
   HistoryEnvelopeSchema,
   JoinRoomEnvelopeSchema,
+  CreateRoomEnvelopeSchema,
+  ListRoomsEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

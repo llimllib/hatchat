@@ -52,6 +52,22 @@ export class AppState {
   }
 
   /**
+   * Add a new room to the user's room list
+   */
+  addRoom(room: Room) {
+    if (!this.initialData) {
+      throw new Error("Not yet initialized");
+    }
+    // Avoid duplicates
+    const exists = this.initialData.Rooms.some((r) => r.id === room.id);
+    if (!exists) {
+      this.initialData.Rooms.push(room);
+      // Sort rooms by name
+      this.initialData.Rooms.sort((a, b) => a.name.localeCompare(b.name));
+    }
+  }
+
+  /**
    * Get state for a specific room, creating it if needed
    */
   getRoomState(roomId: string): RoomState {

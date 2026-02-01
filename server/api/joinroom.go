@@ -11,15 +11,18 @@ import (
 	"github.com/llimllib/hatchat/server/protocol"
 )
 
-// JoinRoomResponse contains the join_room envelope and the room ID for client tracking
-type JoinRoomResponse struct {
+// JoinRoomResult contains the join_room envelope and the room ID for client tracking
+type JoinRoomResult struct {
 	Envelope *Envelope
 	RoomID   string
+	// Joined is true if the user was added as a new member
+	Joined bool
 }
 
 // JoinRoom handles a request from the client to switch to a different room.
-// It validates that the user is a member of the room and updates their last_room.
-func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomResponse, error) {
+// If the user is not a member of a public room, they will be added as a member.
+// Private rooms require existing membership.
+func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomResult, error) {
 	var req protocol.JoinRoomRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		a.logger.Error("invalid join_room json", "error", err)
@@ -32,22 +35,35 @@ func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomRespons
 
 	ctx := context.Background()
 
-	// Validate that the user is a member of the room
+	// Get the room details first to check if it exists and if it's private
+	room, err := models.RoomByID(ctx, a.db, req.RoomID)
+	if err != nil {
+		a.logger.Error("failed to get room", "error", err, "room", req.RoomID)
+		return nil, fmt.Errorf("room not found")
+	}
+
+	// Check if user is already a member
 	isMember, err := db.IsRoomMember(ctx, a.db, user.ID, req.RoomID)
 	if err != nil {
 		a.logger.Error("failed to check room membership", "error", err, "user", user.ID, "room", req.RoomID)
 		return nil, err
 	}
-	if !isMember {
-		a.logger.Warn("user attempted to join room they are not a member of", "user", user.ID, "room", req.RoomID)
-		return nil, fmt.Errorf("user is not a member of room %s", req.RoomID)
-	}
 
-	// Get the room details
-	room, err := models.RoomByID(ctx, a.db, req.RoomID)
-	if err != nil {
-		a.logger.Error("failed to get room", "error", err, "room", req.RoomID)
-		return nil, err
+	joined := false
+	if !isMember {
+		// If the room is private, user cannot join without an invite
+		if room.IsPrivate != 0 {
+			a.logger.Warn("user attempted to join private room they are not a member of", "user", user.ID, "room", req.RoomID)
+			return nil, fmt.Errorf("cannot join private room without an invite")
+		}
+
+		// Public room - add the user as a member
+		joined, err = db.AddRoomMember(ctx, a.db, user.ID, req.RoomID)
+		if err != nil {
+			a.logger.Error("failed to add room member", "error", err, "user", user.ID, "room", req.RoomID)
+			return nil, err
+		}
+		a.logger.Info("user joined public room", "user", user.ID, "room", req.RoomID)
 	}
 
 	// Update the user's last_room
@@ -58,7 +74,7 @@ func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomRespons
 		return nil, err
 	}
 
-	return &JoinRoomResponse{
+	return &JoinRoomResult{
 		Envelope: &Envelope{
 			Type: "join_room",
 			Data: protocol.JoinRoomResponse{
@@ -67,8 +83,10 @@ func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomRespons
 					Name:      room.Name,
 					IsPrivate: room.IsPrivate != 0,
 				},
+				Joined: joined,
 			},
 		},
 		RoomID: room.ID,
+		Joined: joined,
 	}, nil
 }

@@ -53,11 +53,11 @@ _Goal: Complete the JSON Schema infrastructure work_
 - [x] GitHub Actions workflow to deploy docs to GitHub Pages
 - [x] Fix empty protocol schema page (added `anyOf` refs at root level so definitions render)
 
-### 0.5 Runtime Type Validation (Future)
+### 0.5 Runtime Type Validation
 
-- [ ] Add Zod (or similar) for runtime validation of WebSocket messages
-- [ ] Generate Zod schemas from JSON Schema or define alongside protocol types
-- [ ] Validate incoming messages in client with clear error messages on mismatch
+- [x] Add Zod (or similar) for runtime validation of WebSocket messages
+- [x] Generate Zod schemas from JSON Schema or define alongside protocol types
+- [x] Validate incoming messages in client with clear error messages on mismatch
 - [ ] Consider server-side validation of client messages as well
 
 ---
@@ -74,22 +74,22 @@ _Goal: Users can create, join, and manage rooms_
 
 ### 1.2 Join Room
 
-- [ ] Implement `join_room` WebSocket handler
-- [ ] Client UI for joining rooms user isn't a member of
+- [x] Implement `join_room` WebSocket handler (auto-joins public rooms)
+- [x] Client UI for joining rooms user isn't a member of
 
 ### 1.3 Create Room
 
-- [ ] "Create Channel" button in sidebar
-- [ ] Modal/dialog for room creation
-- [ ] Room name input with validation
-- [ ] Public/private toggle
-- [ ] Backend: REST or WebSocket endpoint for room creation
+- [x] "Create Channel" button in sidebar
+- [x] Modal/dialog for room creation
+- [x] Room name input with validation
+- [x] Public/private toggle
+- [x] Backend: WebSocket endpoint for room creation (`create_room`)
 
 ### 1.4 Room Discovery
 
-- [ ] "Browse Channels" view
-- [ ] List public rooms user isn't a member of
-- [ ] Join button for each room
+- [x] "Browse Channels" view
+- [x] List public rooms user isn't a member of
+- [x] Join button for each room
 - [ ] Search/filter rooms by name
 
 ### 1.5 Room Settings & Members

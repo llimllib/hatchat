@@ -1,6 +1,8 @@
 // Re-export protocol types and schemas from generated file
 export type {
   ClientEnvelope,
+  CreateRoomRequest,
+  CreateRoomResponse,
   Envelope,
   ErrorResponse,
   HistoryRequest,
@@ -9,6 +11,8 @@ export type {
   InitResponse,
   JoinRoomRequest,
   JoinRoomResponse,
+  ListRoomsRequest,
+  ListRoomsResponse,
   Message,
   MessageType,
   Room,
@@ -18,11 +22,13 @@ export type {
 } from "./protocol.generated";
 
 export {
+  CreateRoomResponseSchema,
   ErrorResponseSchema,
   HistoryResponseSchema,
   InitResponseSchema,
   isMessageType,
   JoinRoomResponseSchema,
+  ListRoomsResponseSchema,
   MessageSchema,
   parseServerEnvelope,
   RoomSchema,

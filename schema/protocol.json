@@ -1,5 +1,37 @@
 {
   "$defs": {
+    "CreateRoomRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "is_private": {
+          "description": "Whether the room is private (invite-only)",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Room display name",
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "CreateRoomResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "room": {
+          "$ref": "#/$defs/Room",
+          "description": "The newly created room"
+        }
+      },
+      "required": [
+        "room"
+      ],
+      "type": "object"
+    },
     "Envelope": {
       "additionalProperties": false,
       "properties": {
@@ -126,13 +158,47 @@
     "JoinRoomResponse": {
       "additionalProperties": false,
       "properties": {
+        "joined": {
+          "description": "True if user was added as a new member (vs already being a member)",
+          "type": "boolean"
+        },
         "room": {
           "$ref": "#/$defs/Room",
           "description": "The room that was joined"
         }
       },
       "required": [
-        "room"
+        "room",
+        "joined"
+      ],
+      "type": "object"
+    },
+    "ListRoomsRequest": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "ListRoomsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "is_member": {
+          "description": "Whether the user is a member of each room (parallel array)",
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array"
+        },
+        "rooms": {
+          "description": "List of public rooms",
+          "items": {
+            "$ref": "#/$defs/Room"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "rooms",
+        "is_member"
       ],
       "type": "object"
     },
@@ -273,6 +339,12 @@
       "$ref": "#/$defs/JoinRoomRequest"
     },
     {
+      "$ref": "#/$defs/CreateRoomRequest"
+    },
+    {
+      "$ref": "#/$defs/ListRoomsRequest"
+    },
+    {
       "$ref": "#/$defs/InitResponse"
     },
     {
@@ -280,6 +352,12 @@
     },
     {
       "$ref": "#/$defs/JoinRoomResponse"
+    },
+    {
+      "$ref": "#/$defs/CreateRoomResponse"
+    },
+    {
+      "$ref": "#/$defs/ListRoomsResponse"
     },
     {
       "$ref": "#/$defs/ErrorResponse"

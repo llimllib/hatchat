@@ -5,14 +5,18 @@ import type { InitialData, Message } from "./types";
 describe("AppState", () => {
   let state: AppState;
 
-  const mockInitialData: InitialData = {
+  // Factory function to create fresh mock data for each test
+  const createMockInitialData = (): InitialData => ({
     Rooms: [
       { id: "roo_123", name: "general", is_private: false },
       { id: "roo_456", name: "random", is_private: false },
     ],
     User: { id: "usr_abc123", username: "testuser", avatar: "" },
     current_room: "roo_123",
-  };
+  });
+
+  // For backwards compatibility with existing tests
+  const mockInitialData = createMockInitialData();
 
   const createMessage = (overrides: Partial<Message> = {}): Message => ({
     id: `msg_${Math.random().toString(36).slice(2)}`,
@@ -70,6 +74,32 @@ describe("AppState", () => {
     it("returns undefined for unknown room ID", () => {
       state.setInitialData(mockInitialData);
       expect(state.getRoom("roo_unknown")).toBeUndefined();
+    });
+
+    it("adds a new room", () => {
+      state.setInitialData(createMockInitialData());
+      state.addRoom({ id: "roo_789", name: "new-channel", is_private: false });
+      expect(state.rooms).toHaveLength(3);
+      expect(state.getRoom("roo_789")?.name).toBe("new-channel");
+    });
+
+    it("sorts rooms by name after adding", () => {
+      state.setInitialData(createMockInitialData());
+      state.addRoom({ id: "roo_aaa", name: "aardvark", is_private: false });
+      expect(state.rooms[0].name).toBe("aardvark");
+    });
+
+    it("does not add duplicate rooms", () => {
+      state.setInitialData(createMockInitialData());
+      state.addRoom({ id: "roo_123", name: "general-dupe", is_private: false });
+      expect(state.rooms).toHaveLength(2); // Still 2, not 3
+      expect(state.getRoom("roo_123")?.name).toBe("general"); // Original name preserved
+    });
+
+    it("throws when adding room before initialization", () => {
+      expect(() =>
+        state.addRoom({ id: "roo_new", name: "test", is_private: false }),
+      ).toThrow("Not yet initialized");
     });
   });
 
