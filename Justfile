@@ -40,3 +40,7 @@ build: npm-deps
 browse-db:
     # Maybe use datasette on the command line instead for broader applicability?
     open /Applications/Datasette.app chat.db
+
+# Run the server with dev users seeded (alice/alice, bob/bob)
+run-dev: build
+    SEED_DEVELOPMENT_DB=1 ./hatchat

@@ -37,6 +37,14 @@ func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
 		return nil, err
 	}
 
+	// Seed development users if env var is set
+	if os.Getenv("SEED_DEVELOPMENT_DB") != "" {
+		logger.Info("SEED_DEVELOPMENT_DB is set, seeding dev users")
+		if err := seedDevUsers(db, logger); err != nil {
+			return nil, fmt.Errorf("seed dev users: %w", err)
+		}
+	}
+
 	return &ChatServer{
 		db:         db,
 		logger:     logger,
