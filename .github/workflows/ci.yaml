@@ -43,6 +43,6 @@ jobs:
       - name: Install dependencies
         run: cd client && npm ci
       - name: Run Biome and TypeScript check
-        run: cd client && npx biome check src && npx tsc --noEmit
+        run: cd client && npx biome check src && npx tsgo --noEmit
       - name: Run tests
         run: cd client && npm test

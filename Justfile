@@ -29,7 +29,7 @@ site: schema
     bash tools/build-site.sh
 
 build-js: npm-deps
-    cd client && npx tsc --noEmit && node esbuild.config.mjs
+    cd client && npx tsgo --noEmit && node esbuild.config.mjs
 
 build-go:
     go build -o hatchat ./cmd/server.go
