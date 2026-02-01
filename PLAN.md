@@ -378,11 +378,11 @@ _Goal: Make development faster and debugging easier_
 
 ### DX.3 End-to-End Tests
 
-- [ ] Set up Playwright for e2e testing
-- [ ] Test user registration and login flow
-- [ ] Test room creation and switching
-- [ ] Test real-time message sending/receiving
-- [ ] Add e2e tests to CI pipeline
+- [x] Set up Playwright for e2e testing
+- [x] Test user registration and login flow
+- [x] Test room creation and switching
+- [x] Test real-time message sending/receiving
+- [x] Add e2e tests to CI pipeline
 
 ### DX.4 Build Tooling
 

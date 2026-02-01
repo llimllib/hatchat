@@ -29,6 +29,13 @@ hatchat/
 │   │   ├── types.ts               # Re-exports protocol types + client-only types
 │   │   └── protocol.generated.ts  # Generated types - DO NOT EDIT
 │   └── gen-types.mjs      # Script to generate TS from schema
+├── e2e/                   # End-to-end tests (Playwright)
+│   ├── tests/
+│   │   ├── helpers.ts     # Test utilities (login, sendMessage, etc.)
+│   │   ├── auth.spec.ts   # Authentication tests
+│   │   ├── messaging.spec.ts # Real-time messaging tests
+│   │   └── rooms.spec.ts  # Room switching and scoping tests
+│   └── playwright.config.ts
 ├── schema/
 │   └── protocol.json      # Generated JSON Schema - DO NOT EDIT
 ├── docs/
@@ -231,7 +238,9 @@ just browse-db    # Open database in Datasette
 ### Testing & Linting
 
 ```bash
-just test         # Run linter and tests
+just test         # Run linter, unit tests, and client tests (fast)
+just test-all     # Run all tests including e2e (comprehensive)
+just e2e          # Run only e2e tests
 just lint         # Linter only
 ```
 
@@ -239,7 +248,7 @@ just lint         # Linter only
 
 ## Testing Strategy
 
-The project has two levels of tests:
+The project has three levels of tests:
 
 ### Unit Tests
 
@@ -257,10 +266,32 @@ go test ./... -short
 
 Integration tests check `testing.Short()` and skip themselves when `-short` is passed.
 
+### End-to-End Tests (Playwright)
+
+Located in `e2e/tests/`. These run a real browser against a real server and test user-facing behavior:
+
+- **`auth.spec.ts`** - Registration, login, session persistence
+- **`messaging.spec.ts`** - Sending messages, real-time delivery between users, message history
+- **`rooms.spec.ts`** - Room switching, message scoping per room, URL updates
+
+```bash
+just e2e          # Run e2e tests (headless)
+just e2e-headed   # Run with visible browser
+just e2e-debug    # Run in debug mode (step through)
+just e2e-ui       # Run with Playwright UI
+```
+
+E2E tests auto-start the server using `just run-e2e` which uses a fresh test database.
+
+**Test helpers** in `e2e/tests/helpers.ts` provide utilities like `registerAndLogin()`, `sendMessage()`, `waitForMessage()`, and `switchToRoom()`.
+
+**Note:** The WebSocket is exposed as `window.__ws` in the client for e2e test access (to send raw WebSocket messages for room creation, etc.).
+
 ### When to Update Tests
 
 - **Bug fixes**: Add a test that reproduces the bug before fixing
 - **New features**: Add both unit tests for new components and integration tests for user-facing behavior
+- **User-facing changes**: Consider adding e2e tests for critical user flows
 - **Refactors**: Existing tests should continue to pass; update them if interfaces change
 
 ## Pull Requests
