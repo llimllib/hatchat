@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-// Generate TypeScript types from JSON Schema
+// Generate Zod schemas and TypeScript types from JSON Schema
 // Usage: node gen-types.mjs (run from client/ directory)
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compile } from "json-schema-to-typescript";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, "..");
@@ -15,104 +14,135 @@ const outputPath = join(__dirname, "src", "protocol.generated.ts");
 
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
-const options = {
-  bannerComment: "",
-  additionalProperties: false,
-  strictIndexSignatures: true,
-  enableConstEnums: true,
-  declareExternallyReferenced: true, // Include referenced types
-};
+// Order matters - define base types first (dependencies before dependents)
+const typeOrder = [
+  "User",
+  "Room",
+  "Message",
+  "InitRequest",
+  "SendMessageRequest",
+  "HistoryRequest",
+  "JoinRoomRequest",
+  "InitResponse",
+  "HistoryResponse",
+  "JoinRoomResponse",
+  "ErrorResponse",
+  "Envelope",
+];
 
 /**
- * Resolve $refs in a schema by looking them up in the definitions
+ * Convert a JSON Schema type definition to a Zod schema string
  */
-function resolveRefs(obj, defs) {
-  if (!obj || typeof obj !== "object") return obj;
+function jsonSchemaToZod(schema, defs, depth = 0) {
+  if (!schema) return "z.unknown()";
 
-  if (Array.isArray(obj)) {
-    return obj.map((item) => resolveRefs(item, defs));
+  // Handle $ref
+  if (schema.$ref) {
+    const refName = schema.$ref.replace("#/$defs/", "");
+    return `${refName}Schema`;
   }
 
-  // If this is a $ref, resolve it
-  if (obj.$ref) {
-    const refPath = obj.$ref.replace("#/$defs/", "");
-    const resolved = defs[refPath];
-    if (resolved) {
-      // Merge the resolved ref with any additional properties (like description)
-      const { $ref: _ref, ...rest } = obj;
-      return { ...resolveRefs(resolved, defs), ...rest };
+  const type = schema.type;
+
+  if (type === "string") {
+    let result = "z.string()";
+    if (schema.pattern) {
+      result += `.regex(/${schema.pattern}/)`;
     }
+    if (schema.minLength !== undefined) {
+      result += `.min(${schema.minLength})`;
+    }
+    if (schema.maxLength !== undefined) {
+      result += `.max(${schema.maxLength})`;
+    }
+    return result;
   }
 
-  // Recursively resolve refs in nested objects
-  const result = {};
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = resolveRefs(value, defs);
+  if (type === "integer" || type === "number") {
+    let result = type === "integer" ? "z.int()" : "z.number()";
+    if (schema.minimum !== undefined) {
+      result += `.min(${schema.minimum})`;
+    }
+    if (schema.maximum !== undefined) {
+      result += `.max(${schema.maximum})`;
+    }
+    return result;
   }
-  return result;
+
+  if (type === "boolean") {
+    return "z.boolean()";
+  }
+
+  if (type === "array") {
+    const items = jsonSchemaToZod(schema.items, defs, depth + 1);
+    return `z.array(${items})`;
+  }
+
+  if (type === "object") {
+    const properties = schema.properties || {};
+    const required = new Set(schema.required || []);
+
+    if (Object.keys(properties).length === 0) {
+      // Empty object - use record for flexibility
+      return "z.object({})";
+    }
+
+    const indent = "  ".repeat(depth + 1);
+    const closingIndent = "  ".repeat(depth);
+
+    const props = Object.entries(properties).map(([key, prop]) => {
+      let zodType = jsonSchemaToZod(prop, defs, depth + 1);
+      if (!required.has(key)) {
+        zodType += ".optional()";
+      }
+      return `${indent}${key}: ${zodType},`;
+    });
+
+    return `z.object({\n${props.join("\n")}\n${closingIndent}})`;
+  }
+
+  // Fallback
+  return "z.unknown()";
 }
 
-async function main() {
-  try {
-    const defs = schema.$defs || schema.definitions || {};
-    const types = [];
+function main() {
+  const defs = schema.$defs || schema.definitions || {};
+  const zodSchemas = [];
+  const typeExports = [];
 
-    // Order matters - define base types first
-    const typeOrder = [
-      "User",
-      "Room",
-      "Message",
-      "InitRequest",
-      "SendMessageRequest",
-      "HistoryRequest",
-      "JoinRoomRequest",
-      "InitResponse",
-      "HistoryResponse",
-      "JoinRoomResponse",
-      "ErrorResponse",
-      "Envelope",
-    ];
-
-    for (const name of typeOrder) {
-      const defSchema = defs[name];
-      if (!defSchema) {
-        console.warn(`Warning: type ${name} not found in schema`);
-        continue;
-      }
-
-      // Resolve any $refs in this schema
-      const resolved = resolveRefs(defSchema, defs);
-
-      // Create a standalone schema for this type
-      const standaloneSchema = {
-        $schema: schema.$schema,
-        title: name,
-        ...resolved,
-      };
-
-      const ts = await compile(standaloneSchema, name, options);
-
-      // Post-process to fix biome complaints
-      let processed = ts.trim();
-      // Fix empty interfaces (biome prefers type aliases)
-      processed = processed.replace(
-        /export interface (\w+) \{\}/g,
-        "export type $1 = Record<string, never>",
-      );
-      types.push(processed);
+  // Generate Zod schemas for each type
+  for (const name of typeOrder) {
+    const defSchema = defs[name];
+    if (!defSchema) {
+      console.warn(`Warning: type ${name} not found in schema`);
+      continue;
     }
 
-    // Add header
-    const header = `/* eslint-disable */
+    const zodSchema = jsonSchemaToZod(defSchema, defs, 0);
+    zodSchemas.push(`export const ${name}Schema = ${zodSchema};`);
+    typeExports.push(`export type ${name} = z.infer<typeof ${name}Schema>;`);
+  }
+
+  // Build the output file
+  const output = `/* eslint-disable */
 /**
  * This file was automatically generated from schema/protocol.json
  * DO NOT EDIT MANUALLY - run \`just client-types\` to regenerate
  */
 
-`;
+import { z } from "zod/v4";
 
-    // Add helper types at the end
-    const helpers = `
+// =============================================================================
+// Zod Schemas - validated against JSON Schema definitions
+// =============================================================================
+
+${zodSchemas.join("\n\n")}
+
+// =============================================================================
+// Inferred TypeScript types
+// =============================================================================
+
+${typeExports.join("\n")}
 
 // =============================================================================
 // Helper types for working with the protocol
@@ -121,7 +151,12 @@ async function main() {
 /**
  * All valid message type strings
  */
-export type MessageType = "init" | "message" | "history" | "join_room" | "error";
+export type MessageType =
+  | "init"
+  | "message"
+  | "history"
+  | "join_room"
+  | "error";
 
 /**
  * Type-safe envelope for client → server messages
@@ -142,6 +177,46 @@ export type ServerEnvelope =
   | { type: "join_room"; data: JoinRoomResponse }
   | { type: "error"; data: ErrorResponse };
 
+// =============================================================================
+// Runtime validation schemas for server envelopes
+// =============================================================================
+
+export const InitEnvelopeSchema = z.object({
+  type: z.literal("init"),
+  data: InitResponseSchema,
+});
+
+export const MessageEnvelopeSchema = z.object({
+  type: z.literal("message"),
+  data: MessageSchema,
+});
+
+export const HistoryEnvelopeSchema = z.object({
+  type: z.literal("history"),
+  data: HistoryResponseSchema,
+});
+
+export const JoinRoomEnvelopeSchema = z.object({
+  type: z.literal("join_room"),
+  data: JoinRoomResponseSchema,
+});
+
+export const ErrorEnvelopeSchema = z.object({
+  type: z.literal("error"),
+  data: ErrorResponseSchema,
+});
+
+/**
+ * Discriminated union schema for all server → client messages
+ */
+export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
+  InitEnvelopeSchema,
+  MessageEnvelopeSchema,
+  HistoryEnvelopeSchema,
+  JoinRoomEnvelopeSchema,
+  ErrorEnvelopeSchema,
+]);
+
 /**
  * Type guard for checking message type
  */
@@ -151,14 +226,26 @@ export function isMessageType<T extends MessageType>(
 ): envelope is Extract<ServerEnvelope, { type: T }> {
   return envelope.type === type;
 }
+
+/**
+ * Parse and validate a server envelope from raw JSON
+ * @throws z.ZodError if validation fails
+ */
+export function parseServerEnvelope(data: unknown): ServerEnvelope {
+  return ServerEnvelopeSchema.parse(data);
+}
+
+/**
+ * Safely parse a server envelope, returning null on failure
+ */
+export function safeParseServerEnvelope(data: unknown): ServerEnvelope | null {
+  const result = ServerEnvelopeSchema.safeParse(data);
+  return result.success ? result.data : null;
+}
 `;
 
-    writeFileSync(outputPath, header + types.join("\n\n") + helpers);
-    console.log(`Generated ${outputPath}`);
-  } catch (err) {
-    console.error("Error generating types:", err);
-    process.exit(1);
-  }
+  writeFileSync(outputPath, output);
+  console.log(`Generated ${outputPath}`);
 }
 
 main();

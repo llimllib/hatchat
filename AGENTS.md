@@ -50,7 +50,7 @@ hatchat/
 - **Database**: SQLite with WAL mode, separate read/write connections
 - **ORM**: [dbtpl](https://github.com/xo/dbtpl) (formerly xo) for model generation from schema
 - **WebSockets**: gorilla/websocket
-- **Frontend**: Vanilla TypeScript, esbuild for bundling
+- **Frontend**: Vanilla TypeScript, esbuild for bundling, Zod for runtime validation
 - **Password hashing**: bcrypt via `golang.org/x/crypto`
 
 ## Coding Patterns
@@ -88,18 +88,28 @@ Server responds with same envelope structure.
 The WebSocket protocol is defined in `server/protocol/protocol.go` as the single source of truth. From this, we generate:
 
 1. **JSON Schema** (`schema/protocol.json`) - Machine-readable API spec
-2. **TypeScript types** (`client/src/protocol.generated.ts`) - Frontend types
+2. **Zod schemas + TypeScript types** (`client/src/protocol.generated.ts`) - Runtime validation and static types
+
+**Type generation pipeline:**
+```
+Go protocol types          JSON Schema              Zod schemas + TS types
+(server/protocol/)    →    (schema/protocol.json)  →  (client/src/protocol.generated.ts)
+     ↑                           ↑                            ↑
+ Source of truth          `just schema`              `just client-types`
+```
 
 **Key files:**
 - `server/protocol/protocol.go` - Define message types here with `jsonschema` struct tags
 - `tools/schemagen/main.go` - Maintains the list of types to include in the schema
-- `client/gen-types.mjs` - Generates TypeScript from JSON Schema
+- `client/gen-types.mjs` - Generates Zod schemas and TypeScript types from JSON Schema
 
 **Commands:**
 ```bash
 just schema        # Generate JSON Schema only
-just client-types  # Generate schema + TypeScript types
+just client-types  # Generate schema + Zod schemas + TypeScript types
 ```
+
+**Runtime validation:** The frontend uses Zod to validate all incoming WebSocket messages at runtime. Use `parseServerEnvelope(raw)` which throws a `ZodError` if validation fails, or `safeParseServerEnvelope(raw)` which returns `null` on failure.
 
 **Important:** When adding new message types, you must add them to **both**:
 1. `server/protocol/protocol.go` - The type definition

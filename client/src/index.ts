@@ -7,7 +7,7 @@ import {
   type Message,
   makePendingKey,
   type PendingMessage,
-  type ServerEnvelope,
+  parseServerEnvelope,
 } from "./types";
 import {
   formatTimestamp,
@@ -46,7 +46,8 @@ class Client {
       return;
     }
     try {
-      const envelope = JSON.parse(evt.data) as ServerEnvelope;
+      const raw = JSON.parse(evt.data);
+      const envelope = parseServerEnvelope(raw);
       switch (envelope.type) {
         case "init": {
           this.handleInit(envelope.data);
@@ -72,7 +73,7 @@ class Client {
       }
       console.debug("received: ", envelope);
     } catch (e) {
-      console.error("unable to parse", evt.data, e);
+      console.error("unable to parse or validate message", evt.data, e);
     }
   }
 

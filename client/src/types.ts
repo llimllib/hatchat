@@ -1,4 +1,4 @@
-// Re-export protocol types from generated file
+// Re-export protocol types and schemas from generated file
 export type {
   ClientEnvelope,
   Envelope,
@@ -17,7 +17,20 @@ export type {
   User,
 } from "./protocol.generated";
 
-export { isMessageType } from "./protocol.generated";
+export {
+  ErrorResponseSchema,
+  HistoryResponseSchema,
+  InitResponseSchema,
+  isMessageType,
+  JoinRoomResponseSchema,
+  MessageSchema,
+  parseServerEnvelope,
+  RoomSchema,
+  // Zod schemas for runtime validation
+  ServerEnvelopeSchema,
+  safeParseServerEnvelope,
+  UserSchema,
+} from "./protocol.generated";
 
 // =============================================================================
 // Client-specific types (not part of the protocol)

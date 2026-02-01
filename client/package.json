@@ -17,8 +17,10 @@
     "ajv-formats": "^3.0.1",
     "esbuild": "^0.27.2",
     "jsdom": "^27.4.0",
-    "json-schema-to-typescript": "^15.0.4",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }

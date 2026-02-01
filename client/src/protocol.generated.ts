@@ -4,226 +4,92 @@
  * DO NOT EDIT MANUALLY - run `just client-types` to regenerate
  */
 
-export interface User {
-  /**
-   * Avatar URL (may be empty)
-   */
-  avatar?: string;
-  /**
-   * Unique user identifier (usr_ prefix)
-   */
-  id: string;
-  /**
-   * Display name
-   */
-  username: string;
-}
+import { z } from "zod/v4";
 
-export interface Room {
-  /**
-   * Unique room identifier (roo_ prefix)
-   */
-  id: string;
-  /**
-   * Whether the room is private
-   */
-  is_private: boolean;
-  /**
-   * Room display name
-   */
-  name: string;
-}
+// =============================================================================
+// Zod Schemas - validated against JSON Schema definitions
+// =============================================================================
 
-export interface Message {
-  /**
-   * Message content
-   */
-  body: string;
-  /**
-   * RFC3339Nano timestamp of creation
-   */
-  created_at: string;
-  /**
-   * Unique message identifier (msg_ prefix)
-   */
-  id: string;
-  /**
-   * RFC3339Nano timestamp of last modification
-   */
-  modified_at: string;
-  /**
-   * Room this message belongs to
-   */
-  room_id: string;
-  /**
-   * User who sent the message
-   */
-  user_id: string;
-  /**
-   * Username of sender (denormalized for convenience)
-   */
-  username: string;
-}
+export const UserSchema = z.object({
+  avatar: z.string().optional(),
+  id: z.string().regex(/^usr_[a-f0-9]{16}$/),
+  username: z.string(),
+});
 
-export type InitRequest = Record<string, never>;
+export const RoomSchema = z.object({
+  id: z.string().regex(/^roo_[a-f0-9]{12}$/),
+  is_private: z.boolean(),
+  name: z.string(),
+});
 
-export interface SendMessageRequest {
-  /**
-   * Message content
-   */
-  body: string;
-  /**
-   * Target room ID
-   */
-  room_id: string;
-}
+export const MessageSchema = z.object({
+  body: z.string(),
+  created_at: z.string(),
+  id: z.string().regex(/^msg_[a-f0-9]{12}$/),
+  modified_at: z.string(),
+  room_id: z.string(),
+  user_id: z.string(),
+  username: z.string(),
+});
 
-export interface HistoryRequest {
-  /**
-   * Pagination cursor (created_at of oldest message seen)
-   */
-  cursor?: string;
-  /**
-   * Maximum messages to return (default 50; max 100)
-   */
-  limit?: number;
-  /**
-   * Room to fetch history for
-   */
-  room_id: string;
-}
+export const InitRequestSchema = z.object({});
 
-export interface JoinRoomRequest {
-  /**
-   * Room ID to switch to
-   */
-  room_id: string;
-}
+export const SendMessageRequestSchema = z.object({
+  body: z.string().min(1),
+  room_id: z.string().min(1),
+});
 
-export interface InitResponse {
-  /**
-   * Rooms the user is a member of
-   */
-  Rooms: {
-    /**
-     * Unique room identifier (roo_ prefix)
-     */
-    id: string;
-    /**
-     * Whether the room is private
-     */
-    is_private: boolean;
-    /**
-     * Room display name
-     */
-    name: string;
-  }[];
-  /**
-   * The authenticated user
-   */
-  User: {
-    /**
-     * Avatar URL (may be empty)
-     */
-    avatar?: string;
-    /**
-     * Unique user identifier (usr_ prefix)
-     */
-    id: string;
-    /**
-     * Display name
-     */
-    username: string;
-  };
-  /**
-   * Room ID to display initially
-   */
-  current_room: string;
-}
+export const HistoryRequestSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.int().min(1).max(100).optional(),
+  room_id: z.string(),
+});
 
-export interface HistoryResponse {
-  /**
-   * Whether older messages exist
-   */
-  has_more: boolean;
-  /**
-   * Messages in chronological order (newest first)
-   */
-  messages: {
-    /**
-     * Message content
-     */
-    body: string;
-    /**
-     * RFC3339Nano timestamp of creation
-     */
-    created_at: string;
-    /**
-     * Unique message identifier (msg_ prefix)
-     */
-    id: string;
-    /**
-     * RFC3339Nano timestamp of last modification
-     */
-    modified_at: string;
-    /**
-     * Room this message belongs to
-     */
-    room_id: string;
-    /**
-     * User who sent the message
-     */
-    user_id: string;
-    /**
-     * Username of sender (denormalized for convenience)
-     */
-    username: string;
-  }[];
-  /**
-   * Pass as cursor to fetch older messages
-   */
-  next_cursor: string;
-}
+export const JoinRoomRequestSchema = z.object({
+  room_id: z.string(),
+});
 
-export interface JoinRoomResponse {
-  /**
-   * The room that was joined
-   */
-  room: {
-    /**
-     * Unique room identifier (roo_ prefix)
-     */
-    id: string;
-    /**
-     * Whether the room is private
-     */
-    is_private: boolean;
-    /**
-     * Room display name
-     */
-    name: string;
-  };
-}
+export const InitResponseSchema = z.object({
+  Rooms: z.array(RoomSchema),
+  User: UserSchema,
+  current_room: z.string(),
+});
 
-export interface ErrorResponse {
-  /**
-   * Human-readable error message
-   */
-  message: string;
-}
+export const HistoryResponseSchema = z.object({
+  has_more: z.boolean(),
+  messages: z.array(MessageSchema),
+  next_cursor: z.string(),
+});
 
-export interface Envelope {
-  /**
-   * Type-specific payload
-   */
-  data: {
-    [k: string]: unknown | undefined;
-  };
-  /**
-   * Message type identifier
-   */
-  type: string;
-}
+export const JoinRoomResponseSchema = z.object({
+  room: RoomSchema,
+});
+
+export const ErrorResponseSchema = z.object({
+  message: z.string(),
+});
+
+export const EnvelopeSchema = z.object({
+  data: z.unknown(),
+  type: z.string(),
+});
+
+// =============================================================================
+// Inferred TypeScript types
+// =============================================================================
+
+export type User = z.infer<typeof UserSchema>;
+export type Room = z.infer<typeof RoomSchema>;
+export type Message = z.infer<typeof MessageSchema>;
+export type InitRequest = z.infer<typeof InitRequestSchema>;
+export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
+export type HistoryRequest = z.infer<typeof HistoryRequestSchema>;
+export type JoinRoomRequest = z.infer<typeof JoinRoomRequestSchema>;
+export type InitResponse = z.infer<typeof InitResponseSchema>;
+export type HistoryResponse = z.infer<typeof HistoryResponseSchema>;
+export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
+export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+export type Envelope = z.infer<typeof EnvelopeSchema>;
 
 // =============================================================================
 // Helper types for working with the protocol
@@ -258,6 +124,46 @@ export type ServerEnvelope =
   | { type: "join_room"; data: JoinRoomResponse }
   | { type: "error"; data: ErrorResponse };
 
+// =============================================================================
+// Runtime validation schemas for server envelopes
+// =============================================================================
+
+export const InitEnvelopeSchema = z.object({
+  type: z.literal("init"),
+  data: InitResponseSchema,
+});
+
+export const MessageEnvelopeSchema = z.object({
+  type: z.literal("message"),
+  data: MessageSchema,
+});
+
+export const HistoryEnvelopeSchema = z.object({
+  type: z.literal("history"),
+  data: HistoryResponseSchema,
+});
+
+export const JoinRoomEnvelopeSchema = z.object({
+  type: z.literal("join_room"),
+  data: JoinRoomResponseSchema,
+});
+
+export const ErrorEnvelopeSchema = z.object({
+  type: z.literal("error"),
+  data: ErrorResponseSchema,
+});
+
+/**
+ * Discriminated union schema for all server → client messages
+ */
+export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
+  InitEnvelopeSchema,
+  MessageEnvelopeSchema,
+  HistoryEnvelopeSchema,
+  JoinRoomEnvelopeSchema,
+  ErrorEnvelopeSchema,
+]);
+
 /**
  * Type guard for checking message type
  */
@@ -266,4 +172,20 @@ export function isMessageType<T extends MessageType>(
   type: T,
 ): envelope is Extract<ServerEnvelope, { type: T }> {
   return envelope.type === type;
+}
+
+/**
+ * Parse and validate a server envelope from raw JSON
+ * @throws z.ZodError if validation fails
+ */
+export function parseServerEnvelope(data: unknown): ServerEnvelope {
+  return ServerEnvelopeSchema.parse(data);
+}
+
+/**
+ * Safely parse a server envelope, returning null on failure
+ */
+export function safeParseServerEnvelope(data: unknown): ServerEnvelope | null {
+  const result = ServerEnvelopeSchema.safeParse(data);
+  return result.success ? result.data : null;
 }
