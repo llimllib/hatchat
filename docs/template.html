@@ -165,7 +165,8 @@
             padding: 0;
         }
 
-        .transcript-list li {
+        .transcript-list .transcript-row {
+            position: relative;
             display: block;
             padding: 1rem;
             margin: 0.5em 0;
@@ -173,24 +174,37 @@
             border-radius: 8px;
             border: 1px solid var(--border-color);
             transition: all 0.2s ease;
+            cursor: pointer;
         }
 
-        .transcript-list li:hover {
+        .transcript-list .transcript-row:hover {
             background-color: var(--primary-color);
             transform: translateX(4px);
         }
 
-        .transcript-list a {
+        .transcript-link {
             text-decoration: none;
         }
 
-        .transcript-list a:hover {
-            text-decoration: underline;
+        .transcript-link::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         .transcript-number {
+            position: relative;
+            z-index: 1;
             color: var(--accent-color);
             font-weight: 600;
+            text-decoration: none;
+        }
+
+        .transcript-number:hover {
+            text-decoration: underline;
         }
 
         .transcript-title {

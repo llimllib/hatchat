@@ -35,7 +35,7 @@ for filename in $(ls -1 "$PROJECT_ROOT"/transcripts/*.html 2>/dev/null | xargs -
         title=$(echo "$filename" | sed 's/^[0-9]*-//; s/\.html$//; s/-/ /g')
         # Capitalize first letter of each word
         title=$(echo "$title" | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1')
-        TRANSCRIPT_LIST="$TRANSCRIPT_LIST<li><a href=\"https://github.com/llimllib/hatchat/pull/$pr_num\" class=\"transcript-number\">PR #$pr_num:</a> <a href=\"transcripts/$filename\" class=\"transcript-title\">$title</a></li>"
+        TRANSCRIPT_LIST="$TRANSCRIPT_LIST<li class=\"transcript-row\"><a href=\"https://github.com/llimllib/hatchat/pull/$pr_num\" class=\"transcript-number\">PR #$pr_num</a>: <a href=\"transcripts/$filename\" class=\"transcript-link\"><span class=\"transcript-title\">$title</span></a></li>"
         
         # Copy transcript to site
         cp "$f" "$SITE_DIR/transcripts/"
