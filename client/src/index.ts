@@ -1121,6 +1121,10 @@ function main() {
   const conn = new WebSocket(`ws://${document.location.host}/ws`);
   const client = new Client(conn);
 
+  // Expose WebSocket for e2e testing
+  // biome-ignore lint/suspicious/noExplicitAny: needed for e2e test access
+  (window as any).__ws = conn;
+
   // Handle browser back/forward navigation
   window.addEventListener("popstate", (evt) => {
     const roomId = evt.state?.roomId;

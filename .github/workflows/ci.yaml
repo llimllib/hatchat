@@ -46,3 +46,37 @@ jobs:
         run: cd client && npx biome check src && npx tsgo --noEmit
       - name: Run tests
         run: cd client && npm test
+
+  e2e:
+    name: "Playwright E2E"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: |
+          cd client && npm ci
+          cd ../e2e && npm ci
+      - name: Install Playwright
+        run: cd e2e && npx playwright install chromium --with-deps
+      - name: Build
+        run: |
+          cd client && node esbuild.config.mjs
+          cd .. && go build -o hatchat ./cmd/server.go
+      - name: Run E2E tests
+        run: cd e2e && npm test
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7
