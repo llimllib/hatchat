@@ -314,6 +314,7 @@ class Client {
       const toolbar = this.hoverToolbar;
       if (toolbar && !toolbar.classList.contains("toolbar-active")) {
         toolbar.style.display = "none";
+        this.hoverToolbarMessageId = null;
       }
     });
 
@@ -1212,6 +1213,7 @@ class Client {
   // =========================================================================
 
   private hoverToolbar: HTMLElement | null = null;
+  private hoverToolbarMessageId: string | null = null;
 
   /**
    * Create the shared hover toolbar element (lazily)
@@ -1226,6 +1228,7 @@ class Client {
     toolbar.addEventListener("mouseleave", () => {
       toolbar.classList.remove("toolbar-active");
       toolbar.style.display = "none";
+      this.hoverToolbarMessageId = null;
     });
 
     this.hoverToolbar = toolbar;
@@ -1240,12 +1243,22 @@ class Client {
     const messageId = msgEl.getAttribute("data-message-id");
     if (!messageId) return;
 
+    // Don't rebuild if already showing for this message
+    if (
+      this.hoverToolbarMessageId === messageId &&
+      this.hoverToolbar?.style.display === "flex"
+    ) {
+      return;
+    }
+
     // Don't show toolbar on deleted messages or pending messages
     if (
       msgEl.classList.contains("deleted") ||
       msgEl.classList.contains("pending")
     )
       return;
+
+    this.hoverToolbarMessageId = messageId;
 
     const toolbar = this.getHoverToolbar();
     toolbar.innerHTML = "";
