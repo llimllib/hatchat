@@ -1290,11 +1290,12 @@ class Client {
       toolbar.appendChild(deleteBtn);
     }
 
-    // Position the toolbar at the top-right of the message
-    const rect = msgEl.getBoundingClientRect();
+    // Position the toolbar at the top-right of the message, overlapping slightly
+    // so there's no gap between message and toolbar that would cause mouseleave
     toolbar.style.display = "flex";
-    toolbar.style.top = `${rect.top - 8 + window.scrollY}px`;
-    toolbar.style.left = `${rect.right - toolbar.offsetWidth - 8}px`;
+    const rect = msgEl.getBoundingClientRect();
+    toolbar.style.top = `${rect.top + 4}px`;
+    toolbar.style.left = `${rect.right - toolbar.offsetWidth - 12}px`;
   }
 
   /**
@@ -1318,16 +1319,16 @@ class Client {
       picker.appendChild(btn);
     }
 
-    // Position below the anchor, clamped to viewport
+    // Position below the anchor, clamped to viewport (fixed positioning)
     document.body.appendChild(picker);
     const rect = anchor.getBoundingClientRect();
     const pickerWidth = picker.offsetWidth;
-    let left = rect.left + window.scrollX;
+    let left = rect.left;
     // Clamp so it doesn't overflow the right edge of the viewport
     if (left + pickerWidth > window.innerWidth - 8) {
       left = window.innerWidth - pickerWidth - 8;
     }
-    picker.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    picker.style.top = `${rect.bottom + 4}px`;
     picker.style.left = `${left}px`;
 
     // Close when clicking elsewhere
@@ -1377,18 +1378,18 @@ class Client {
     buttonRow.appendChild(deleteBtn);
     confirm.appendChild(buttonRow);
 
-    // Position near the anchor, clamped to viewport
+    // Position near the anchor, clamped to viewport (fixed positioning)
     document.body.appendChild(confirm);
     const rect = anchor.getBoundingClientRect();
     const confirmWidth = confirm.offsetWidth;
-    let left = rect.left + window.scrollX - 100;
+    let left = rect.left - 100;
     if (left + confirmWidth > window.innerWidth - 8) {
       left = window.innerWidth - confirmWidth - 8;
     }
     if (left < 8) {
       left = 8;
     }
-    confirm.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    confirm.style.top = `${rect.bottom + 4}px`;
     confirm.style.left = `${left}px`;
 
     // Close when clicking elsewhere
