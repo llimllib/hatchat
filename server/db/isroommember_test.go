@@ -21,6 +21,7 @@ func testDB(t *testing.T) *DB {
 
 	// Drop existing tables to ensure a clean slate (in case other tests created different schemas)
 	dropSchema := `
+		DROP TABLE IF EXISTS reactions;
 		DROP TABLE IF EXISTS messages;
 		DROP TABLE IF EXISTS rooms_members;
 		DROP TABLE IF EXISTS sessions;
@@ -74,8 +75,19 @@ func testDB(t *testing.T) *DB {
 			user_id TEXT REFERENCES users(id) NOT NULL,
 			body TEXT NOT NULL,
 			created_at TEXT NOT NULL,
-			modified_at TEXT NOT NULL
+			modified_at TEXT NOT NULL,
+			deleted_at TEXT
 		) STRICT;
+
+		CREATE TABLE IF NOT EXISTS reactions(
+			message_id TEXT REFERENCES messages(id) NOT NULL,
+			user_id TEXT REFERENCES users(id) NOT NULL,
+			emoji TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (message_id, user_id, emoji)
+		) STRICT;
+
+		CREATE INDEX IF NOT EXISTS reactions_message ON reactions(message_id);
 
 		CREATE INDEX IF NOT EXISTS messages_room_created ON messages(room_id, created_at DESC);
 	`

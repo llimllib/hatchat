@@ -33,11 +33,19 @@ export const RoomSchema = z.object({
   room_type: z.string(),
 });
 
+export const ReactionSchema = z.object({
+  count: z.int(),
+  emoji: z.string(),
+  user_ids: z.array(z.string()),
+});
+
 export const MessageSchema = z.object({
   body: z.string(),
   created_at: z.string(),
+  deleted_at: z.string().optional(),
   id: z.string().regex(/^msg_[a-f0-9]{12}$/),
   modified_at: z.string(),
+  reactions: z.array(ReactionSchema).optional(),
   room_id: z.string(),
   user_id: z.string(),
   username: z.string(),
@@ -92,6 +100,25 @@ export const GetProfileRequestSchema = z.object({
 export const UpdateProfileRequestSchema = z.object({
   display_name: z.string().optional(),
   status: z.string().optional(),
+});
+
+export const EditMessageRequestSchema = z.object({
+  body: z.string().min(1),
+  message_id: z.string(),
+});
+
+export const DeleteMessageRequestSchema = z.object({
+  message_id: z.string(),
+});
+
+export const AddReactionRequestSchema = z.object({
+  emoji: z.string(),
+  message_id: z.string(),
+});
+
+export const RemoveReactionRequestSchema = z.object({
+  emoji: z.string(),
+  message_id: z.string(),
 });
 
 export const InitResponseSchema = z.object({
@@ -153,6 +180,26 @@ export const ErrorResponseSchema = z.object({
   message: z.string(),
 });
 
+export const MessageEditedSchema = z.object({
+  body: z.string(),
+  message_id: z.string(),
+  modified_at: z.string(),
+  room_id: z.string(),
+});
+
+export const MessageDeletedSchema = z.object({
+  message_id: z.string(),
+  room_id: z.string(),
+});
+
+export const ReactionUpdatedSchema = z.object({
+  action: z.string(),
+  emoji: z.string(),
+  message_id: z.string(),
+  room_id: z.string(),
+  user_id: z.string(),
+});
+
 export const EnvelopeSchema = z.object({
   data: z.unknown(),
   type: z.string(),
@@ -165,6 +212,7 @@ export const EnvelopeSchema = z.object({
 export type User = z.infer<typeof UserSchema>;
 export type RoomMember = z.infer<typeof RoomMemberSchema>;
 export type Room = z.infer<typeof RoomSchema>;
+export type Reaction = z.infer<typeof ReactionSchema>;
 export type Message = z.infer<typeof MessageSchema>;
 export type InitRequest = z.infer<typeof InitRequestSchema>;
 export type SendMessageRequest = z.infer<typeof SendMessageRequestSchema>;
@@ -178,6 +226,10 @@ export type LeaveRoomRequest = z.infer<typeof LeaveRoomRequestSchema>;
 export type RoomInfoRequest = z.infer<typeof RoomInfoRequestSchema>;
 export type GetProfileRequest = z.infer<typeof GetProfileRequestSchema>;
 export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequestSchema>;
+export type EditMessageRequest = z.infer<typeof EditMessageRequestSchema>;
+export type DeleteMessageRequest = z.infer<typeof DeleteMessageRequestSchema>;
+export type AddReactionRequest = z.infer<typeof AddReactionRequestSchema>;
+export type RemoveReactionRequest = z.infer<typeof RemoveReactionRequestSchema>;
 export type InitResponse = z.infer<typeof InitResponseSchema>;
 export type HistoryResponse = z.infer<typeof HistoryResponseSchema>;
 export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
@@ -190,6 +242,9 @@ export type RoomInfoResponse = z.infer<typeof RoomInfoResponseSchema>;
 export type GetProfileResponse = z.infer<typeof GetProfileResponseSchema>;
 export type UpdateProfileResponse = z.infer<typeof UpdateProfileResponseSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
+export type MessageEdited = z.infer<typeof MessageEditedSchema>;
+export type MessageDeleted = z.infer<typeof MessageDeletedSchema>;
+export type ReactionUpdated = z.infer<typeof ReactionUpdatedSchema>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
 // =============================================================================
@@ -212,6 +267,13 @@ export type MessageType =
   | "room_info"
   | "get_profile"
   | "update_profile"
+  | "edit_message"
+  | "delete_message"
+  | "add_reaction"
+  | "remove_reaction"
+  | "message_edited"
+  | "message_deleted"
+  | "reaction_updated"
   | "error";
 
 /**
@@ -229,7 +291,11 @@ export type ClientEnvelope =
   | { type: "leave_room"; data: LeaveRoomRequest }
   | { type: "room_info"; data: RoomInfoRequest }
   | { type: "get_profile"; data: GetProfileRequest }
-  | { type: "update_profile"; data: UpdateProfileRequest };
+  | { type: "update_profile"; data: UpdateProfileRequest }
+  | { type: "edit_message"; data: EditMessageRequest }
+  | { type: "delete_message"; data: DeleteMessageRequest }
+  | { type: "add_reaction"; data: AddReactionRequest }
+  | { type: "remove_reaction"; data: RemoveReactionRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -247,6 +313,9 @@ export type ServerEnvelope =
   | { type: "room_info"; data: RoomInfoResponse }
   | { type: "get_profile"; data: GetProfileResponse }
   | { type: "update_profile"; data: UpdateProfileResponse }
+  | { type: "message_edited"; data: MessageEdited }
+  | { type: "message_deleted"; data: MessageDeleted }
+  | { type: "reaction_updated"; data: ReactionUpdated }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -313,6 +382,21 @@ export const UpdateProfileEnvelopeSchema = z.object({
   data: UpdateProfileResponseSchema,
 });
 
+export const MessageEditedEnvelopeSchema = z.object({
+  type: z.literal("message_edited"),
+  data: MessageEditedSchema,
+});
+
+export const MessageDeletedEnvelopeSchema = z.object({
+  type: z.literal("message_deleted"),
+  data: MessageDeletedSchema,
+});
+
+export const ReactionUpdatedEnvelopeSchema = z.object({
+  type: z.literal("reaction_updated"),
+  data: ReactionUpdatedSchema,
+});
+
 export const ErrorEnvelopeSchema = z.object({
   type: z.literal("error"),
   data: ErrorResponseSchema,
@@ -334,6 +418,9 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   RoomInfoEnvelopeSchema,
   GetProfileEnvelopeSchema,
   UpdateProfileEnvelopeSchema,
+  MessageEditedEnvelopeSchema,
+  MessageDeletedEnvelopeSchema,
+  ReactionUpdatedEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

@@ -121,23 +121,29 @@ body {
 
 .chat-input {
   display: flex;
+  align-items: flex-end;
   padding: 12px;
   background-color: var(--color-off-white);
   border-top: 1px solid rgba(141, 124, 85, 0.3);
   gap: 10px;
 }
 
-.chat-input input {
+.chat-input textarea {
   flex: 1;
   border: 1px solid rgba(91, 89, 88, 0.5);
   border-radius: 2px;
   padding: 10px 12px;
   font-size: 15px;
+  font-family: inherit;
   background-color: var(--color-white);
   color: var(--color-coco-black);
+  resize: none;
+  overflow-y: auto;
+  max-height: 200px;
+  line-height: 1.4;
 }
 
-.chat-input input:focus {
+.chat-input textarea:focus {
   outline: none;
   border-color: var(--color-peat-brown);
 }
@@ -263,7 +269,6 @@ body {
   color: var(--color-coco-black);
   line-height: 1.46668;
   word-wrap: break-word;
-  white-space: pre-wrap;
 }
 
 /* Pending message indicator */
@@ -923,4 +928,405 @@ body {
 /* Message username hover effect - already in CSS, just ensuring cursor */
 .message-username {
   cursor: pointer;
+}
+
+/* =========================================================================
+   Rich Messaging Styles - Phase 3
+   ========================================================================= */
+
+/* --- Markdown rendered content --- */
+
+.message-body p {
+  margin: 0 0 4px 0;
+}
+
+.message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.message-body code {
+  background-color: rgba(91, 89, 88, 0.1);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 13px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.message-body pre {
+  background-color: var(--color-coco-black);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 4px 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.message-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e6e1dc;
+}
+
+.message-body blockquote {
+  border-left: 3px solid var(--color-dust);
+  margin: 4px 0;
+  padding: 2px 12px;
+  color: var(--color-stone-cold);
+}
+
+.message-body ul,
+.message-body ol {
+  margin: 4px 0;
+  padding-left: 24px;
+}
+
+.message-body a {
+  color: var(--color-peat-brown);
+  text-decoration: underline;
+}
+
+.message-body a:hover {
+  text-decoration: none;
+}
+
+.message-body h1,
+.message-body h2,
+.message-body h3,
+.message-body h4,
+.message-body h5,
+.message-body h6 {
+  margin: 8px 0 4px 0;
+  line-height: 1.3;
+}
+
+.message-body h1 { font-size: 1.3em; }
+.message-body h2 { font-size: 1.2em; }
+.message-body h3 { font-size: 1.1em; }
+
+.message-body table {
+  border-collapse: collapse;
+  margin: 4px 0;
+}
+
+.message-body th,
+.message-body td {
+  border: 1px solid var(--color-dust);
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+.message-body th {
+  background-color: rgba(91, 89, 88, 0.1);
+  font-weight: 600;
+}
+
+.message-body hr {
+  border: none;
+  border-top: 1px solid var(--color-dust);
+  margin: 8px 0;
+}
+
+/* --- Edited indicator --- */
+
+.edited-indicator {
+  font-size: 11px;
+  color: var(--color-shadow-colossus);
+  margin-left: 4px;
+  font-style: italic;
+}
+
+/* --- Deleted message tombstone --- */
+
+.chat-message.deleted {
+  padding: 4px 20px 4px 64px;
+}
+
+.tombstone em {
+  color: var(--color-shadow-colossus);
+  font-size: 14px;
+}
+
+/* --- Hover toolbar --- */
+
+/* Toolbar is inside the message, positioned at top-right, shown on hover */
+.chat-message {
+  position: relative;
+}
+
+.message-hover-toolbar {
+  position: absolute;
+  top: -4px;
+  right: 8px;
+  display: none;
+  z-index: 100;
+  background: var(--color-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 2px;
+  gap: 2px;
+}
+
+.chat-message:hover > .message-hover-toolbar {
+  display: flex;
+}
+
+.toolbar-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background-color 0.1s;
+}
+
+.toolbar-btn:hover {
+  background-color: rgba(91, 89, 88, 0.1);
+}
+
+/* --- Reaction picker (quick-pick bar) --- */
+
+.reaction-picker {
+  position: fixed;
+  z-index: 200;
+  background: var(--color-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.reaction-picker-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background-color 0.1s, transform 0.1s;
+}
+
+.reaction-picker-btn:hover {
+  background-color: rgba(91, 89, 88, 0.1);
+  transform: scale(1.2);
+}
+
+/* --- Reaction bar (below messages) --- */
+
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 0 64px;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(91, 89, 88, 0.08);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+
+.reaction-pill:hover {
+  background: rgba(91, 89, 88, 0.15);
+}
+
+.reaction-pill.reaction-own {
+  background: rgba(84, 49, 28, 0.1);
+  border-color: var(--color-peat-brown);
+}
+
+.reaction-pill.reaction-own:hover {
+  background: rgba(84, 49, 28, 0.2);
+}
+
+.reaction-emoji {
+  font-size: 15px;
+}
+
+.reaction-count {
+  font-size: 12px;
+  color: var(--color-stone-cold);
+  font-weight: 500;
+}
+
+.reaction-add {
+  color: var(--color-shadow-colossus);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.reaction-add:hover {
+  color: var(--color-stone-cold);
+}
+
+/* --- Delete confirmation popover --- */
+
+.delete-confirmation {
+  position: fixed;
+  z-index: 200;
+  background: var(--color-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px 16px;
+  min-width: 180px;
+}
+
+.delete-confirmation p {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: var(--color-coco-black);
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* --- Inline edit --- */
+
+.edit-container {
+  margin: 4px 0;
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 200px;
+  padding: 8px 12px;
+  border: 2px solid var(--color-peat-brown);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.46668;
+  resize: none;
+  box-sizing: border-box;
+  background: var(--color-white);
+}
+
+.edit-textarea:focus {
+  outline: none;
+  border-color: var(--color-mushroom-forest);
+}
+
+.edit-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  justify-content: flex-end;
+}
+
+.edit-hint {
+  font-size: 11px;
+  color: var(--color-shadow-colossus);
+  margin-right: auto;
+}
+
+/* --- Danger button variant --- */
+
+.btn-danger {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-danger:hover {
+  background-color: #b71c1c;
+}
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* --- highlight.js theme (GitHub Dark inspired) --- */
+
+.hljs {
+  color: #e6e1dc;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #7c7c7c;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-type {
+  color: #cc7832;
+}
+
+.hljs-string,
+.hljs-attr {
+  color: #a5c261;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable {
+  color: #6897bb;
+}
+
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.function_ {
+  color: #ffc66d;
+}
+
+.hljs-built_in {
+  color: #e8bf6a;
+}
+
+.hljs-meta {
+  color: #bbb529;
+}
+
+.hljs-section {
+  color: #ffc66d;
+}
+
+.hljs-addition {
+  color: #a5c261;
+  background-color: rgba(165, 194, 97, 0.1);
+}
+
+.hljs-deletion {
+  color: #cc7832;
+  background-color: rgba(204, 120, 50, 0.1);
+}
+
+.hljs-symbol,
+.hljs-bullet {
+  color: #6897bb;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
 }

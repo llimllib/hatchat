@@ -14,13 +14,14 @@ type RoomMessagesWithCursor struct {
 	Body       string `json:"body"`        // body
 	CreatedAt  string `json:"created_at"`  // created_at
 	ModifiedAt string `json:"modified_at"` // modified_at
+	DeletedAt  string `json:"deleted_at"`  // deleted_at
 	Username   string `json:"username"`    // username
 }
 
 // RoomMessagesWithCursorsByRoomIDCursorLimit runs a custom query, returning results as [RoomMessagesWithCursor].
 func RoomMessagesWithCursorsByRoomIDCursorLimit(ctx context.Context, db DB, roomID, cursor string, limit int) ([]*RoomMessagesWithCursor, error) {
 	// query
-	const sqlstr = `SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, u.username ` +
+	const sqlstr = `SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, COALESCE(m.deleted_at, '') as deleted_at, u.username ` +
 		`FROM messages m ` +
 		`JOIN users u ON m.user_id = u.id ` +
 		`WHERE m.room_id = $1 AND m.created_at < $2 ` +
@@ -38,7 +39,7 @@ func RoomMessagesWithCursorsByRoomIDCursorLimit(ctx context.Context, db DB, room
 	for rows.Next() {
 		var rmwc RoomMessagesWithCursor
 		// scan
-		if err := rows.Scan(&rmwc.ID, &rmwc.RoomID, &rmwc.UserID, &rmwc.Body, &rmwc.CreatedAt, &rmwc.ModifiedAt, &rmwc.Username); err != nil {
+		if err := rows.Scan(&rmwc.ID, &rmwc.RoomID, &rmwc.UserID, &rmwc.Body, &rmwc.CreatedAt, &rmwc.ModifiedAt, &rmwc.DeletedAt, &rmwc.Username); err != nil {
 			return nil, logerror(err)
 		}
 		res = append(res, &rmwc)

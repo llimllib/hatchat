@@ -16,6 +16,7 @@ type RoomMessage struct {
 	Body       string `json:"body"`
 	CreatedAt  string `json:"created_at"`
 	ModifiedAt string `json:"modified_at"`
+	DeletedAt  string `json:"deleted_at"` // Empty string if not deleted, RFC3339 timestamp if soft-deleted
 	Username   string `json:"username"`
 }
 
@@ -40,6 +41,7 @@ func GetRoomMessages(ctx context.Context, db *DB, roomID string, cursor string, 
 				Body:       r.Body,
 				CreatedAt:  r.CreatedAt,
 				ModifiedAt: r.ModifiedAt,
+				DeletedAt:  r.DeletedAt,
 				Username:   r.Username,
 			}
 		}
@@ -61,6 +63,7 @@ func GetRoomMessages(ctx context.Context, db *DB, roomID string, cursor string, 
 			Body:       r.Body,
 			CreatedAt:  r.CreatedAt,
 			ModifiedAt: r.ModifiedAt,
+			DeletedAt:  r.DeletedAt,
 			Username:   r.Username,
 		}
 	}

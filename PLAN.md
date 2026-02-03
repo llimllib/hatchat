@@ -167,28 +167,28 @@ _Goal: Messages beyond plain text_
 
 ### 3.1 Message Formatting
 
-- [ ] Markdown support (bold, italic, code, links)
-- [ ] Code blocks with syntax highlighting
-- [ ] Auto-link URLs (open in new tab)
-- [ ] Emoji shortcodes (`:smile:` → 😄)
-- [ ] Emoji picker in input area
-- [ ] Sanitize HTML to prevent XSS
+- [x] Markdown support (bold, italic, code, links)
+- [x] Code blocks with syntax highlighting
+- [x] Auto-link URLs (open in new tab)
+- [ ] Emoji shortcodes (`:smile:` → 😄) (deferred)
+- [ ] Emoji picker in input area (deferred)
+- [x] Sanitize HTML to prevent XSS
 
 ### 3.2 Message Editing & Deletion
 
-- [ ] Edit own messages (inline editing UI)
-- [ ] Show "(edited)" indicator after edit
-- [ ] Delete own messages with confirmation
-- [ ] Broadcast edits/deletions to room
-- [ ] Handle edit/delete broadcasts in client
+- [x] Edit own messages (inline editing UI)
+- [x] Show "(edited)" indicator after edit
+- [x] Delete own messages with confirmation
+- [x] Broadcast edits/deletions to room
+- [x] Handle edit/delete broadcasts in client
 
 ### 3.3 Reactions
 
-- [ ] Add emoji reaction to message
-- [ ] Remove own reaction
-- [ ] Aggregate reaction counts below message
-- [ ] Show who reacted on hover
-- [ ] Toggle own reaction by clicking existing
+- [x] Add emoji reaction to message
+- [x] Remove own reaction
+- [x] Aggregate reaction counts below message
+- [x] Show who reacted on hover
+- [x] Toggle own reaction by clicking existing
 
 ### 3.4 File Uploads & Attachments
 

@@ -1,5 +1,23 @@
 {
   "$defs": {
+    "AddReactionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "emoji": {
+          "description": "Emoji character(s) to react with",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the message to react to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "emoji"
+      ],
+      "type": "object"
+    },
     "CreateDMRequest": {
       "additionalProperties": false,
       "properties": {
@@ -64,6 +82,38 @@
       },
       "required": [
         "room"
+      ],
+      "type": "object"
+    },
+    "DeleteMessageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "message_id": {
+          "description": "ID of the message to delete",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id"
+      ],
+      "type": "object"
+    },
+    "EditMessageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "New message body",
+          "minLength": 1,
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the message to edit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "body"
       ],
       "type": "object"
     },
@@ -339,6 +389,10 @@
           "description": "RFC3339Nano timestamp of creation",
           "type": "string"
         },
+        "deleted_at": {
+          "description": "RFC3339Nano timestamp of deletion (empty if not deleted)",
+          "type": "string"
+        },
         "id": {
           "description": "Unique message identifier (msg_ prefix)",
           "pattern": "^msg_[a-f0-9]{12}$",
@@ -347,6 +401,13 @@
         "modified_at": {
           "description": "RFC3339Nano timestamp of last modification",
           "type": "string"
+        },
+        "reactions": {
+          "description": "Aggregated emoji reactions on this message",
+          "items": {
+            "$ref": "#/$defs/Reaction"
+          },
+          "type": "array"
         },
         "room_id": {
           "description": "Room this message belongs to",
@@ -369,6 +430,133 @@
         "body",
         "created_at",
         "modified_at"
+      ],
+      "type": "object"
+    },
+    "MessageDeleted": {
+      "additionalProperties": false,
+      "properties": {
+        "message_id": {
+          "description": "ID of the deleted message",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room the message belongs to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "room_id"
+      ],
+      "type": "object"
+    },
+    "MessageEdited": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "description": "New message body",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the edited message",
+          "type": "string"
+        },
+        "modified_at": {
+          "description": "RFC3339Nano timestamp of the edit",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room the message belongs to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "body",
+        "room_id",
+        "modified_at"
+      ],
+      "type": "object"
+    },
+    "Reaction": {
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "description": "Number of users who reacted with this emoji",
+          "type": "integer"
+        },
+        "emoji": {
+          "description": "The emoji character(s)",
+          "type": "string"
+        },
+        "user_ids": {
+          "description": "IDs of users who reacted (for highlighting own reactions)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "emoji",
+        "count",
+        "user_ids"
+      ],
+      "type": "object"
+    },
+    "ReactionUpdated": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "description": "Whether the reaction was added or removed",
+          "enum": [
+            "add",
+            "remove"
+          ],
+          "type": "string"
+        },
+        "emoji": {
+          "description": "The emoji character(s)",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the message",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room the message belongs to",
+          "type": "string"
+        },
+        "user_id": {
+          "description": "User who added/removed the reaction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "room_id",
+        "user_id",
+        "emoji",
+        "action"
+      ],
+      "type": "object"
+    },
+    "RemoveReactionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "emoji": {
+          "description": "Emoji character(s) to remove",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the message to remove reaction from",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "emoji"
       ],
       "type": "object"
     },
@@ -647,6 +835,30 @@
     },
     {
       "$ref": "#/$defs/ErrorResponse"
+    },
+    {
+      "$ref": "#/$defs/Reaction"
+    },
+    {
+      "$ref": "#/$defs/EditMessageRequest"
+    },
+    {
+      "$ref": "#/$defs/DeleteMessageRequest"
+    },
+    {
+      "$ref": "#/$defs/AddReactionRequest"
+    },
+    {
+      "$ref": "#/$defs/RemoveReactionRequest"
+    },
+    {
+      "$ref": "#/$defs/MessageEdited"
+    },
+    {
+      "$ref": "#/$defs/MessageDeleted"
+    },
+    {
+      "$ref": "#/$defs/ReactionUpdated"
     },
     {
       "$ref": "#/$defs/Envelope"

@@ -64,6 +64,20 @@ func (a *Api) HistoryMessage(user *models.User, msg json.RawMessage) (*Envelope,
 		messages = messages[:limit] // Trim to requested limit
 	}
 
+	// Collect message IDs for batch-loading reactions
+	messageIDs := make([]string, len(messages))
+	for i, m := range messages {
+		messageIDs[i] = m.ID
+	}
+
+	// Batch-load reactions for all messages
+	reactionsMap, err := db.GetReactionsForMessages(ctx, a.db, messageIDs)
+	if err != nil {
+		a.logger.Error("failed to get reactions", "error", err)
+		// Don't fail the whole request — just continue without reactions
+		reactionsMap = make(map[string][]protocol.Reaction)
+	}
+
 	// Convert to protocol.Message format
 	historyMessages := make([]*protocol.Message, len(messages))
 	for i, m := range messages {
@@ -75,6 +89,8 @@ func (a *Api) HistoryMessage(user *models.User, msg json.RawMessage) (*Envelope,
 			Body:       m.Body,
 			CreatedAt:  m.CreatedAt,
 			ModifiedAt: m.ModifiedAt,
+			DeletedAt:  m.DeletedAt,
+			Reactions:  reactionsMap[m.ID],
 		}
 	}
 

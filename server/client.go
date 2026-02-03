@@ -23,7 +23,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 16384
 )
 
 var newline = []byte{'\n'}
@@ -256,6 +256,50 @@ func (c *Client) readPump() {
 				if err != nil {
 					c.logger.Error("failed to write update_profile json", "error", err)
 					return
+				}
+			}
+		case "edit_message":
+			res, err := c.api.EditMessage(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle edit_message", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to edit message")))
+			} else {
+				c.hub.broadcast <- RoomMessage{
+					RoomID:  res.RoomID,
+					Message: res.Message,
+				}
+			}
+		case "delete_message":
+			res, err := c.api.DeleteMessage(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle delete_message", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to delete message")))
+			} else {
+				c.hub.broadcast <- RoomMessage{
+					RoomID:  res.RoomID,
+					Message: res.Message,
+				}
+			}
+		case "add_reaction":
+			res, err := c.api.AddReaction(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle add_reaction", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to add reaction")))
+			} else {
+				c.hub.broadcast <- RoomMessage{
+					RoomID:  res.RoomID,
+					Message: res.Message,
+				}
+			}
+		case "remove_reaction":
+			res, err := c.api.RemoveReaction(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle remove_reaction", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to remove reaction")))
+			} else {
+				c.hub.broadcast <- RoomMessage{
+					RoomID:  res.RoomID,
+					Message: res.Message,
 				}
 			}
 		}

@@ -59,13 +59,22 @@ type RoomMember struct {
 
 // Message represents a chat message
 type Message struct {
-	ID         string `json:"id" jsonschema:"required,description=Unique message identifier (msg_ prefix),pattern=^msg_[a-f0-9]{12}$"`
-	RoomID     string `json:"room_id" jsonschema:"required,description=Room this message belongs to"`
-	UserID     string `json:"user_id" jsonschema:"required,description=User who sent the message"`
-	Username   string `json:"username" jsonschema:"required,description=Username of sender (denormalized for convenience)"`
-	Body       string `json:"body" jsonschema:"required,description=Message content"`
-	CreatedAt  string `json:"created_at" jsonschema:"required,description=RFC3339Nano timestamp of creation"`
-	ModifiedAt string `json:"modified_at" jsonschema:"required,description=RFC3339Nano timestamp of last modification"`
+	ID         string     `json:"id" jsonschema:"required,description=Unique message identifier (msg_ prefix),pattern=^msg_[a-f0-9]{12}$"`
+	RoomID     string     `json:"room_id" jsonschema:"required,description=Room this message belongs to"`
+	UserID     string     `json:"user_id" jsonschema:"required,description=User who sent the message"`
+	Username   string     `json:"username" jsonschema:"required,description=Username of sender (denormalized for convenience)"`
+	Body       string     `json:"body" jsonschema:"required,description=Message content"`
+	CreatedAt  string     `json:"created_at" jsonschema:"required,description=RFC3339Nano timestamp of creation"`
+	ModifiedAt string     `json:"modified_at" jsonschema:"required,description=RFC3339Nano timestamp of last modification"`
+	DeletedAt  string     `json:"deleted_at,omitempty" jsonschema:"description=RFC3339Nano timestamp of deletion (empty if not deleted)"`
+	Reactions  []Reaction `json:"reactions,omitempty" jsonschema:"description=Aggregated emoji reactions on this message"`
+}
+
+// Reaction represents an aggregated emoji reaction on a message
+type Reaction struct {
+	Emoji   string   `json:"emoji" jsonschema:"required,description=The emoji character(s)"`
+	Count   int      `json:"count" jsonschema:"required,description=Number of users who reacted with this emoji"`
+	UserIDs []string `json:"user_ids" jsonschema:"required,description=IDs of users who reacted (for highlighting own reactions)"`
 }
 
 // =============================================================================
@@ -162,6 +171,37 @@ type UpdateProfileRequest struct {
 	Status      *string `json:"status,omitempty" jsonschema:"description=New status message (omit to keep current)"`
 }
 
+// EditMessageRequest edits a message's body. Only the message author can edit.
+// Direction: client → server
+// Broadcast: MessageEdited to room members
+type EditMessageRequest struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to edit"`
+	Body      string `json:"body" jsonschema:"required,description=New message body,minLength=1"`
+}
+
+// DeleteMessageRequest soft-deletes a message. Only the message author can delete.
+// Direction: client → server
+// Broadcast: MessageDeleted to room members
+type DeleteMessageRequest struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to delete"`
+}
+
+// AddReactionRequest adds an emoji reaction to a message. Any room member can react.
+// Direction: client → server
+// Broadcast: ReactionUpdated to room members
+type AddReactionRequest struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to react to"`
+	Emoji     string `json:"emoji" jsonschema:"required,description=Emoji character(s) to react with"`
+}
+
+// RemoveReactionRequest removes the user's emoji reaction from a message.
+// Direction: client → server
+// Broadcast: ReactionUpdated to room members
+type RemoveReactionRequest struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to remove reaction from"`
+	Emoji     string `json:"emoji" jsonschema:"required,description=Emoji character(s) to remove"`
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -181,6 +221,32 @@ type HistoryResponse struct {
 	Messages   []*Message `json:"messages" jsonschema:"required,description=Messages in chronological order (newest first)"`
 	HasMore    bool       `json:"has_more" jsonschema:"required,description=Whether older messages exist"`
 	NextCursor string     `json:"next_cursor" jsonschema:"required,description=Pass as cursor to fetch older messages"`
+}
+
+// MessageEdited is broadcast to room members when a message is edited
+// Direction: server → client (broadcast)
+type MessageEdited struct {
+	MessageID  string `json:"message_id" jsonschema:"required,description=ID of the edited message"`
+	Body       string `json:"body" jsonschema:"required,description=New message body"`
+	RoomID     string `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
+	ModifiedAt string `json:"modified_at" jsonschema:"required,description=RFC3339Nano timestamp of the edit"`
+}
+
+// MessageDeleted is broadcast to room members when a message is soft-deleted
+// Direction: server → client (broadcast)
+type MessageDeleted struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the deleted message"`
+	RoomID    string `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
+}
+
+// ReactionUpdated is broadcast when a reaction is added or removed
+// Direction: server → client (broadcast)
+type ReactionUpdated struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message"`
+	RoomID    string `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
+	UserID    string `json:"user_id" jsonschema:"required,description=User who added/removed the reaction"`
+	Emoji     string `json:"emoji" jsonschema:"required,description=The emoji character(s)"`
+	Action    string `json:"action" jsonschema:"required,description=Whether the reaction was added or removed,enum=add,enum=remove"`
 }
 
 // ErrorResponse is sent by the server when an error occurs
@@ -379,5 +445,40 @@ var MessageTypes = []MessageMeta{
 		Type:        "update_profile",
 		Direction:   ServerToClient,
 		Description: "Response with updated profile",
+	},
+	{
+		Type:        "edit_message",
+		Direction:   ClientToServer,
+		Description: "Edit a message's body (author only)",
+	},
+	{
+		Type:        "message_edited",
+		Direction:   ServerToClient,
+		Description: "Broadcast when a message is edited",
+	},
+	{
+		Type:        "delete_message",
+		Direction:   ClientToServer,
+		Description: "Soft-delete a message (author only)",
+	},
+	{
+		Type:        "message_deleted",
+		Direction:   ServerToClient,
+		Description: "Broadcast when a message is deleted",
+	},
+	{
+		Type:        "add_reaction",
+		Direction:   ClientToServer,
+		Description: "Add an emoji reaction to a message",
+	},
+	{
+		Type:        "remove_reaction",
+		Direction:   ClientToServer,
+		Description: "Remove an emoji reaction from a message",
+	},
+	{
+		Type:        "reaction_updated",
+		Direction:   ServerToClient,
+		Description: "Broadcast when a reaction is added or removed",
 	},
 }

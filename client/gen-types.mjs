@@ -20,6 +20,7 @@ const typeOrder = [
   "User",
   "RoomMember",
   "Room",
+  "Reaction",
   "Message",
   "InitRequest",
   "SendMessageRequest",
@@ -33,6 +34,10 @@ const typeOrder = [
   "RoomInfoRequest",
   "GetProfileRequest",
   "UpdateProfileRequest",
+  "EditMessageRequest",
+  "DeleteMessageRequest",
+  "AddReactionRequest",
+  "RemoveReactionRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
@@ -45,6 +50,9 @@ const typeOrder = [
   "GetProfileResponse",
   "UpdateProfileResponse",
   "ErrorResponse",
+  "MessageEdited",
+  "MessageDeleted",
+  "ReactionUpdated",
   "Envelope",
 ];
 
@@ -182,6 +190,13 @@ export type MessageType =
   | "room_info"
   | "get_profile"
   | "update_profile"
+  | "edit_message"
+  | "delete_message"
+  | "add_reaction"
+  | "remove_reaction"
+  | "message_edited"
+  | "message_deleted"
+  | "reaction_updated"
   | "error";
 
 /**
@@ -199,7 +214,11 @@ export type ClientEnvelope =
   | { type: "leave_room"; data: LeaveRoomRequest }
   | { type: "room_info"; data: RoomInfoRequest }
   | { type: "get_profile"; data: GetProfileRequest }
-  | { type: "update_profile"; data: UpdateProfileRequest };
+  | { type: "update_profile"; data: UpdateProfileRequest }
+  | { type: "edit_message"; data: EditMessageRequest }
+  | { type: "delete_message"; data: DeleteMessageRequest }
+  | { type: "add_reaction"; data: AddReactionRequest }
+  | { type: "remove_reaction"; data: RemoveReactionRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -217,6 +236,9 @@ export type ServerEnvelope =
   | { type: "room_info"; data: RoomInfoResponse }
   | { type: "get_profile"; data: GetProfileResponse }
   | { type: "update_profile"; data: UpdateProfileResponse }
+  | { type: "message_edited"; data: MessageEdited }
+  | { type: "message_deleted"; data: MessageDeleted }
+  | { type: "reaction_updated"; data: ReactionUpdated }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -283,6 +305,21 @@ export const UpdateProfileEnvelopeSchema = z.object({
   data: UpdateProfileResponseSchema,
 });
 
+export const MessageEditedEnvelopeSchema = z.object({
+  type: z.literal("message_edited"),
+  data: MessageEditedSchema,
+});
+
+export const MessageDeletedEnvelopeSchema = z.object({
+  type: z.literal("message_deleted"),
+  data: MessageDeletedSchema,
+});
+
+export const ReactionUpdatedEnvelopeSchema = z.object({
+  type: z.literal("reaction_updated"),
+  data: ReactionUpdatedSchema,
+});
+
 export const ErrorEnvelopeSchema = z.object({
   type: z.literal("error"),
   data: ErrorResponseSchema,
@@ -304,6 +341,9 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   RoomInfoEnvelopeSchema,
   GetProfileEnvelopeSchema,
   UpdateProfileEnvelopeSchema,
+  MessageEditedEnvelopeSchema,
+  MessageDeletedEnvelopeSchema,
+  ReactionUpdatedEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 
