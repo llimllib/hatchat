@@ -2364,7 +2364,9 @@ class Client {
   }
 
   submitTextbox() {
-    const messageBox = document.querySelector("#message") as HTMLInputElement;
+    const messageBox = document.querySelector(
+      "#message",
+    ) as HTMLTextAreaElement;
     if (!messageBox) {
       throw new Error("couldn't find message box");
     }
@@ -2415,8 +2417,9 @@ class Client {
       element: element,
     });
 
-    // Clear the input box
+    // Clear the input box and reset height
     messageBox.value = "";
+    messageBox.style.height = "auto";
   }
 
   /**
@@ -2448,31 +2451,42 @@ class Client {
     this.submitTextbox();
   }
 
-  onKeypress(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      this.submitTextbox();
-    }
-  }
-
   onKeydown(e: KeyboardEvent) {
-    // Up arrow in empty input → edit last own message
-    if (e.key === "ArrowUp") {
-      const messageBox = document.querySelector("#message") as HTMLInputElement;
-      if (messageBox && messageBox.value === "") {
-        e.preventDefault();
-        const roomState = this.state.getCurrentRoomState();
-        if (!roomState) return;
+    const messageBox = document.querySelector(
+      "#message",
+    ) as HTMLTextAreaElement;
+    if (!messageBox) return;
 
-        // Find last own message that isn't deleted
-        for (let i = roomState.messages.length - 1; i >= 0; i--) {
-          const msg = roomState.messages[i];
-          if (msg.user_id === this.state.user.id && !msg.deleted_at) {
-            this.startEdit(msg.id);
-            break;
-          }
+    if (e.key === "Enter" && !e.shiftKey) {
+      // Enter sends, Shift+Enter inserts newline
+      e.preventDefault();
+      this.submitTextbox();
+    } else if (e.key === "ArrowUp" && messageBox.value === "") {
+      // Up arrow in empty input → edit last own message
+      e.preventDefault();
+      const roomState = this.state.getCurrentRoomState();
+      if (!roomState) return;
+
+      for (let i = roomState.messages.length - 1; i >= 0; i--) {
+        const msg = roomState.messages[i];
+        if (msg.user_id === this.state.user.id && !msg.deleted_at) {
+          this.startEdit(msg.id);
+          break;
         }
       }
     }
+  }
+
+  /**
+   * Auto-resize textarea to fit content
+   */
+  autoResizeInput() {
+    const messageBox = document.querySelector(
+      "#message",
+    ) as HTMLTextAreaElement;
+    if (!messageBox) return;
+    messageBox.style.height = "auto";
+    messageBox.style.height = `${Math.min(messageBox.scrollHeight, 200)}px`;
   }
 }
 
@@ -2494,10 +2508,10 @@ function main() {
 
   document
     .getElementById("message")
-    ?.addEventListener("keypress", client.onKeypress.bind(client));
+    ?.addEventListener("keydown", client.onKeydown.bind(client));
   document
     .getElementById("message")
-    ?.addEventListener("keydown", client.onKeydown.bind(client));
+    ?.addEventListener("input", client.autoResizeInput.bind(client));
   document
     .getElementById("sendmessage")
     ?.addEventListener("click", client.onSubmit.bind(client));

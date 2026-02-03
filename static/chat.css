@@ -121,23 +121,29 @@ body {
 
 .chat-input {
   display: flex;
+  align-items: flex-end;
   padding: 12px;
   background-color: var(--color-off-white);
   border-top: 1px solid rgba(141, 124, 85, 0.3);
   gap: 10px;
 }
 
-.chat-input input {
+.chat-input textarea {
   flex: 1;
   border: 1px solid rgba(91, 89, 88, 0.5);
   border-radius: 2px;
   padding: 10px 12px;
   font-size: 15px;
+  font-family: inherit;
   background-color: var(--color-white);
   color: var(--color-coco-black);
+  resize: none;
+  overflow-y: auto;
+  max-height: 200px;
+  line-height: 1.4;
 }
 
-.chat-input input:focus {
+.chat-input textarea:focus {
   outline: none;
   border-color: var(--color-peat-brown);
 }
