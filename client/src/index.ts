@@ -346,9 +346,19 @@ class Client {
   }
 
   handleIncomingMessage(msg: Message) {
-    // Only process if it's for the current room
+    // Handle messages for rooms we're not currently viewing
     if (msg.room_id !== this.state.currentRoom) {
-      // TODO: Update unread count for other room
+      // Still cache the message so it's there when we switch
+      this.state.addMessage(msg.room_id, msg);
+
+      // Bump DM to top of list if it's a DM
+      const room = this.state.getRoom(msg.room_id);
+      if (room?.room_type === "dm") {
+        this.state.bumpDM(msg.room_id);
+        this.renderSidebar();
+      }
+
+      // TODO: Update unread count for other room (Phase 5)
       console.debug("message for different room", msg.room_id);
       return;
     }
