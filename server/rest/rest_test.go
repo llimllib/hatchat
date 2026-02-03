@@ -48,12 +48,14 @@ func setupTestDB(t *testing.T) *db.DB {
 func createTestUser(t *testing.T, testDB *db.DB, username string) *models.User {
 	t.Helper()
 	user := &models.User{
-		ID:         models.GenerateUserID(),
-		Username:   username,
-		Password:   "hashed_password",
-		LastRoom:   "",
-		CreatedAt:  time.Now().Format(time.RFC3339),
-		ModifiedAt: time.Now().Format(time.RFC3339),
+		ID:          models.GenerateUserID(),
+		Username:    username,
+		Password:    "hashed_password",
+		DisplayName: "",
+		Status:      "",
+		LastRoom:    "",
+		CreatedAt:   time.Now().Format(time.RFC3339),
+		ModifiedAt:  time.Now().Format(time.RFC3339),
 	}
 	if err := user.Insert(context.Background(), testDB); err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -71,6 +73,7 @@ func createTestRoom(t *testing.T, testDB *db.DB, name string, isPrivate bool) *m
 	room := &models.Room{
 		ID:        models.GenerateRoomID(),
 		Name:      name,
+		RoomType:  "channel",
 		IsPrivate: priv,
 		IsDefault: models.FALSE,
 		CreatedAt: time.Now().Format(time.RFC3339),

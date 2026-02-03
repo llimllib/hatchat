@@ -6,12 +6,12 @@ import (
 	"github.com/llimllib/hatchat/server/models"
 )
 
-// ListPublicRooms returns all public (non-private) rooms.
+// ListPublicRooms returns all public (non-private) channel rooms (not DMs).
 func ListPublicRooms(ctx context.Context, db *DB) ([]*models.Room, error) {
 	const sqlstr = `SELECT ` +
-		`id, name, is_private, is_default, created_at ` +
+		`id, name, room_type, is_private, is_default, created_at, last_message_at ` +
 		`FROM rooms ` +
-		`WHERE is_private = 0 ` +
+		`WHERE is_private = 0 AND room_type = 'channel' ` +
 		`ORDER BY name ASC`
 
 	rows, err := db.QueryContext(ctx, sqlstr)
@@ -23,7 +23,7 @@ func ListPublicRooms(ctx context.Context, db *DB) ([]*models.Room, error) {
 	var rooms []*models.Room
 	for rows.Next() {
 		r := &models.Room{}
-		if err := rows.Scan(&r.ID, &r.Name, &r.IsPrivate, &r.IsDefault, &r.CreatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.RoomType, &r.IsPrivate, &r.IsDefault, &r.CreatedAt, &r.LastMessageAt); err != nil {
 			return nil, err
 		}
 		rooms = append(rooms, r)
@@ -36,28 +36,29 @@ func ListPublicRooms(ctx context.Context, db *DB) ([]*models.Room, error) {
 	return rooms, nil
 }
 
-// ListPublicRoomsWithMembership returns all public rooms along with whether the user is a member.
+// ListPublicRoomsWithMembership returns all public channel rooms along with whether the user is a member.
 // If query is non-empty, it filters rooms by name (case-insensitive contains match).
+// DMs are excluded from this list.
 func ListPublicRoomsWithMembership(ctx context.Context, db *DB, userID string, query string) ([]*models.Room, []bool, error) {
 	var sqlstr string
 	var args []any
 
 	if query == "" {
 		sqlstr = `SELECT ` +
-			`r.id, r.name, r.is_private, r.is_default, r.created_at, ` +
+			`r.id, r.name, r.room_type, r.is_private, r.is_default, r.created_at, r.last_message_at, ` +
 			`CASE WHEN rm.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_member ` +
 			`FROM rooms r ` +
 			`LEFT JOIN rooms_members rm ON r.id = rm.room_id AND rm.user_id = $1 ` +
-			`WHERE r.is_private = 0 ` +
+			`WHERE r.is_private = 0 AND r.room_type = 'channel' ` +
 			`ORDER BY r.name ASC`
 		args = []any{userID}
 	} else {
 		sqlstr = `SELECT ` +
-			`r.id, r.name, r.is_private, r.is_default, r.created_at, ` +
+			`r.id, r.name, r.room_type, r.is_private, r.is_default, r.created_at, r.last_message_at, ` +
 			`CASE WHEN rm.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_member ` +
 			`FROM rooms r ` +
 			`LEFT JOIN rooms_members rm ON r.id = rm.room_id AND rm.user_id = $1 ` +
-			`WHERE r.is_private = 0 AND r.name LIKE '%' || $2 || '%' COLLATE NOCASE ` +
+			`WHERE r.is_private = 0 AND r.room_type = 'channel' AND r.name LIKE '%' || $2 || '%' COLLATE NOCASE ` +
 			`ORDER BY r.name ASC`
 		args = []any{userID, query}
 	}
@@ -73,7 +74,7 @@ func ListPublicRoomsWithMembership(ctx context.Context, db *DB, userID string, q
 	for rows.Next() {
 		r := &models.Room{}
 		var isMember int
-		if err := rows.Scan(&r.ID, &r.Name, &r.IsPrivate, &r.IsDefault, &r.CreatedAt, &isMember); err != nil {
+		if err := rows.Scan(&r.ID, &r.Name, &r.RoomType, &r.IsPrivate, &r.IsDefault, &r.CreatedAt, &r.LastMessageAt, &isMember); err != nil {
 			return nil, nil, err
 		}
 		rooms = append(rooms, r)

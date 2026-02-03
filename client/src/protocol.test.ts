@@ -64,16 +64,17 @@ describe("Protocol Schema Validation", () => {
       const user: User = {
         id: "usr_1234567890abcdef",
         username: "testuser",
-        avatar: "",
       };
       const result = validate("User", user);
       expect(result.valid).toBe(true);
     });
 
-    it("validates user with avatar URL", () => {
+    it("validates user with all fields", () => {
       const user: User = {
         id: "usr_1234567890abcdef",
         username: "testuser",
+        display_name: "Test User",
+        status: "Working on something",
         avatar: "https://example.com/avatar.png",
       };
       const result = validate("User", user);
@@ -89,6 +90,7 @@ describe("Protocol Schema Validation", () => {
       const room: Room = {
         id: "roo_123456789abc",
         name: "general",
+        room_type: "channel",
         is_private: false,
       };
       const result = validate("Room", room);
@@ -99,7 +101,23 @@ describe("Protocol Schema Validation", () => {
       const room: Room = {
         id: "roo_123456789abc",
         name: "secret-channel",
+        room_type: "channel",
         is_private: true,
+      };
+      const result = validate("Room", room);
+      expect(result.valid).toBe(true);
+    });
+
+    it("validates a DM room", () => {
+      const room: Room = {
+        id: "roo_123456789abc",
+        name: "",
+        room_type: "dm",
+        is_private: true,
+        members: [
+          { id: "usr_1234567890abcdef", username: "alice" },
+          { id: "usr_abcdef1234567890", username: "bob" },
+        ],
       };
       const result = validate("Room", room);
       expect(result.valid).toBe(true);
@@ -189,16 +207,42 @@ describe("Protocol Schema Validation", () => {
     describe("InitResponse", () => {
       it("validates init response", () => {
         const res: InitResponse = {
-          User: {
+          user: {
             id: "usr_1234567890abcdef",
             username: "testuser",
-            avatar: "",
           },
-          Rooms: [
+          rooms: [
             {
               id: "roo_123456789abc",
               name: "general",
+              room_type: "channel",
               is_private: false,
+            },
+          ],
+          dms: [],
+          current_room: "roo_123456789abc",
+        };
+        const result = validate("InitResponse", res);
+        expect(result.valid).toBe(true);
+      });
+
+      it("validates init response with DMs", () => {
+        const res: InitResponse = {
+          user: {
+            id: "usr_1234567890abcdef",
+            username: "testuser",
+          },
+          rooms: [],
+          dms: [
+            {
+              id: "roo_123456789abc",
+              name: "",
+              room_type: "dm",
+              is_private: true,
+              members: [
+                { id: "usr_1234567890abcdef", username: "testuser" },
+                { id: "usr_abcdef1234567890", username: "otheruser" },
+              ],
             },
           ],
           current_room: "roo_123456789abc",
@@ -275,8 +319,9 @@ describe("Type Safety", () => {
     const initEnvelope: ServerEnvelope = {
       type: "init",
       data: {
-        User: { id: "usr_1234567890abcdef", username: "test" },
-        Rooms: [],
+        user: { id: "usr_1234567890abcdef", username: "test" },
+        rooms: [],
+        dms: [],
         current_room: "",
       },
     };
@@ -298,7 +343,7 @@ describe("Type Safety", () => {
     };
     const errorEnvelope: ServerEnvelope = {
       type: "error",
-      data: { Message: "oops" },
+      data: { message: "oops" },
     };
 
     expect(initEnvelope.type).toBe("init");

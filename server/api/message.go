@@ -66,6 +66,14 @@ func (a *Api) MessageMessage(user *models.User, msg json.RawMessage) (*MessageRe
 		return nil, err
 	}
 
+	// Update room's last_message_at for DM ordering
+	room.LastMessageAt.String = now
+	room.LastMessageAt.Valid = true
+	if err = room.Update(ctx, a.db); err != nil {
+		// Log but don't fail - the message was already sent
+		a.logger.Error("failed to update room last_message_at", "error", err, "room", room.ID)
+	}
+
 	// Create broadcast message with full message details using protocol.Message
 	broadcastMsg := protocol.Message{
 		ID:         dbMessage.ID,

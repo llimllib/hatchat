@@ -8,9 +8,10 @@ import (
 
 // RoomMember represents a member of a room with user details
 type RoomMember struct {
-	ID       string
-	Username string
-	Avatar   string
+	ID          string
+	Username    string
+	DisplayName string
+	Avatar      string
 }
 
 // RoomInfo contains room details and its members
@@ -29,7 +30,7 @@ func GetRoomInfo(ctx context.Context, db *DB, roomID string) (*RoomInfo, error) 
 	}
 
 	// Get the members with a join query
-	const sqlstr = `SELECT u.id, u.username, u.avatar 
+	const sqlstr = `SELECT u.id, u.username, u.display_name, COALESCE(u.avatar, '') as avatar 
 		FROM users u
 		JOIN rooms_members rm ON rm.user_id = u.id
 		WHERE rm.room_id = $1
@@ -44,12 +45,8 @@ func GetRoomInfo(ctx context.Context, db *DB, roomID string) (*RoomInfo, error) 
 	var members []RoomMember
 	for rows.Next() {
 		var m RoomMember
-		var avatar *string
-		if err := rows.Scan(&m.ID, &m.Username, &avatar); err != nil {
+		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.Avatar); err != nil {
 			return nil, err
-		}
-		if avatar != nil {
-			m.Avatar = *avatar
 		}
 		members = append(members, m)
 	}

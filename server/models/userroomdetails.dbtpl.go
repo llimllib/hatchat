@@ -10,16 +10,17 @@ import (
 type UserRoomDetails struct {
 	ID        string `json:"id"`         // id
 	Name      string `json:"name"`       // name
+	RoomType  string `json:"room_type"`  // room_type
 	IsPrivate int    `json:"is_private"` // is_private
 }
 
 // UserRoomDetailsByUserID runs a custom query, returning results as [UserRoomDetails].
 func UserRoomDetailsByUserID(ctx context.Context, db DB, userID string) ([]*UserRoomDetails, error) {
 	// query
-	const sqlstr = `SELECT r.id, r.name, r.is_private ` +
+	const sqlstr = `SELECT r.id, r.name, r.room_type, r.is_private ` +
 		`FROM rooms r ` +
 		`JOIN rooms_members rm ON r.id = rm.room_id ` +
-		`WHERE rm.user_id = $1 ` +
+		`WHERE rm.user_id = $1 AND r.room_type = 'channel' ` +
 		`ORDER BY r.name`
 	// run
 	logf(sqlstr, userID)
@@ -33,7 +34,7 @@ func UserRoomDetailsByUserID(ctx context.Context, db DB, userID string) ([]*User
 	for rows.Next() {
 		var urd UserRoomDetails
 		// scan
-		if err := rows.Scan(&urd.ID, &urd.Name, &urd.IsPrivate); err != nil {
+		if err := rows.Scan(&urd.ID, &urd.Name, &urd.RoomType, &urd.IsPrivate); err != nil {
 			return nil, logerror(err)
 		}
 		res = append(res, &urd)

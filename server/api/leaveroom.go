@@ -11,9 +11,10 @@ import (
 )
 
 var ErrCannotLeaveDefaultRoom = errors.New("cannot leave the default room")
+var ErrCannotLeave1on1DM = errors.New("cannot leave a 1:1 direct message")
 
 // LeaveRoom handles a request from the client to leave a room.
-// Users cannot leave the default room.
+// Users cannot leave the default room or 1:1 DMs.
 func (a *Api) LeaveRoom(user *models.User, msg json.RawMessage) (*Envelope, error) {
 	var req protocol.LeaveRoomRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
@@ -34,6 +35,19 @@ func (a *Api) LeaveRoom(user *models.User, msg json.RawMessage) (*Envelope, erro
 
 	if room.IsDefault != 0 {
 		return ErrorResponse("cannot leave the default room"), nil
+	}
+
+	// Check if this is a 1:1 DM (cannot leave those)
+	if room.RoomType == "dm" {
+		memberCount, err := models.RoomMemberCountByRoomID(ctx, a.db, req.RoomID)
+		if err != nil {
+			a.logger.Error("failed to get DM member count", "error", err, "room_id", req.RoomID)
+			return nil, err
+		}
+		// Count comes back as a string from SQLite
+		if memberCount.Count == "1" || memberCount.Count == "2" {
+			return ErrorResponse("cannot leave a 1:1 direct message"), nil
+		}
 	}
 
 	// Try to leave the room

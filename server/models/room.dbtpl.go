@@ -4,15 +4,18 @@ package models
 
 import (
 	"context"
+	"database/sql"
 )
 
 // Room represents a row from 'rooms'.
 type Room struct {
-	ID        string `json:"id"`         // id
-	Name      string `json:"name"`       // name
-	IsPrivate int    `json:"is_private"` // is_private
-	IsDefault int    `json:"is_default"` // is_default
-	CreatedAt string `json:"created_at"` // created_at
+	ID            string         `json:"id"`              // id
+	Name          string         `json:"name"`            // name
+	RoomType      string         `json:"room_type"`       // room_type
+	IsPrivate     int            `json:"is_private"`      // is_private
+	IsDefault     int            `json:"is_default"`      // is_default
+	CreatedAt     string         `json:"created_at"`      // created_at
+	LastMessageAt sql.NullString `json:"last_message_at"` // last_message_at
 	// xo fields
 	_exists, _deleted bool
 }
@@ -38,13 +41,13 @@ func (r *Room) Insert(ctx context.Context, db DB) error {
 	}
 	// insert (manual)
 	const sqlstr = `INSERT INTO rooms (` +
-		`id, name, is_private, is_default, created_at` +
+		`id, name, room_type, is_private, is_default, created_at, last_message_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5` +
+		`$1, $2, $3, $4, $5, $6, $7` +
 		`)`
 	// run
-	logf(sqlstr, r.ID, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, r.ID, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt); err != nil {
+	logf(sqlstr, r.ID, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt)
+	if _, err := db.ExecContext(ctx, sqlstr, r.ID, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -62,11 +65,11 @@ func (r *Room) Update(ctx context.Context, db DB) error {
 	}
 	// update with primary key
 	const sqlstr = `UPDATE rooms SET ` +
-		`name = $1, is_private = $2, is_default = $3, created_at = $4 ` +
-		`WHERE id = $5`
+		`name = $1, room_type = $2, is_private = $3, is_default = $4, created_at = $5, last_message_at = $6 ` +
+		`WHERE id = $7`
 	// run
-	logf(sqlstr, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt, r.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt, r.ID); err != nil {
+	logf(sqlstr, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt, r.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt, r.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -88,16 +91,16 @@ func (r *Room) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO rooms (` +
-		`id, name, is_private, is_default, created_at` +
+		`id, name, room_type, is_private, is_default, created_at, last_message_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5` +
+		`$1, $2, $3, $4, $5, $6, $7` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`name = EXCLUDED.name, is_private = EXCLUDED.is_private, is_default = EXCLUDED.is_default, created_at = EXCLUDED.created_at `
+		`name = EXCLUDED.name, room_type = EXCLUDED.room_type, is_private = EXCLUDED.is_private, is_default = EXCLUDED.is_default, created_at = EXCLUDED.created_at, last_message_at = EXCLUDED.last_message_at `
 	// run
-	logf(sqlstr, r.ID, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, r.ID, r.Name, r.IsPrivate, r.IsDefault, r.CreatedAt); err != nil {
+	logf(sqlstr, r.ID, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt)
+	if _, err := db.ExecContext(ctx, sqlstr, r.ID, r.Name, r.RoomType, r.IsPrivate, r.IsDefault, r.CreatedAt, r.LastMessageAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -126,13 +129,33 @@ func (r *Room) Delete(ctx context.Context, db DB) error {
 	return nil
 }
 
+// RoomByName retrieves a row from 'rooms' as a [Room].
+//
+// Generated from index 'rooms_name'.
+func RoomByName(ctx context.Context, db DB, name string) (*Room, error) {
+	// query
+	const sqlstr = `SELECT ` +
+		`id, name, room_type, is_private, is_default, created_at, last_message_at ` +
+		`FROM rooms ` +
+		`WHERE name = $1`
+	// run
+	logf(sqlstr, name)
+	r := Room{
+		_exists: true,
+	}
+	if err := db.QueryRowContext(ctx, sqlstr, name).Scan(&r.ID, &r.Name, &r.RoomType, &r.IsPrivate, &r.IsDefault, &r.CreatedAt, &r.LastMessageAt); err != nil {
+		return nil, logerror(err)
+	}
+	return &r, nil
+}
+
 // RoomByID retrieves a row from 'rooms' as a [Room].
 //
 // Generated from index 'sqlite_autoindex_rooms_1'.
 func RoomByID(ctx context.Context, db DB, id string) (*Room, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, name, is_private, is_default, created_at ` +
+		`id, name, room_type, is_private, is_default, created_at, last_message_at ` +
 		`FROM rooms ` +
 		`WHERE id = $1`
 	// run
@@ -140,7 +163,7 @@ func RoomByID(ctx context.Context, db DB, id string) (*Room, error) {
 	r := Room{
 		_exists: true,
 	}
-	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&r.ID, &r.Name, &r.IsPrivate, &r.IsDefault, &r.CreatedAt); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&r.ID, &r.Name, &r.RoomType, &r.IsPrivate, &r.IsDefault, &r.CreatedAt, &r.LastMessageAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &r, nil

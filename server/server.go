@@ -219,6 +219,7 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 		room := models.Room{
 			ID:        models.GenerateRoomID(),
 			Name:      "main",
+			RoomType:  "channel",
 			IsPrivate: models.FALSE,
 			IsDefault: models.TRUE,
 			CreatedAt: time.Now().Format(time.RFC3339),

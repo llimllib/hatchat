@@ -17,12 +17,14 @@ func TestGetRoomMessages_Basic(t *testing.T) {
 
 	// Create user and room
 	user := &models.User{
-		ID:         "usr_test123456789",
-		Username:   "testuser",
-		Password:   "hash",
-		LastRoom:   "",
-		CreatedAt:  now.Format(time.RFC3339),
-		ModifiedAt: now.Format(time.RFC3339),
+		ID:          "usr_test123456789",
+		Username:    "testuser",
+		Password:    "hash",
+		DisplayName: "",
+		Status:      "",
+		LastRoom:    "",
+		CreatedAt:   now.Format(time.RFC3339),
+		ModifiedAt:  now.Format(time.RFC3339),
 	}
 	if err := user.Insert(ctx, database); err != nil {
 		t.Fatalf("Failed to create user: %v", err)
@@ -31,6 +33,7 @@ func TestGetRoomMessages_Basic(t *testing.T) {
 	room := &models.Room{
 		ID:        "roo_test12345678",
 		Name:      "general",
+		RoomType:  "channel",
 		IsPrivate: models.FALSE,
 		IsDefault: models.TRUE,
 		CreatedAt: now.Format(time.RFC3339),
@@ -87,12 +90,14 @@ func TestGetRoomMessages_Pagination(t *testing.T) {
 
 	// Create user and room
 	user := &models.User{
-		ID:         "usr_test123456789",
-		Username:   "testuser",
-		Password:   "hash",
-		LastRoom:   "",
-		CreatedAt:  now.Format(time.RFC3339),
-		ModifiedAt: now.Format(time.RFC3339),
+		ID:          "usr_test123456789",
+		Username:    "testuser",
+		Password:    "hash",
+		DisplayName: "",
+		Status:      "",
+		LastRoom:    "",
+		CreatedAt:   now.Format(time.RFC3339),
+		ModifiedAt:  now.Format(time.RFC3339),
 	}
 	if err := user.Insert(ctx, database); err != nil {
 		t.Fatalf("Failed to create user: %v", err)
@@ -101,6 +106,7 @@ func TestGetRoomMessages_Pagination(t *testing.T) {
 	room := &models.Room{
 		ID:        "roo_test12345678",
 		Name:      "general",
+		RoomType:  "channel",
 		IsPrivate: models.FALSE,
 		IsDefault: models.TRUE,
 		CreatedAt: now.Format(time.RFC3339),
@@ -172,6 +178,7 @@ func TestGetRoomMessages_EmptyRoom(t *testing.T) {
 	room := &models.Room{
 		ID:        "roo_test12345678",
 		Name:      "empty-room",
+		RoomType:  "channel",
 		IsPrivate: models.FALSE,
 		IsDefault: models.TRUE,
 		CreatedAt: now.Format(time.RFC3339),
@@ -200,12 +207,14 @@ func TestGetRoomMessages_RoomIsolation(t *testing.T) {
 
 	// Create user
 	user := &models.User{
-		ID:         "usr_test123456789",
-		Username:   "testuser",
-		Password:   "hash",
-		LastRoom:   "",
-		CreatedAt:  now.Format(time.RFC3339),
-		ModifiedAt: now.Format(time.RFC3339),
+		ID:          "usr_test123456789",
+		Username:    "testuser",
+		Password:    "hash",
+		DisplayName: "",
+		Status:      "",
+		LastRoom:    "",
+		CreatedAt:   now.Format(time.RFC3339),
+		ModifiedAt:  now.Format(time.RFC3339),
 	}
 	if err := user.Insert(ctx, database); err != nil {
 		t.Fatalf("Failed to create user: %v", err)
@@ -215,6 +224,7 @@ func TestGetRoomMessages_RoomIsolation(t *testing.T) {
 	room1 := &models.Room{
 		ID:        "roo_room1234567",
 		Name:      "room1",
+		RoomType:  "channel",
 		IsPrivate: models.FALSE,
 		IsDefault: models.FALSE,
 		CreatedAt: now.Format(time.RFC3339),
@@ -222,6 +232,7 @@ func TestGetRoomMessages_RoomIsolation(t *testing.T) {
 	room2 := &models.Room{
 		ID:        "roo_room2345678",
 		Name:      "room2",
+		RoomType:  "channel",
 		IsPrivate: models.FALSE,
 		IsDefault: models.FALSE,
 		CreatedAt: now.Format(time.RFC3339),

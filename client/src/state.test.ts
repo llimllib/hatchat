@@ -1,17 +1,28 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppState } from "./state";
-import type { InitialData, Message } from "./types";
+import type { InitResponse, Message } from "./types";
 
 describe("AppState", () => {
   let state: AppState;
 
   // Factory function to create fresh mock data for each test
-  const createMockInitialData = (): InitialData => ({
-    Rooms: [
-      { id: "roo_123", name: "general", is_private: false },
-      { id: "roo_456", name: "random", is_private: false },
+  const createMockInitialData = (): InitResponse => ({
+    rooms: [
+      {
+        id: "roo_123",
+        name: "general",
+        room_type: "channel",
+        is_private: false,
+      },
+      {
+        id: "roo_456",
+        name: "random",
+        room_type: "channel",
+        is_private: false,
+      },
     ],
-    User: { id: "usr_abc123", username: "testuser", avatar: "" },
+    dms: [],
+    user: { id: "usr_abc123", username: "testuser" },
     current_room: "roo_123",
   });
 
@@ -78,27 +89,47 @@ describe("AppState", () => {
 
     it("adds a new room", () => {
       state.setInitialData(createMockInitialData());
-      state.addRoom({ id: "roo_789", name: "new-channel", is_private: false });
+      state.addRoom({
+        id: "roo_789",
+        name: "new-channel",
+        room_type: "channel",
+        is_private: false,
+      });
       expect(state.rooms).toHaveLength(3);
       expect(state.getRoom("roo_789")?.name).toBe("new-channel");
     });
 
     it("sorts rooms by name after adding", () => {
       state.setInitialData(createMockInitialData());
-      state.addRoom({ id: "roo_aaa", name: "aardvark", is_private: false });
+      state.addRoom({
+        id: "roo_aaa",
+        name: "aardvark",
+        room_type: "channel",
+        is_private: false,
+      });
       expect(state.rooms[0].name).toBe("aardvark");
     });
 
     it("does not add duplicate rooms", () => {
       state.setInitialData(createMockInitialData());
-      state.addRoom({ id: "roo_123", name: "general-dupe", is_private: false });
+      state.addRoom({
+        id: "roo_123",
+        name: "general-dupe",
+        room_type: "channel",
+        is_private: false,
+      });
       expect(state.rooms).toHaveLength(2); // Still 2, not 3
       expect(state.getRoom("roo_123")?.name).toBe("general"); // Original name preserved
     });
 
     it("throws when adding room before initialization", () => {
       expect(() =>
-        state.addRoom({ id: "roo_new", name: "test", is_private: false }),
+        state.addRoom({
+          id: "roo_new",
+          name: "test",
+          room_type: "channel",
+          is_private: false,
+        }),
       ).toThrow("Not yet initialized");
     });
 

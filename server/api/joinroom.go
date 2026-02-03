@@ -74,6 +74,16 @@ func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomResult,
 		return nil, err
 	}
 
+	// For DMs, include member info
+	var members []protocol.RoomMember
+	if room.RoomType == "dm" {
+		members, err = a.getRoomMembers(ctx, room.ID)
+		if err != nil {
+			a.logger.Error("failed to get DM members", "error", err, "room", room.ID)
+			return nil, err
+		}
+	}
+
 	return &JoinRoomResult{
 		Envelope: &Envelope{
 			Type: "join_room",
@@ -81,7 +91,9 @@ func (a *Api) JoinRoom(user *models.User, msg json.RawMessage) (*JoinRoomResult,
 				Room: protocol.Room{
 					ID:        room.ID,
 					Name:      room.Name,
+					RoomType:  room.RoomType,
 					IsPrivate: room.IsPrivate != 0,
+					Members:   members,
 				},
 				Joined: joined,
 			},
