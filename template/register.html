@@ -1,14 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Register a user</title>
-    <script></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register - Hatchat</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪓</text></svg>" />
   </head>
   <body>
-    <form id="form" action="/login">
-      <input type="text" id="username" /><br />
-      <input type="password" id="password" /><br />
-      <button id="submit">submit</button>
-    </form>
+    <div class="auth-card">
+      <h1>Hatchat 🪓</h1>
+      <p class="subtitle">Create your account</p>
+      <form id="form" action="/register" method="POST">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Create account</button>
+      </form>
+      <p class="auth-link">
+        Already have an account? <a href="/login">Sign in</a>
+      </p>
+    </div>
   </body>
 </html>
