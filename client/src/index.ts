@@ -306,17 +306,8 @@ class Client {
       "data-message-id": msg.id,
     });
 
-    // Add hover handlers for the toolbar
-    wrapper.addEventListener("mouseenter", () => {
-      this.showHoverToolbar(wrapper);
-    });
-    wrapper.addEventListener("mouseleave", () => {
-      const toolbar = this.hoverToolbar;
-      if (toolbar && !toolbar.classList.contains("toolbar-active")) {
-        toolbar.style.display = "none";
-        this.hoverToolbarMessageId = null;
-      }
-    });
+    // Build hover toolbar (shown/hidden via CSS :hover)
+    this.buildHoverToolbar(wrapper);
 
     if (!isGrouped) {
       // Full message with avatar and header
@@ -1212,44 +1203,13 @@ class Client {
   // Hover toolbar & reaction quick-pick
   // =========================================================================
 
-  private hoverToolbar: HTMLElement | null = null;
-  private hoverToolbarMessageId: string | null = null;
-
   /**
-   * Create the shared hover toolbar element (lazily)
+   * Build the hover toolbar buttons for a message and append it to the message element.
+   * The toolbar is a child of the message, so hovering it doesn't trigger mouseleave.
    */
-  getHoverToolbar(): HTMLElement {
-    if (this.hoverToolbar) return this.hoverToolbar;
-
-    const toolbar = $("div", { class: "message-hover-toolbar" });
-    toolbar.addEventListener("mouseenter", () => {
-      toolbar.classList.add("toolbar-active");
-    });
-    toolbar.addEventListener("mouseleave", () => {
-      toolbar.classList.remove("toolbar-active");
-      toolbar.style.display = "none";
-      this.hoverToolbarMessageId = null;
-    });
-
-    this.hoverToolbar = toolbar;
-    document.body.appendChild(toolbar);
-    return toolbar;
-  }
-
-  /**
-   * Show the hover toolbar for a message element
-   */
-  showHoverToolbar(msgEl: HTMLElement) {
+  buildHoverToolbar(msgEl: HTMLElement) {
     const messageId = msgEl.getAttribute("data-message-id");
     if (!messageId) return;
-
-    // Don't rebuild if already showing for this message
-    if (
-      this.hoverToolbarMessageId === messageId &&
-      this.hoverToolbar?.style.display === "flex"
-    ) {
-      return;
-    }
 
     // Don't show toolbar on deleted messages or pending messages
     if (
@@ -1258,10 +1218,10 @@ class Client {
     )
       return;
 
-    this.hoverToolbarMessageId = messageId;
+    // Remove any existing toolbar in this message
+    msgEl.querySelector(".message-hover-toolbar")?.remove();
 
-    const toolbar = this.getHoverToolbar();
-    toolbar.innerHTML = "";
+    const toolbar = $("div", { class: "message-hover-toolbar" });
 
     // Reaction button (always shown)
     const reactBtn = $("button", {
@@ -1271,7 +1231,7 @@ class Client {
     });
     reactBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.showReactionPicker(messageId, toolbar);
+      this.showReactionPicker(messageId, reactBtn);
     });
     toolbar.appendChild(reactBtn);
 
@@ -1286,7 +1246,6 @@ class Client {
       });
       editBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        toolbar.style.display = "none";
         this.startEdit(messageId);
       });
       toolbar.appendChild(editBtn);
@@ -1303,12 +1262,7 @@ class Client {
       toolbar.appendChild(deleteBtn);
     }
 
-    // Position the toolbar at the top-right of the message, overlapping slightly
-    // so there's no gap between message and toolbar that would cause mouseleave
-    toolbar.style.display = "flex";
-    const rect = msgEl.getBoundingClientRect();
-    toolbar.style.top = `${rect.top + 4}px`;
-    toolbar.style.left = `${rect.right - toolbar.offsetWidth - 12}px`;
+    msgEl.appendChild(toolbar);
   }
 
   /**
@@ -1327,7 +1281,6 @@ class Client {
         e.stopPropagation();
         this.requestAddReaction(messageId, emoji);
         picker.remove();
-        anchor.style.display = "none";
       });
       picker.appendChild(btn);
     }
@@ -1378,8 +1331,6 @@ class Client {
       e.stopPropagation();
       this.requestDeleteMessage(messageId);
       confirm.remove();
-      const toolbar = this.getHoverToolbar();
-      toolbar.style.display = "none";
     });
 
     cancelBtn.addEventListener("click", (e) => {

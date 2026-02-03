@@ -1044,8 +1044,15 @@ body {
 
 /* --- Hover toolbar --- */
 
+/* Toolbar is inside the message, positioned at top-right, shown on hover */
+.chat-message {
+  position: relative;
+}
+
 .message-hover-toolbar {
-  position: fixed;
+  position: absolute;
+  top: -4px;
+  right: 8px;
   display: none;
   z-index: 100;
   background: var(--color-white);
@@ -1054,6 +1061,10 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   padding: 2px;
   gap: 2px;
+}
+
+.chat-message:hover > .message-hover-toolbar {
+  display: flex;
 }
 
 .toolbar-btn {
