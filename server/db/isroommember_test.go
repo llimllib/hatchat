@@ -21,6 +21,7 @@ func testDB(t *testing.T) *DB {
 
 	// Drop existing tables to ensure a clean slate (in case other tests created different schemas)
 	dropSchema := `
+		DROP TABLE IF EXISTS reactions;
 		DROP TABLE IF EXISTS messages;
 		DROP TABLE IF EXISTS rooms_members;
 		DROP TABLE IF EXISTS sessions;
