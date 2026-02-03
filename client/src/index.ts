@@ -1,18 +1,23 @@
 import { $ } from "./dom";
 import { AppState } from "./state";
 import {
+  type CreateDMResponse,
   type CreateRoomResponse,
+  type GetProfileResponse,
   type HistoryResponse,
   type InitResponse,
   type JoinRoomResponse,
   type LeaveRoomResponse,
   type ListRoomsResponse,
+  type ListUsersResponse,
   type Message,
   makePendingKey,
   type PendingMessage,
   parseServerEnvelope,
   type Room,
   type RoomInfoResponse,
+  type UpdateProfileResponse,
+  type User,
 } from "./types";
 import {
   formatDate,
@@ -86,6 +91,22 @@ class Client {
         }
         case "room_info": {
           this.handleRoomInfo(envelope.data);
+          break;
+        }
+        case "create_dm": {
+          this.handleCreateDM(envelope.data);
+          break;
+        }
+        case "list_users": {
+          this.handleListUsers(envelope.data);
+          break;
+        }
+        case "get_profile": {
+          this.handleGetProfile(envelope.data);
+          break;
+        }
+        case "update_profile": {
+          this.handleUpdateProfile(envelope.data);
           break;
         }
         case "error": {
@@ -265,6 +286,10 @@ class Client {
         class: "message-username",
         text: msg.username,
       });
+      // Make username clickable to view profile
+      usernameEl.addEventListener("click", () => {
+        this.requestProfile(msg.user_id);
+      });
 
       const timestamp = $("span", {
         class: "message-timestamp",
@@ -373,6 +398,7 @@ class Client {
   }
 
   renderSidebar() {
+    // Render channels section
     const channelList = document.querySelector(".sidebar-channels ul");
     if (!channelList) {
       console.error("no channel list found");
@@ -382,7 +408,7 @@ class Client {
     // Clear existing placeholder channels
     channelList.innerHTML = "";
 
-    // Render each room
+    // Render each channel room
     for (const room of this.state.rooms) {
       const li = $("li", { "data-room-id": room.id });
       const link = $("a", {
@@ -405,7 +431,7 @@ class Client {
       channelList.appendChild(li);
     }
 
-    // Add action buttons at the bottom
+    // Add action buttons at the bottom of channels section
     const actionsContainer = document.querySelector(".sidebar-channels");
     if (actionsContainer) {
       // Remove existing action buttons if any
@@ -433,6 +459,185 @@ class Client {
       actions.appendChild(browseBtn);
       actionsContainer.appendChild(actions);
     }
+
+    // Render DMs section
+    const dmList = document.querySelector(".sidebar-direct-messages ul");
+    if (dmList) {
+      dmList.innerHTML = "";
+
+      // Render each DM
+      for (const dm of this.state.dms) {
+        const li = $("li", { "data-room-id": dm.id });
+        const displayName = this.getDMDisplayName(dm);
+        const link = $("a", {
+          href: `/chat/${dm.id}`,
+          text: displayName,
+        });
+
+        // Mark the active DM
+        if (dm.id === this.state.currentRoom) {
+          li.classList.add("active");
+        }
+
+        // Add click handler for DM switching
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          this.switchRoom(dm.id);
+        });
+
+        li.appendChild(link);
+        dmList.appendChild(li);
+      }
+
+      // Add "New message" button at the bottom of DM section
+      const dmContainer = document.querySelector(".sidebar-direct-messages");
+      if (dmContainer) {
+        // Remove existing actions if any
+        const existingActions = dmContainer.querySelector(".dm-actions");
+        if (existingActions) {
+          existingActions.remove();
+        }
+
+        const actions = $("div", { class: "dm-actions" });
+        const newMsgBtn = $("button", {
+          class: "channel-action-btn",
+          text: "+ New message",
+        });
+        newMsgBtn.addEventListener("click", () => this.showNewMessageModal());
+        actions.appendChild(newMsgBtn);
+        dmContainer.appendChild(actions);
+      }
+    }
+
+    // Update sidebar header with user dropdown
+    this.renderSidebarHeader();
+  }
+
+  /**
+   * Render the sidebar header with user dropdown menu
+   */
+  renderSidebarHeader() {
+    const header = document.querySelector(".sidebar-header");
+    if (!header) return;
+
+    // Clear existing content
+    header.innerHTML = "";
+
+    // Workspace name
+    const workspaceName = $("h3", { text: "Workspace" });
+    header.appendChild(workspaceName);
+
+    // User info section
+    const userSection = $("div", { class: "sidebar-user" });
+    const userName = this.state.user.display_name || this.state.user.username;
+    const userBtn = $("button", {
+      class: "sidebar-user-btn",
+      text: userName,
+    });
+
+    // Add dropdown indicator
+    const dropdownIcon = $("span", { class: "dropdown-icon", text: " ▾" });
+    userBtn.appendChild(dropdownIcon);
+
+    userBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.toggleUserDropdown();
+    });
+
+    userSection.appendChild(userBtn);
+    header.appendChild(userSection);
+  }
+
+  /**
+   * Toggle the user dropdown menu
+   */
+  toggleUserDropdown() {
+    // Close if already open
+    const existingDropdown = document.querySelector(".user-dropdown");
+    if (existingDropdown) {
+      existingDropdown.remove();
+      return;
+    }
+
+    const userSection = document.querySelector(".sidebar-user");
+    if (!userSection) return;
+
+    const dropdown = $("div", { class: "user-dropdown" });
+
+    // Edit profile option
+    const editProfileBtn = $("button", {
+      class: "dropdown-item",
+      text: "Edit profile",
+    });
+    editProfileBtn.addEventListener("click", () => {
+      this.closeUserDropdown();
+      this.showEditProfileModal();
+    });
+
+    // View profile option
+    const viewProfileBtn = $("button", {
+      class: "dropdown-item",
+      text: "View profile",
+    });
+    viewProfileBtn.addEventListener("click", () => {
+      this.closeUserDropdown();
+      this.requestProfile(this.state.user.id);
+    });
+
+    dropdown.appendChild(editProfileBtn);
+    dropdown.appendChild(viewProfileBtn);
+    userSection.appendChild(dropdown);
+
+    // Close dropdown when clicking elsewhere
+    const closeHandler = (e: MouseEvent) => {
+      if (!dropdown.contains(e.target as Node)) {
+        this.closeUserDropdown();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    // Add handler on next tick to avoid immediate close
+    setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  /**
+   * Close the user dropdown menu
+   */
+  closeUserDropdown() {
+    const dropdown = document.querySelector(".user-dropdown");
+    if (dropdown) {
+      dropdown.remove();
+    }
+  }
+
+  /**
+   * Get display name for a DM room based on members
+   */
+  getDMDisplayName(dm: Room): string {
+    if (!dm.members || dm.members.length === 0) {
+      return "Direct Message";
+    }
+
+    // Filter out the current user
+    const otherMembers = dm.members.filter((m) => m.id !== this.state.user.id);
+
+    if (otherMembers.length === 0) {
+      // DM with self
+      return this.state.user.display_name || this.state.user.username;
+    }
+
+    if (otherMembers.length === 1) {
+      // 1:1 DM - show the other user's name
+      return otherMembers[0].display_name || otherMembers[0].username;
+    }
+
+    // Group DM - show comma-separated names
+    const names = otherMembers.map((m) => m.display_name || m.username);
+    if (names.length <= 3) {
+      return names.join(", ");
+    }
+
+    // Too many - truncate
+    return `${names.slice(0, 2).join(", ")}, and ${names.length - 2} others`;
   }
 
   switchRoom(roomId: string) {
@@ -568,6 +773,60 @@ class Client {
   }
 
   /**
+   * Handle server response to create DM request
+   */
+  handleCreateDM(response: CreateDMResponse) {
+    console.debug("create_dm response", response);
+
+    // Add the DM to state (will handle duplicates)
+    this.state.addRoom(response.room);
+
+    // Re-render sidebar to show new DM
+    this.renderSidebar();
+
+    // Switch to the DM room
+    this.switchRoom(response.room.id);
+
+    // Close the modal
+    this.closeModal();
+  }
+
+  /**
+   * Handle server response to list users request
+   */
+  handleListUsers(response: ListUsersResponse) {
+    console.debug("list_users response", response);
+    // Update the user list in the "New message" modal if it's open
+    this.updateUserPickerResults(response.users);
+  }
+
+  /**
+   * Handle server response to get profile request
+   */
+  handleGetProfile(response: GetProfileResponse) {
+    console.debug("get_profile response", response);
+    this.showProfileModal(response.user);
+  }
+
+  /**
+   * Handle server response to update profile request
+   */
+  handleUpdateProfile(response: UpdateProfileResponse) {
+    console.debug("update_profile response", response);
+
+    // Update the user in our state
+    if (this.state.initialData) {
+      this.state.initialData.user = response.user;
+    }
+
+    // Re-render sidebar to update displayed name
+    this.renderSidebar();
+
+    // Close the modal
+    this.closeModal();
+  }
+
+  /**
    * Request list of public rooms from server
    */
   requestListRooms(query?: string) {
@@ -642,6 +901,68 @@ class Client {
 
     // Close the modal
     this.closeModal();
+  }
+
+  /**
+   * Request to create or find a DM with specified users
+   */
+  requestCreateDM(userIds: string[]) {
+    const request = {
+      type: "create_dm",
+      data: {
+        user_ids: userIds,
+      },
+    };
+    console.debug("creating DM", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request list of users for user picker
+   */
+  requestListUsers(query: string) {
+    const request = {
+      type: "list_users",
+      data: {
+        query: query,
+      },
+    };
+    console.debug("requesting list_users", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request a user's profile
+   */
+  requestProfile(userId: string) {
+    const request = {
+      type: "get_profile",
+      data: {
+        user_id: userId,
+      },
+    };
+    console.debug("requesting get_profile", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request to update current user's profile
+   */
+  requestUpdateProfile(displayName?: string, status?: string) {
+    const data: { display_name?: string; status?: string } = {};
+    if (displayName !== undefined) {
+      data.display_name = displayName;
+    }
+    if (status !== undefined) {
+      data.status = status;
+    }
+
+    const request = {
+      type: "update_profile",
+      data: data,
+    };
+    console.debug("requesting update_profile", request);
+    this.conn.send(JSON.stringify(request));
   }
 
   /**
@@ -816,7 +1137,11 @@ class Client {
    * Show modal with room info and members
    */
   showRoomInfoModal(info: RoomInfoResponse) {
-    const modal = this.createModal(`# ${info.room.name}`);
+    const isDM = info.room.room_type === "dm";
+    const title = isDM
+      ? this.getDMDisplayName(info.room)
+      : `# ${info.room.name}`;
+    const modal = this.createModal(title);
 
     const content = $("div", { class: "room-info-content" });
 
@@ -862,17 +1187,18 @@ class Client {
 
     const membersList = $("ul", { class: "members-list" });
     for (const member of info.members) {
-      const li = $("li", { class: "member-item" });
+      const li = $("li", { class: "member-item clickable" });
 
       // Avatar
       const avatar = this.createAvatar(member.username);
       avatar.classList.add("member-avatar");
       li.appendChild(avatar);
 
-      // Username
+      // Username (show display_name if available)
+      const displayName = member.display_name || member.username;
       const usernameSpan = $("span", {
         class: "member-username",
-        text: member.username,
+        text: displayName,
       });
       li.appendChild(usernameSpan);
 
@@ -882,6 +1208,12 @@ class Client {
         li.appendChild(youBadge);
       }
 
+      // Make the whole item clickable to view profile
+      li.addEventListener("click", () => {
+        this.closeModal();
+        this.requestProfile(member.id);
+      });
+
       membersList.appendChild(li);
     }
     membersSection.appendChild(membersList);
@@ -889,22 +1221,24 @@ class Client {
 
     modal.appendChild(content);
 
-    // Button row with Leave button (unless it's the default room)
+    // Button row with Leave button (unless it's a 1:1 DM or the default room)
     const buttonRow = $("div", { class: "button-row" });
 
-    // Check if this is the default room (we'll need to track this)
-    // For now, we don't have a way to know if it's the default room from the response
-    // We could add it to the protocol, but for now we'll just always show the leave button
-    // and let the server reject it
-    const leaveBtn = $("button", {
-      type: "button",
-      class: "btn btn-danger",
-      text: "Leave Channel",
-    });
-    leaveBtn.addEventListener("click", () => {
-      this.requestLeaveRoom(info.room.id);
-    });
-    buttonRow.appendChild(leaveBtn);
+    // For 1:1 DMs, don't show leave button (server will reject anyway)
+    // For group DMs (3+ members), allow leaving
+    // For channels, always show leave (server will reject for default room)
+    const is1to1DM = isDM && info.member_count === 2;
+    if (!is1to1DM) {
+      const leaveBtn = $("button", {
+        type: "button",
+        class: "btn btn-danger",
+        text: isDM ? "Leave Conversation" : "Leave Channel",
+      });
+      leaveBtn.addEventListener("click", () => {
+        this.requestLeaveRoom(info.room.id);
+      });
+      buttonRow.appendChild(leaveBtn);
+    }
 
     const closeBtn = $("button", {
       type: "button",
@@ -915,6 +1249,383 @@ class Client {
     buttonRow.appendChild(closeBtn);
 
     modal.appendChild(buttonRow);
+  }
+
+  // Track selected users in the new message modal
+  private selectedUsersForDM: User[] = [];
+
+  /**
+   * Show modal for starting a new DM
+   */
+  showNewMessageModal() {
+    this.selectedUsersForDM = [];
+
+    const modal = this.createModal("New message");
+
+    const content = $("div", { class: "new-message-content" });
+
+    // "To:" row with tag input
+    const toRow = $("div", { class: "to-row" });
+    const toLabel = $("span", { class: "to-label", text: "To:" });
+    toRow.appendChild(toLabel);
+
+    const tagsContainer = $("div", { class: "user-tags-container" });
+    const searchInput = $("input", {
+      type: "text",
+      class: "user-search-input",
+      placeholder: "Search for users...",
+      id: "dm-user-search",
+    }) as HTMLInputElement;
+
+    tagsContainer.appendChild(searchInput);
+    toRow.appendChild(tagsContainer);
+    content.appendChild(toRow);
+
+    // User search results dropdown (initially hidden)
+    const resultsDropdown = $("div", {
+      class: "user-search-results",
+      id: "dm-user-results",
+    });
+    resultsDropdown.style.display = "none";
+    content.appendChild(resultsDropdown);
+
+    // Search input handler with debounce
+    let searchTimeout: ReturnType<typeof setTimeout>;
+    searchInput.addEventListener("input", () => {
+      clearTimeout(searchTimeout);
+      const query = searchInput.value.trim();
+      if (query.length > 0) {
+        searchTimeout = setTimeout(() => {
+          this.requestListUsers(query);
+        }, 200);
+      } else {
+        resultsDropdown.style.display = "none";
+      }
+    });
+
+    // Handle keyboard navigation
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && searchInput.value === "") {
+        // Remove last selected user
+        if (this.selectedUsersForDM.length > 0) {
+          this.selectedUsersForDM.pop();
+          this.renderSelectedUserTags();
+        }
+      }
+    });
+
+    modal.appendChild(content);
+
+    // Button row
+    const buttonRow = $("div", { class: "button-row" });
+    const cancelBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Cancel",
+    });
+    cancelBtn.addEventListener("click", () => this.closeModal());
+
+    const startBtn = $("button", {
+      type: "button",
+      class: "btn btn-primary",
+      text: "Start Conversation",
+      id: "start-dm-btn",
+    }) as HTMLButtonElement;
+    startBtn.disabled = true;
+    startBtn.addEventListener("click", () => {
+      if (this.selectedUsersForDM.length > 0) {
+        const userIds = this.selectedUsersForDM.map((u) => u.id);
+        this.requestCreateDM(userIds);
+      }
+    });
+
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(startBtn);
+    modal.appendChild(buttonRow);
+
+    // Focus the search input
+    searchInput.focus();
+  }
+
+  /**
+   * Update user picker results in the new message modal
+   */
+  updateUserPickerResults(users: User[]) {
+    const resultsDropdown = document.getElementById("dm-user-results");
+    if (!resultsDropdown) return;
+
+    resultsDropdown.innerHTML = "";
+
+    // Filter out already selected users and self
+    const availableUsers = users.filter(
+      (u) =>
+        u.id !== this.state.user.id &&
+        !this.selectedUsersForDM.some((s) => s.id === u.id),
+    );
+
+    if (availableUsers.length === 0) {
+      resultsDropdown.style.display = "none";
+      return;
+    }
+
+    resultsDropdown.style.display = "block";
+
+    for (const user of availableUsers) {
+      const item = $("div", { class: "user-result-item" });
+
+      // Avatar
+      const avatar = this.createAvatar(user.username);
+      avatar.classList.add("user-result-avatar");
+      item.appendChild(avatar);
+
+      // Name info
+      const nameContainer = $("div", { class: "user-result-name" });
+      const displayName = user.display_name || user.username;
+      const nameSpan = $("span", {
+        class: "user-result-display-name",
+        text: displayName,
+      });
+      nameContainer.appendChild(nameSpan);
+
+      if (user.display_name) {
+        const usernameSpan = $("span", {
+          class: "user-result-username",
+          text: ` @${user.username}`,
+        });
+        nameContainer.appendChild(usernameSpan);
+      }
+
+      item.appendChild(nameContainer);
+
+      // Click handler to select user
+      item.addEventListener("click", () => {
+        this.selectUserForDM(user);
+      });
+
+      resultsDropdown.appendChild(item);
+    }
+  }
+
+  /**
+   * Select a user for the DM
+   */
+  selectUserForDM(user: User) {
+    // Check if already selected
+    if (this.selectedUsersForDM.some((u) => u.id === user.id)) {
+      return;
+    }
+
+    this.selectedUsersForDM.push(user);
+    this.renderSelectedUserTags();
+
+    // Clear the search and hide results
+    const searchInput = document.getElementById(
+      "dm-user-search",
+    ) as HTMLInputElement;
+    if (searchInput) {
+      searchInput.value = "";
+      searchInput.focus();
+    }
+    const resultsDropdown = document.getElementById("dm-user-results");
+    if (resultsDropdown) {
+      resultsDropdown.style.display = "none";
+    }
+
+    // Enable/disable start button
+    this.updateStartDMButton();
+  }
+
+  /**
+   * Remove a selected user from the DM
+   */
+  removeUserFromDM(userId: string) {
+    this.selectedUsersForDM = this.selectedUsersForDM.filter(
+      (u) => u.id !== userId,
+    );
+    this.renderSelectedUserTags();
+    this.updateStartDMButton();
+  }
+
+  /**
+   * Render the selected user tags in the new message modal
+   */
+  renderSelectedUserTags() {
+    const container = document.querySelector(".user-tags-container");
+    if (!container) return;
+
+    // Remove existing tags (keep the input)
+    const existingTags = container.querySelectorAll(".user-tag");
+    for (const tag of existingTags) {
+      tag.remove();
+    }
+
+    // Add tags for selected users (before the input)
+    const input = container.querySelector(".user-search-input");
+    for (const user of this.selectedUsersForDM) {
+      const tag = $("span", { class: "user-tag" });
+      const name = user.display_name || user.username;
+      tag.appendChild(document.createTextNode(name));
+
+      const removeBtn = $("button", {
+        class: "user-tag-remove",
+        text: "×",
+        type: "button",
+      });
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.removeUserFromDM(user.id);
+      });
+      tag.appendChild(removeBtn);
+
+      container.insertBefore(tag, input);
+    }
+  }
+
+  /**
+   * Update the Start Conversation button state
+   */
+  updateStartDMButton() {
+    const btn = document.getElementById("start-dm-btn") as HTMLButtonElement;
+    if (btn) {
+      btn.disabled = this.selectedUsersForDM.length === 0;
+    }
+  }
+
+  /**
+   * Show modal to view a user's profile
+   */
+  showProfileModal(user: User) {
+    const displayName = user.display_name || user.username;
+    const modal = this.createModal("Profile");
+
+    const content = $("div", { class: "profile-content" });
+
+    // Avatar and name section
+    const header = $("div", { class: "profile-header" });
+    const avatar = this.createAvatar(user.username);
+    avatar.classList.add("profile-avatar");
+    header.appendChild(avatar);
+
+    const nameSection = $("div", { class: "profile-name-section" });
+    nameSection.appendChild(
+      $("span", { class: "profile-display-name", text: displayName }),
+    );
+    nameSection.appendChild(
+      $("span", { class: "profile-username", text: `@${user.username}` }),
+    );
+    header.appendChild(nameSection);
+
+    content.appendChild(header);
+
+    // Status (if set)
+    if (user.status) {
+      const statusSection = $("div", { class: "profile-status-section" });
+      statusSection.appendChild(
+        $("span", { class: "profile-status-label", text: "Status" }),
+      );
+      statusSection.appendChild(
+        $("span", { class: "profile-status", text: user.status }),
+      );
+      content.appendChild(statusSection);
+    }
+
+    modal.appendChild(content);
+
+    // Button row
+    const buttonRow = $("div", { class: "button-row" });
+
+    // Only show "Message" button if viewing someone else's profile
+    if (user.id !== this.state.user.id) {
+      const messageBtn = $("button", {
+        type: "button",
+        class: "btn btn-primary",
+        text: "Message",
+      });
+      messageBtn.addEventListener("click", () => {
+        this.closeModal();
+        this.requestCreateDM([user.id]);
+      });
+      buttonRow.appendChild(messageBtn);
+    }
+
+    const closeBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Close",
+    });
+    closeBtn.addEventListener("click", () => this.closeModal());
+    buttonRow.appendChild(closeBtn);
+
+    modal.appendChild(buttonRow);
+  }
+
+  /**
+   * Show modal to edit current user's profile
+   */
+  showEditProfileModal() {
+    const modal = this.createModal("Edit Profile");
+
+    const form = $("form", { class: "modal-form" });
+
+    // Display name
+    const nameLabel = $("label", {
+      text: "Display name",
+      for: "profile-display-name",
+    });
+    const nameInput = $("input", {
+      type: "text",
+      id: "profile-display-name",
+      name: "display_name",
+      placeholder: "Your display name",
+      value: this.state.user.display_name || "",
+      maxlength: "50",
+    }) as HTMLInputElement;
+
+    // Status
+    const statusLabel = $("label", { text: "Status", for: "profile-status" });
+    const statusInput = $("input", {
+      type: "text",
+      id: "profile-status",
+      name: "status",
+      placeholder: "What's on your mind?",
+      value: this.state.user.status || "",
+      maxlength: "100",
+    }) as HTMLInputElement;
+
+    const buttonRow = $("div", { class: "button-row" });
+    const cancelBtn = $("button", {
+      type: "button",
+      class: "btn btn-secondary",
+      text: "Cancel",
+    });
+    const saveBtn = $("button", {
+      type: "submit",
+      class: "btn btn-primary",
+      text: "Save",
+    });
+
+    cancelBtn.addEventListener("click", () => this.closeModal());
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const displayName = nameInput.value.trim();
+      const status = statusInput.value.trim();
+      this.requestUpdateProfile(displayName, status);
+    });
+
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(saveBtn);
+
+    form.appendChild(nameLabel);
+    form.appendChild(nameInput);
+    form.appendChild(statusLabel);
+    form.appendChild(statusInput);
+    form.appendChild(buttonRow);
+
+    modal.appendChild(form);
+
+    // Focus the display name input
+    nameInput.focus();
   }
 
   /**
@@ -993,29 +1704,36 @@ class Client {
     const room = this.state.getRoom(this.state.currentRoom || "");
     if (!room) return;
 
-    // Update or create the header content
-    let h2 = header.querySelector("h2") as HTMLHeadingElement | null;
-    if (!h2) {
-      h2 = $("h2", {}) as HTMLHeadingElement;
-      header.appendChild(h2);
-    }
-    h2.textContent = `# ${room.name}`;
+    // Clear header content for fresh render
+    header.innerHTML = "";
 
-    // Add info button if not present
-    let infoBtn = header.querySelector(".room-info-btn");
-    if (!infoBtn) {
-      infoBtn = $("button", {
-        class: "room-info-btn",
-        title: "View channel details",
-        text: "ℹ️",
-      });
-      infoBtn.addEventListener("click", () => {
-        if (this.state.currentRoom) {
-          this.requestRoomInfo(this.state.currentRoom);
-        }
-      });
-      header.appendChild(infoBtn);
+    // Create header content
+    const h2 = $("h2", {}) as HTMLHeadingElement;
+
+    if (room.room_type === "dm") {
+      // DM: show user names
+      h2.textContent = this.getDMDisplayName(room);
+    } else {
+      // Channel: show # prefix
+      h2.textContent = `# ${room.name}`;
     }
+    header.appendChild(h2);
+
+    // Add info button
+    const infoBtn = $("button", {
+      class: "room-info-btn",
+      title:
+        room.room_type === "dm"
+          ? "View conversation details"
+          : "View channel details",
+      text: "ℹ️",
+    });
+    infoBtn.addEventListener("click", () => {
+      if (this.state.currentRoom) {
+        this.requestRoomInfo(this.state.currentRoom);
+      }
+    });
+    header.appendChild(infoBtn);
   }
 
   clearMessageUI() {
