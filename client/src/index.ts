@@ -1318,12 +1318,17 @@ class Client {
       picker.appendChild(btn);
     }
 
-    // Position below the toolbar
-    const rect = anchor.getBoundingClientRect();
-    picker.style.top = `${rect.bottom + 4 + window.scrollY}px`;
-    picker.style.left = `${rect.left + window.scrollX}px`;
-
+    // Position below the anchor, clamped to viewport
     document.body.appendChild(picker);
+    const rect = anchor.getBoundingClientRect();
+    const pickerWidth = picker.offsetWidth;
+    let left = rect.left + window.scrollX;
+    // Clamp so it doesn't overflow the right edge of the viewport
+    if (left + pickerWidth > window.innerWidth - 8) {
+      left = window.innerWidth - pickerWidth - 8;
+    }
+    picker.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    picker.style.left = `${left}px`;
 
     // Close when clicking elsewhere
     const closeHandler = (e: MouseEvent) => {
@@ -1372,12 +1377,19 @@ class Client {
     buttonRow.appendChild(deleteBtn);
     confirm.appendChild(buttonRow);
 
-    // Position near the anchor
-    const rect = anchor.getBoundingClientRect();
-    confirm.style.top = `${rect.bottom + 4 + window.scrollY}px`;
-    confirm.style.left = `${rect.left + window.scrollX - 100}px`;
-
+    // Position near the anchor, clamped to viewport
     document.body.appendChild(confirm);
+    const rect = anchor.getBoundingClientRect();
+    const confirmWidth = confirm.offsetWidth;
+    let left = rect.left + window.scrollX - 100;
+    if (left + confirmWidth > window.innerWidth - 8) {
+      left = window.innerWidth - confirmWidth - 8;
+    }
+    if (left < 8) {
+      left = 8;
+    }
+    confirm.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    confirm.style.left = `${left}px`;
 
     // Close when clicking elsewhere
     const closeHandler = (e: MouseEvent) => {
