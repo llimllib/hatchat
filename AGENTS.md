@@ -98,6 +98,7 @@ The WebSocket protocol is defined in `server/protocol/protocol.go` as the single
 2. **Zod schemas + TypeScript types** (`client/src/protocol.generated.ts`) - Runtime validation and static types
 
 **Type generation pipeline:**
+
 ```
 Go protocol types          JSON Schema              Zod schemas + TS types
 (server/protocol/)    →    (schema/protocol.json)  →  (client/src/protocol.generated.ts)
@@ -106,11 +107,13 @@ Go protocol types          JSON Schema              Zod schemas + TS types
 ```
 
 **Key files:**
+
 - `server/protocol/protocol.go` - Define message types here with `jsonschema` struct tags
 - `tools/schemagen/main.go` - Maintains the list of types to include in the schema
 - `client/gen-types.mjs` - Generates Zod schemas and TypeScript types from JSON Schema
 
 **Commands:**
+
 ```bash
 just schema        # Generate JSON Schema only
 just client-types  # Generate schema + Zod schemas + TypeScript types
@@ -119,6 +122,7 @@ just client-types  # Generate schema + Zod schemas + TypeScript types
 **Runtime validation:** The frontend uses Zod to validate all incoming WebSocket messages at runtime. Use `parseServerEnvelope(raw)` which throws a `ZodError` if validation fails, or `safeParseServerEnvelope(raw)` which returns `null` on failure.
 
 **Important:** When adding new message types, you must add them to **both**:
+
 1. `server/protocol/protocol.go` - The type definition
 2. `tools/schemagen/main.go` - The `types` slice that lists all types to export
 
@@ -142,6 +146,7 @@ The database layer is split into two packages with distinct responsibilities:
 - This is where you add business logic that requires custom SQL or combines multiple model operations
 
 **When to use which:**
+
 - Need basic insert/update/delete/select by ID? → Use `models` package directly
 - Need custom SQL, joins, or complex queries? → Add to `db` package
 - Need to check membership, fetch with pagination, etc.? → Add to `db` package
@@ -296,7 +301,8 @@ E2E tests auto-start the server using `just run-e2e` which uses a fresh test dat
 
 ## Pull Requests
 
-When submitting a PR, export the session transcript using the `pr-transcript` skill:
+When submitting a PR, use the `gh` cli tool and export the session transcript
+using the `pr-transcript` skill:
 
 ```bash
 ./.pi/skills/pr-transcript/export-transcript.sh <pr-number> <description>
@@ -363,6 +369,7 @@ func (a *Api) NewMessageType(user *models.User, msg json.RawMessage) ([]byte, er
 ### Adding Custom Database Queries
 
 1. For simple queries that dbtpl can generate, add to `tools/models.sh`:
+
    ```bash
    go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T YourQueryName <<SQL
    SELECT ... FROM ... WHERE column = %%paramName paramType%%
