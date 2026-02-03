@@ -15,26 +15,35 @@ const outputPath = join(__dirname, "src", "protocol.generated.ts");
 const schema = JSON.parse(readFileSync(schemaPath, "utf-8"));
 
 // Order matters - define base types first (dependencies before dependents)
+// RoomMember must come before Room since Room.members uses RoomMember
 const typeOrder = [
   "User",
+  "RoomMember",
   "Room",
   "Message",
-  "RoomMember",
   "InitRequest",
   "SendMessageRequest",
   "HistoryRequest",
   "JoinRoomRequest",
   "CreateRoomRequest",
+  "CreateDMRequest",
   "ListRoomsRequest",
+  "ListUsersRequest",
   "LeaveRoomRequest",
   "RoomInfoRequest",
+  "GetProfileRequest",
+  "UpdateProfileRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
   "CreateRoomResponse",
+  "CreateDMResponse",
   "ListRoomsResponse",
+  "ListUsersResponse",
   "LeaveRoomResponse",
   "RoomInfoResponse",
+  "GetProfileResponse",
+  "UpdateProfileResponse",
   "ErrorResponse",
   "Envelope",
 ];
@@ -166,9 +175,13 @@ export type MessageType =
   | "history"
   | "join_room"
   | "create_room"
+  | "create_dm"
   | "list_rooms"
+  | "list_users"
   | "leave_room"
   | "room_info"
+  | "get_profile"
+  | "update_profile"
   | "error";
 
 /**
@@ -180,9 +193,13 @@ export type ClientEnvelope =
   | { type: "history"; data: HistoryRequest }
   | { type: "join_room"; data: JoinRoomRequest }
   | { type: "create_room"; data: CreateRoomRequest }
+  | { type: "create_dm"; data: CreateDMRequest }
   | { type: "list_rooms"; data: ListRoomsRequest }
+  | { type: "list_users"; data: ListUsersRequest }
   | { type: "leave_room"; data: LeaveRoomRequest }
-  | { type: "room_info"; data: RoomInfoRequest };
+  | { type: "room_info"; data: RoomInfoRequest }
+  | { type: "get_profile"; data: GetProfileRequest }
+  | { type: "update_profile"; data: UpdateProfileRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -193,9 +210,13 @@ export type ServerEnvelope =
   | { type: "history"; data: HistoryResponse }
   | { type: "join_room"; data: JoinRoomResponse }
   | { type: "create_room"; data: CreateRoomResponse }
+  | { type: "create_dm"; data: CreateDMResponse }
   | { type: "list_rooms"; data: ListRoomsResponse }
+  | { type: "list_users"; data: ListUsersResponse }
   | { type: "leave_room"; data: LeaveRoomResponse }
   | { type: "room_info"; data: RoomInfoResponse }
+  | { type: "get_profile"; data: GetProfileResponse }
+  | { type: "update_profile"; data: UpdateProfileResponse }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -227,9 +248,19 @@ export const CreateRoomEnvelopeSchema = z.object({
   data: CreateRoomResponseSchema,
 });
 
+export const CreateDMEnvelopeSchema = z.object({
+  type: z.literal("create_dm"),
+  data: CreateDMResponseSchema,
+});
+
 export const ListRoomsEnvelopeSchema = z.object({
   type: z.literal("list_rooms"),
   data: ListRoomsResponseSchema,
+});
+
+export const ListUsersEnvelopeSchema = z.object({
+  type: z.literal("list_users"),
+  data: ListUsersResponseSchema,
 });
 
 export const LeaveRoomEnvelopeSchema = z.object({
@@ -240,6 +271,16 @@ export const LeaveRoomEnvelopeSchema = z.object({
 export const RoomInfoEnvelopeSchema = z.object({
   type: z.literal("room_info"),
   data: RoomInfoResponseSchema,
+});
+
+export const GetProfileEnvelopeSchema = z.object({
+  type: z.literal("get_profile"),
+  data: GetProfileResponseSchema,
+});
+
+export const UpdateProfileEnvelopeSchema = z.object({
+  type: z.literal("update_profile"),
+  data: UpdateProfileResponseSchema,
 });
 
 export const ErrorEnvelopeSchema = z.object({
@@ -256,9 +297,13 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   HistoryEnvelopeSchema,
   JoinRoomEnvelopeSchema,
   CreateRoomEnvelopeSchema,
+  CreateDMEnvelopeSchema,
   ListRoomsEnvelopeSchema,
+  ListUsersEnvelopeSchema,
   LeaveRoomEnvelopeSchema,
   RoomInfoEnvelopeSchema,
+  GetProfileEnvelopeSchema,
+  UpdateProfileEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

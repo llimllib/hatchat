@@ -32,6 +32,7 @@ func (a *Api) ListRooms(user *models.User, msg json.RawMessage) (*Envelope, erro
 		protoRooms[i] = &protocol.Room{
 			ID:        r.ID,
 			Name:      r.Name,
+			RoomType:  r.RoomType,
 			IsPrivate: r.IsPrivate != 0,
 		}
 	}

@@ -31,13 +31,38 @@ FROM rooms_members
 WHERE user_id = %%userID string%%
 SQL
 
-# UserRoomsWithDetails - get full room info for a user's rooms
+# UserRoomsWithDetails - get full room info for a user's channel rooms (not DMs)
 go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T UserRoomDetails <<SQL
-SELECT r.id, r.name, r.is_private
+SELECT r.id, r.name, r.room_type, r.is_private
 FROM rooms r
 JOIN rooms_members rm ON r.id = rm.room_id
-WHERE rm.user_id = %%userID string%%
+WHERE rm.user_id = %%userID string%% AND r.room_type = 'channel'
 ORDER BY r.name
+SQL
+
+# UserDMs - get DM rooms for a user, ordered by most recent activity
+go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T UserDMs <<SQL
+SELECT r.id, r.name, r.room_type, r.is_private, r.last_message_at
+FROM rooms r
+JOIN rooms_members rm ON r.id = rm.room_id
+WHERE rm.user_id = %%userID string%% AND r.room_type = 'dm'
+ORDER BY r.last_message_at DESC NULLS LAST, r.created_at DESC
+SQL
+
+# RoomMembers - get members of a room with their user info
+go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T RoomMembers <<SQL
+SELECT u.id, u.username, u.display_name, COALESCE(u.avatar, '') as avatar
+FROM users u
+JOIN rooms_members rm ON u.id = rm.user_id
+WHERE rm.room_id = %%roomID string%%
+ORDER BY u.username
+SQL
+
+# RoomMemberCount - count members in a room
+go tool dbtpl query sqlite://dbtpl.db -M -B -2 -1 -o server/models -T RoomMemberCount <<SQL
+SELECT COUNT(*) AS count
+FROM rooms_members
+WHERE room_id = %%roomID string%%
 SQL
 
 # RoomMessages - first page (no cursor)
@@ -57,6 +82,15 @@ FROM messages m
 JOIN users u ON m.user_id = u.id
 WHERE m.room_id = %%roomID string%% AND m.created_at < %%cursor string%%
 ORDER BY m.created_at DESC
+LIMIT %%limit int%%
+SQL
+
+# ListUsers - search users by username for user picker
+go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T ListUsers <<SQL
+SELECT u.id, u.username, u.display_name, COALESCE(u.avatar, '') as avatar
+FROM users u
+WHERE u.username LIKE %%query string%% AND u.id != %%excludeUserID string%%
+ORDER BY u.username
 LIMIT %%limit int%%
 SQL
 

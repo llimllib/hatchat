@@ -22,12 +22,14 @@ func testDB(t *testing.T) *db.DB {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
 
-	// Create schema
+	// Create schema - must match schema.sql
 	schema := `
 		CREATE TABLE IF NOT EXISTS users(
 			id TEXT PRIMARY KEY NOT NULL,
 			username TEXT NOT NULL,
 			password TEXT NOT NULL,
+			display_name TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT '',
 			active INTEGER,
 			avatar TEXT,
 			last_room TEXT NOT NULL,
@@ -40,10 +42,14 @@ func testDB(t *testing.T) *db.DB {
 		CREATE TABLE IF NOT EXISTS rooms(
 			id TEXT PRIMARY KEY NOT NULL,
 			name TEXT NOT NULL,
+			room_type TEXT NOT NULL DEFAULT 'channel',
 			is_private INTEGER NOT NULL,
 			is_default INTEGER NOT NULL,
-			created_at TEXT NOT NULL
+			created_at TEXT NOT NULL,
+			last_message_at TEXT
 		) STRICT;
+
+		CREATE UNIQUE INDEX IF NOT EXISTS rooms_name ON rooms(name) WHERE room_type = 'channel' AND name != '';
 
 		CREATE TABLE IF NOT EXISTS rooms_members(
 			user_id TEXT REFERENCES users(id) NOT NULL,
@@ -73,12 +79,14 @@ func createTestUser(t *testing.T, database *db.DB, id, username string) *models.
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 	user := &models.User{
-		ID:         id,
-		Username:   username,
-		Password:   "hashedpassword",
-		LastRoom:   "",
-		CreatedAt:  now,
-		ModifiedAt: now,
+		ID:          id,
+		Username:    username,
+		Password:    "hashedpassword",
+		DisplayName: "",
+		Status:      "",
+		LastRoom:    "",
+		CreatedAt:   now,
+		ModifiedAt:  now,
 	}
 	err := user.Insert(context.Background(), database)
 	if err != nil {
@@ -108,6 +116,7 @@ func createTestRoomWithPrivate(t *testing.T, database *db.DB, id, name string, i
 	room := &models.Room{
 		ID:        id,
 		Name:      name,
+		RoomType:  "channel",
 		IsPrivate: isPrivateInt,
 		IsDefault: isDefaultInt,
 		CreatedAt: now,

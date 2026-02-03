@@ -9,14 +9,16 @@ import (
 
 // User represents a row from 'users'.
 type User struct {
-	ID         string         `json:"id"`          // id
-	Username   string         `json:"username"`    // username
-	Password   string         `json:"password"`    // password
-	Active     sql.NullInt64  `json:"active"`      // active
-	Avatar     sql.NullString `json:"avatar"`      // avatar
-	LastRoom   string         `json:"last_room"`   // last_room
-	CreatedAt  string         `json:"created_at"`  // created_at
-	ModifiedAt string         `json:"modified_at"` // modified_at
+	ID          string         `json:"id"`           // id
+	Username    string         `json:"username"`     // username
+	Password    string         `json:"password"`     // password
+	DisplayName string         `json:"display_name"` // display_name
+	Status      string         `json:"status"`       // status
+	Active      sql.NullInt64  `json:"active"`       // active
+	Avatar      sql.NullString `json:"avatar"`       // avatar
+	LastRoom    string         `json:"last_room"`    // last_room
+	CreatedAt   string         `json:"created_at"`   // created_at
+	ModifiedAt  string         `json:"modified_at"`  // modified_at
 	// xo fields
 	_exists, _deleted bool
 }
@@ -42,13 +44,13 @@ func (u *User) Insert(ctx context.Context, db DB) error {
 	}
 	// insert (manual)
 	const sqlstr = `INSERT INTO users (` +
-		`id, username, password, active, avatar, last_room, created_at, modified_at` +
+		`id, username, password, display_name, status, active, avatar, last_room, created_at, modified_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6, $7, $8` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
 		`)`
 	// run
-	logf(sqlstr, u.ID, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt); err != nil {
+	logf(sqlstr, u.ID, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -66,11 +68,11 @@ func (u *User) Update(ctx context.Context, db DB) error {
 	}
 	// update with primary key
 	const sqlstr = `UPDATE users SET ` +
-		`username = $1, password = $2, active = $3, avatar = $4, last_room = $5, created_at = $6, modified_at = $7 ` +
-		`WHERE id = $8`
+		`username = $1, password = $2, display_name = $3, status = $4, active = $5, avatar = $6, last_room = $7, created_at = $8, modified_at = $9 ` +
+		`WHERE id = $10`
 	// run
-	logf(sqlstr, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt, u.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt, u.ID); err != nil {
+	logf(sqlstr, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt, u.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt, u.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -92,16 +94,16 @@ func (u *User) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO users (` +
-		`id, username, password, active, avatar, last_room, created_at, modified_at` +
+		`id, username, password, display_name, status, active, avatar, last_room, created_at, modified_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6, $7, $8` +
+		`$1, $2, $3, $4, $5, $6, $7, $8, $9, $10` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`username = EXCLUDED.username, password = EXCLUDED.password, active = EXCLUDED.active, avatar = EXCLUDED.avatar, last_room = EXCLUDED.last_room, created_at = EXCLUDED.created_at, modified_at = EXCLUDED.modified_at `
+		`username = EXCLUDED.username, password = EXCLUDED.password, display_name = EXCLUDED.display_name, status = EXCLUDED.status, active = EXCLUDED.active, avatar = EXCLUDED.avatar, last_room = EXCLUDED.last_room, created_at = EXCLUDED.created_at, modified_at = EXCLUDED.modified_at `
 	// run
-	logf(sqlstr, u.ID, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, u.Password, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt); err != nil {
+	logf(sqlstr, u.ID, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, u.ID, u.Username, u.Password, u.DisplayName, u.Status, u.Active, u.Avatar, u.LastRoom, u.CreatedAt, u.ModifiedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -136,7 +138,7 @@ func (u *User) Delete(ctx context.Context, db DB) error {
 func UserByID(ctx context.Context, db DB, id string) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, username, password, active, avatar, last_room, created_at, modified_at ` +
+		`id, username, password, display_name, status, active, avatar, last_room, created_at, modified_at ` +
 		`FROM users ` +
 		`WHERE id = $1`
 	// run
@@ -144,7 +146,7 @@ func UserByID(ctx context.Context, db DB, id string) (*User, error) {
 	u := User{
 		_exists: true,
 	}
-	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&u.ID, &u.Username, &u.Password, &u.Active, &u.Avatar, &u.LastRoom, &u.CreatedAt, &u.ModifiedAt); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&u.ID, &u.Username, &u.Password, &u.DisplayName, &u.Status, &u.Active, &u.Avatar, &u.LastRoom, &u.CreatedAt, &u.ModifiedAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &u, nil
@@ -156,7 +158,7 @@ func UserByID(ctx context.Context, db DB, id string) (*User, error) {
 func UserByUsername(ctx context.Context, db DB, username string) (*User, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, username, password, active, avatar, last_room, created_at, modified_at ` +
+		`id, username, password, display_name, status, active, avatar, last_room, created_at, modified_at ` +
 		`FROM users ` +
 		`WHERE username = $1`
 	// run
@@ -164,7 +166,7 @@ func UserByUsername(ctx context.Context, db DB, username string) (*User, error) 
 	u := User{
 		_exists: true,
 	}
-	if err := db.QueryRowContext(ctx, sqlstr, username).Scan(&u.ID, &u.Username, &u.Password, &u.Active, &u.Avatar, &u.LastRoom, &u.CreatedAt, &u.ModifiedAt); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, username).Scan(&u.ID, &u.Username, &u.Password, &u.DisplayName, &u.Status, &u.Active, &u.Avatar, &u.LastRoom, &u.CreatedAt, &u.ModifiedAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &u, nil

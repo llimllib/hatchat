@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS users(
   id TEXT PRIMARY KEY NOT NULL,
   username TEXT NOT NULL,
   password TEXT NOT NULL,
+  display_name TEXT NOT NULL DEFAULT '', -- user's display name (shown instead of username if set)
+  status TEXT NOT NULL DEFAULT '', -- custom status message
   active INTEGER, -- true if the user has been recently active
   avatar TEXT, -- the URL of an avatar image
   last_room TEXT NOT NULL, -- the id of last room the user was in
@@ -25,13 +27,16 @@ CREATE TABLE IF NOT EXISTS rooms_members(
 
 CREATE TABLE IF NOT EXISTS rooms(
   id TEXT PRIMARY KEY NOT NULL,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL, -- empty for DMs; display name derived from members
+  room_type TEXT NOT NULL DEFAULT 'channel', -- 'channel' or 'dm'
   is_private INTEGER NOT NULL,
   is_default INTEGER NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  last_message_at TEXT -- for sorting DMs by most recent activity; NULL if no messages
 ) STRICT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS rooms_name ON rooms(name);
+-- Unique room names, but only for channels (DMs can have empty names)
+CREATE UNIQUE INDEX IF NOT EXISTS rooms_name ON rooms(name) WHERE room_type = 'channel' AND name != '';
 
 CREATE TABLE IF NOT EXISTS messages(
   id TEXT PRIMARY KEY NOT NULL,

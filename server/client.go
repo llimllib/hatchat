@@ -208,6 +208,56 @@ func (c *Client) readPump() {
 					return
 				}
 			}
+		case "create_dm":
+			res, err := c.api.CreateDM(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle create_dm", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to create DM")))
+			} else {
+				// Update the client's current room to the DM
+				c.currentRoom = res.RoomID
+				err = c.conn.WriteJSON(res.Envelope)
+				if err != nil {
+					c.logger.Error("failed to write create_dm json", "error", err)
+					return
+				}
+			}
+		case "list_users":
+			res, err := c.api.ListUsers(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle list_users", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to list users")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write list_users json", "error", err)
+					return
+				}
+			}
+		case "get_profile":
+			res, err := c.api.GetProfile(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle get_profile", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get profile")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write get_profile json", "error", err)
+					return
+				}
+			}
+		case "update_profile":
+			res, err := c.api.UpdateProfile(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle update_profile", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to update profile")))
+			} else {
+				err = c.conn.WriteJSON(res)
+				if err != nil {
+					c.logger.Error("failed to write update_profile json", "error", err)
+					return
+				}
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

@@ -110,15 +110,27 @@ _Goal: Users can create, join, and manage rooms_
 
 _Goal: Private conversations and user identity_
 
+See `docs/PHASE2_DESIGN.md` for detailed design document.
+
 ### 2.1 Direct Messages
 
-- [ ] Create DM "room" between two users (or find existing)
-- [ ] DM rooms are private, exactly 2 members
-- [ ] DM section in sidebar (separate from rooms)
-- [ ] DM room naming (show other user's name)
-- [ ] "New Message" button with user picker/autocomplete
+**Backend (complete):**
+- [x] Add `room_type` column to rooms table (`'channel'` or `'dm'`)
+- [x] Add `last_message_at` column to rooms table (for DM ordering)
+- [x] DMs are private rooms with `room_type = 'dm'`
+- [x] `create_dm` WebSocket handler (finds existing or creates new)
+- [x] `list_users` WebSocket handler (for user picker)
+- [x] Update `init` to return DMs separately from channels
+- [x] Update `message` handler to set `last_message_at`
+- [x] Prevent leaving 1:1 DMs (only group DMs can be left)
 
-### 2.2 User Presence
+**Frontend (todo):**
+- [ ] DM section in sidebar (separate from channels)
+- [ ] DM room naming (derived from member names on client)
+- [ ] "New Message" button with user picker/autocomplete
+- [ ] Handle `create_dm` and `list_users` message types
+
+### 2.2 User Presence (deferred)
 
 - [ ] Track online/offline status based on WebSocket connection
 - [ ] Broadcast presence changes to relevant users
@@ -127,13 +139,19 @@ _Goal: Private conversations and user identity_
 
 ### 2.3 User Profiles
 
-- [ ] Display name (separate from username)
-- [ ] Avatar upload/URL
-- [ ] Status message (custom text)
+**Backend (complete):**
+- [x] Add `display_name` and `status` columns to users table
+- [x] `get_profile` WebSocket handler
+- [x] `update_profile` WebSocket handler
+- [x] Include display_name in User and RoomMember types
+
+**Frontend (todo):**
 - [ ] Profile viewing panel (click username or member in room info)
 - [ ] "Message" button to start DM from profile
+- [ ] Profile editor modal (click own name in sidebar)
+- [ ] User dropdown menu in sidebar header
 
-### 2.4 Typing Indicators
+### 2.4 Typing Indicators (deferred)
 
 - [ ] Client sends "typing" events (debounced)
 - [ ] Server broadcasts to room members
@@ -300,7 +318,17 @@ _Goal: Workspace management and hardening_
 - [ ] Connection rate limiting
 - [ ] Report message/user functionality
 
-### 6.6 Security Checklist
+### 6.6 Moderation & Trust & Safety
+
+- [ ] Block user (hide their messages, prevent DMs from them)
+- [ ] Mute user (hide notifications from them)
+- [ ] Report user/message to admins
+- [ ] Admin review queue for reported content
+- [ ] Workspace-level ban (admin removes user from workspace)
+- [ ] Hide/delete DM conversation (for blocked users)
+- [ ] Audit log for moderation actions
+
+### 6.7 Security Checklist
 
 - [ ] Room membership checked on every message ✓ (done)
 - [ ] Rate limiting on all endpoints

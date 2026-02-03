@@ -43,9 +43,10 @@ func (a *Api) RoomInfo(user *models.User, msg json.RawMessage) (*Envelope, error
 	members := make([]protocol.RoomMember, len(info.Members))
 	for i, m := range info.Members {
 		members[i] = protocol.RoomMember{
-			ID:       m.ID,
-			Username: m.Username,
-			Avatar:   m.Avatar,
+			ID:          m.ID,
+			Username:    m.Username,
+			DisplayName: m.DisplayName,
+			Avatar:      m.Avatar,
 		}
 	}
 
@@ -55,6 +56,7 @@ func (a *Api) RoomInfo(user *models.User, msg json.RawMessage) (*Envelope, error
 			Room: protocol.Room{
 				ID:        info.Room.ID,
 				Name:      info.Room.Name,
+				RoomType:  info.Room.RoomType,
 				IsPrivate: info.Room.IsPrivate != 0,
 			},
 			MemberCount: info.MemberCount,

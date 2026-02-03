@@ -33,16 +33,28 @@ type Envelope struct {
 
 // User represents a user in the system
 type User struct {
-	ID       string `json:"id" jsonschema:"required,description=Unique user identifier (usr_ prefix),pattern=^usr_[a-f0-9]{16}$"`
-	Username string `json:"username" jsonschema:"required,description=Display name"`
-	Avatar   string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
+	ID          string `json:"id" jsonschema:"required,description=Unique user identifier (usr_ prefix),pattern=^usr_[a-f0-9]{16}$"`
+	Username    string `json:"username" jsonschema:"required,description=Login username"`
+	DisplayName string `json:"display_name" jsonschema:"description=Display name (shown instead of username if set)"`
+	Status      string `json:"status" jsonschema:"description=Custom status message"`
+	Avatar      string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
 }
 
-// Room represents a chat room
+// Room represents a chat room or DM
 type Room struct {
-	ID        string `json:"id" jsonschema:"required,description=Unique room identifier (roo_ prefix),pattern=^roo_[a-f0-9]{12}$"`
-	Name      string `json:"name" jsonschema:"required,description=Room display name"`
-	IsPrivate bool   `json:"is_private" jsonschema:"required,description=Whether the room is private"`
+	ID        string       `json:"id" jsonschema:"required,description=Unique room identifier (roo_ prefix),pattern=^roo_[a-f0-9]{12}$"`
+	Name      string       `json:"name" jsonschema:"required,description=Room display name (empty for DMs)"`
+	RoomType  string       `json:"room_type" jsonschema:"required,description=Type of room: 'channel' or 'dm',enum=channel,enum=dm"`
+	IsPrivate bool         `json:"is_private" jsonschema:"required,description=Whether the room is private"`
+	Members   []RoomMember `json:"members,omitempty" jsonschema:"description=Room members (only populated for DMs)"`
+}
+
+// RoomMember represents a member of a room
+type RoomMember struct {
+	ID          string `json:"id" jsonschema:"required,description=User ID"`
+	Username    string `json:"username" jsonschema:"required,description=Username"`
+	DisplayName string `json:"display_name" jsonschema:"description=Display name (may be empty)"`
+	Avatar      string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
 }
 
 // Message represents a chat message
@@ -92,7 +104,7 @@ type JoinRoomRequest struct {
 	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to switch to"`
 }
 
-// CreateRoomRequest is sent by the client to create a new room
+// CreateRoomRequest is sent by the client to create a new channel room
 // Direction: client → server
 // Response: CreateRoomResponse
 type CreateRoomRequest struct {
@@ -100,11 +112,25 @@ type CreateRoomRequest struct {
 	IsPrivate bool   `json:"is_private" jsonschema:"description=Whether the room is private (invite-only)"`
 }
 
+// CreateDMRequest creates or finds an existing DM with the given users
+// Direction: client → server
+// Response: CreateDMResponse
+type CreateDMRequest struct {
+	UserIDs []string `json:"user_ids" jsonschema:"required,description=User IDs to start DM with (not including self),minItems=1"`
+}
+
 // ListRoomsRequest is sent by the client to get a list of public rooms
 // Direction: client → server
 // Response: ListRoomsResponse
 type ListRoomsRequest struct {
 	Query string `json:"query" jsonschema:"description=Optional search query to filter rooms by name"`
+}
+
+// ListUsersRequest searches for users (for user picker in DM creation)
+// Direction: client → server
+// Response: ListUsersResponse
+type ListUsersRequest struct {
+	Query string `json:"query" jsonschema:"description=Search query for username (partial match)"`
 }
 
 // LeaveRoomRequest is sent by the client to leave a room
@@ -121,6 +147,21 @@ type RoomInfoRequest struct {
 	RoomID string `json:"room_id" jsonschema:"required,description=Room ID to get info for"`
 }
 
+// GetProfileRequest fetches a user's profile
+// Direction: client → server
+// Response: GetProfileResponse
+type GetProfileRequest struct {
+	UserID string `json:"user_id" jsonschema:"required,description=User ID to get profile for"`
+}
+
+// UpdateProfileRequest updates the current user's profile
+// Direction: client → server
+// Response: UpdateProfileResponse
+type UpdateProfileRequest struct {
+	DisplayName *string `json:"display_name,omitempty" jsonschema:"description=New display name (omit to keep current)"`
+	Status      *string `json:"status,omitempty" jsonschema:"description=New status message (omit to keep current)"`
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -128,8 +169,9 @@ type RoomInfoRequest struct {
 // InitResponse is sent by the server in response to InitRequest
 // Direction: server → client
 type InitResponse struct {
-	User        User    `json:"User" jsonschema:"required,description=The authenticated user"`
-	Rooms       []*Room `json:"Rooms" jsonschema:"required,description=Rooms the user is a member of"`
+	User        User    `json:"user" jsonschema:"required,description=The authenticated user"`
+	Rooms       []*Room `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
+	DMs         []*Room `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
 	CurrentRoom string  `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
 }
 
@@ -160,6 +202,13 @@ type CreateRoomResponse struct {
 	Room Room `json:"room" jsonschema:"required,description=The newly created room"`
 }
 
+// CreateDMResponse is sent by the server in response to CreateDMRequest
+// Direction: server → client
+type CreateDMResponse struct {
+	Room    Room `json:"room" jsonschema:"required,description=The DM room (existing or newly created)"`
+	Created bool `json:"created" jsonschema:"required,description=True if a new DM was created (false if existing DM was found)"`
+}
+
 // ListRoomsResponse is sent by the server in response to ListRoomsRequest
 // Direction: server → client
 type ListRoomsResponse struct {
@@ -167,17 +216,16 @@ type ListRoomsResponse struct {
 	IsMember []bool  `json:"is_member" jsonschema:"required,description=Whether the user is a member of each room (parallel array)"`
 }
 
+// ListUsersResponse is sent by the server in response to ListUsersRequest
+// Direction: server → client
+type ListUsersResponse struct {
+	Users []User `json:"users" jsonschema:"required,description=List of matching users"`
+}
+
 // LeaveRoomResponse is sent by the server in response to LeaveRoomRequest
 // Direction: server → client
 type LeaveRoomResponse struct {
 	RoomID string `json:"room_id" jsonschema:"required,description=Room ID that was left"`
-}
-
-// RoomMember represents a member of a room
-type RoomMember struct {
-	ID       string `json:"id" jsonschema:"required,description=User ID"`
-	Username string `json:"username" jsonschema:"required,description=Username"`
-	Avatar   string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
 }
 
 // RoomInfoResponse is sent by the server in response to RoomInfoRequest
@@ -187,6 +235,18 @@ type RoomInfoResponse struct {
 	MemberCount int          `json:"member_count" jsonschema:"required,description=Number of members in the room"`
 	Members     []RoomMember `json:"members" jsonschema:"required,description=List of room members"`
 	CreatedAt   string       `json:"created_at" jsonschema:"required,description=RFC3339 timestamp of when the room was created"`
+}
+
+// GetProfileResponse is sent by the server in response to GetProfileRequest
+// Direction: server → client
+type GetProfileResponse struct {
+	User User `json:"user" jsonschema:"required,description=User profile data"`
+}
+
+// UpdateProfileResponse is sent by the server in response to UpdateProfileRequest
+// Direction: server → client
+type UpdateProfileResponse struct {
+	User User `json:"user" jsonschema:"required,description=Updated user profile"`
 }
 
 // =============================================================================
@@ -203,7 +263,7 @@ var MessageTypes = []MessageMeta{
 	{
 		Type:        "init",
 		Direction:   ServerToClient,
-		Description: "Response with user info, rooms, and current room",
+		Description: "Response with user info, rooms, DMs, and current room",
 	},
 	{
 		Type:        "message",
@@ -243,12 +303,22 @@ var MessageTypes = []MessageMeta{
 	{
 		Type:        "create_room",
 		Direction:   ClientToServer,
-		Description: "Create a new room",
+		Description: "Create a new channel room",
 	},
 	{
 		Type:        "create_room",
 		Direction:   ServerToClient,
 		Description: "Response with the newly created room",
+	},
+	{
+		Type:        "create_dm",
+		Direction:   ClientToServer,
+		Description: "Create or find an existing DM with specified users",
+	},
+	{
+		Type:        "create_dm",
+		Direction:   ServerToClient,
+		Description: "Response with the DM room (new or existing)",
 	},
 	{
 		Type:        "list_rooms",
@@ -261,9 +331,19 @@ var MessageTypes = []MessageMeta{
 		Description: "Response with list of public rooms",
 	},
 	{
+		Type:        "list_users",
+		Direction:   ClientToServer,
+		Description: "Search for users (for DM user picker)",
+	},
+	{
+		Type:        "list_users",
+		Direction:   ServerToClient,
+		Description: "Response with matching users",
+	},
+	{
 		Type:        "leave_room",
 		Direction:   ClientToServer,
-		Description: "Leave a room",
+		Description: "Leave a room (not allowed for 1:1 DMs)",
 	},
 	{
 		Type:        "leave_room",
@@ -279,5 +359,25 @@ var MessageTypes = []MessageMeta{
 		Type:        "room_info",
 		Direction:   ServerToClient,
 		Description: "Response with room details and members",
+	},
+	{
+		Type:        "get_profile",
+		Direction:   ClientToServer,
+		Description: "Request a user's profile",
+	},
+	{
+		Type:        "get_profile",
+		Direction:   ServerToClient,
+		Description: "Response with user profile data",
+	},
+	{
+		Type:        "update_profile",
+		Direction:   ClientToServer,
+		Description: "Update current user's profile",
+	},
+	{
+		Type:        "update_profile",
+		Direction:   ServerToClient,
+		Description: "Response with updated profile",
 	},
 }

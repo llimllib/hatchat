@@ -689,7 +689,7 @@ func TestIntegration_SessionPersistence(t *testing.T) {
 		t.Fatalf("First init failed: %v", err)
 	}
 	initData1 := initResp1.Data.(map[string]interface{})
-	userInfo1 := initData1["User"].(map[string]interface{})
+	userInfo1 := initData1["user"].(map[string]interface{})
 	userID1 := userInfo1["id"].(string)
 	client1.close()
 
@@ -702,7 +702,7 @@ func TestIntegration_SessionPersistence(t *testing.T) {
 		t.Fatalf("Second init failed: %v", err)
 	}
 	initData2 := initResp2.Data.(map[string]interface{})
-	userInfo2 := initData2["User"].(map[string]interface{})
+	userInfo2 := initData2["user"].(map[string]interface{})
 	userID2 := userInfo2["id"].(string)
 
 	// Should be the same user

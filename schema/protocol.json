@@ -1,5 +1,40 @@
 {
   "$defs": {
+    "CreateDMRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "user_ids": {
+          "description": "User IDs to start DM with (not including self)",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "user_ids"
+      ],
+      "type": "object"
+    },
+    "CreateDMResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "created": {
+          "description": "True if a new DM was created (false if existing DM was found)",
+          "type": "boolean"
+        },
+        "room": {
+          "$ref": "#/$defs/Room",
+          "description": "The DM room (existing or newly created)"
+        }
+      },
+      "required": [
+        "room",
+        "created"
+      ],
+      "type": "object"
+    },
     "CreateRoomRequest": {
       "additionalProperties": false,
       "properties": {
@@ -62,6 +97,32 @@
       ],
       "type": "object"
     },
+    "GetProfileRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "description": "User ID to get profile for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id"
+      ],
+      "type": "object"
+    },
+    "GetProfileResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/User",
+          "description": "User profile data"
+        }
+      },
+      "required": [
+        "user"
+      ],
+      "type": "object"
+    },
     "HistoryRequest": {
       "additionalProperties": false,
       "properties": {
@@ -119,25 +180,33 @@
     "InitResponse": {
       "additionalProperties": false,
       "properties": {
-        "Rooms": {
-          "description": "Rooms the user is a member of",
+        "current_room": {
+          "description": "Room ID to display initially",
+          "type": "string"
+        },
+        "dms": {
+          "description": "DM rooms the user is a member of (sorted by most recent activity)",
           "items": {
             "$ref": "#/$defs/Room"
           },
           "type": "array"
         },
-        "User": {
+        "rooms": {
+          "description": "Channel rooms the user is a member of",
+          "items": {
+            "$ref": "#/$defs/Room"
+          },
+          "type": "array"
+        },
+        "user": {
           "$ref": "#/$defs/User",
           "description": "The authenticated user"
-        },
-        "current_room": {
-          "description": "Room ID to display initially",
-          "type": "string"
         }
       },
       "required": [
-        "User",
-        "Rooms",
+        "user",
+        "rooms",
+        "dms",
         "current_room"
       ],
       "type": "object"
@@ -233,6 +302,32 @@
       ],
       "type": "object"
     },
+    "ListUsersRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "description": "Search query for username (partial match)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ListUsersResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "users": {
+          "description": "List of matching users",
+          "items": {
+            "$ref": "#/$defs/User"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "users"
+      ],
+      "type": "object"
+    },
     "Message": {
       "additionalProperties": false,
       "properties": {
@@ -289,14 +384,30 @@
           "description": "Whether the room is private",
           "type": "boolean"
         },
+        "members": {
+          "description": "Room members (only populated for DMs)",
+          "items": {
+            "$ref": "#/$defs/RoomMember"
+          },
+          "type": "array"
+        },
         "name": {
-          "description": "Room display name",
+          "description": "Room display name (empty for DMs)",
+          "type": "string"
+        },
+        "room_type": {
+          "description": "Type of room: 'channel' or 'dm'",
+          "enum": [
+            "channel",
+            "dm"
+          ],
           "type": "string"
         }
       },
       "required": [
         "id",
         "name",
+        "room_type",
         "is_private"
       ],
       "type": "object"
@@ -352,6 +463,10 @@
           "description": "Avatar URL (may be empty)",
           "type": "string"
         },
+        "display_name": {
+          "description": "Display name (may be empty)",
+          "type": "string"
+        },
         "id": {
           "description": "User ID",
           "type": "string"
@@ -387,6 +502,33 @@
       ],
       "type": "object"
     },
+    "UpdateProfileRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "description": "New display name (omit to keep current)",
+          "type": "string"
+        },
+        "status": {
+          "description": "New status message (omit to keep current)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "UpdateProfileResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/User",
+          "description": "Updated user profile"
+        }
+      },
+      "required": [
+        "user"
+      ],
+      "type": "object"
+    },
     "User": {
       "additionalProperties": false,
       "properties": {
@@ -394,13 +536,21 @@
           "description": "Avatar URL (may be empty)",
           "type": "string"
         },
+        "display_name": {
+          "description": "Display name (shown instead of username if set)",
+          "type": "string"
+        },
         "id": {
           "description": "Unique user identifier (usr_ prefix)",
           "pattern": "^usr_[a-f0-9]{16}$",
           "type": "string"
         },
+        "status": {
+          "description": "Custom status message",
+          "type": "string"
+        },
         "username": {
-          "description": "Display name",
+          "description": "Login username",
           "type": "string"
         }
       },
@@ -442,13 +592,25 @@
       "$ref": "#/$defs/CreateRoomRequest"
     },
     {
+      "$ref": "#/$defs/CreateDMRequest"
+    },
+    {
       "$ref": "#/$defs/ListRoomsRequest"
+    },
+    {
+      "$ref": "#/$defs/ListUsersRequest"
     },
     {
       "$ref": "#/$defs/LeaveRoomRequest"
     },
     {
       "$ref": "#/$defs/RoomInfoRequest"
+    },
+    {
+      "$ref": "#/$defs/GetProfileRequest"
+    },
+    {
+      "$ref": "#/$defs/UpdateProfileRequest"
     },
     {
       "$ref": "#/$defs/InitResponse"
@@ -463,13 +625,25 @@
       "$ref": "#/$defs/CreateRoomResponse"
     },
     {
+      "$ref": "#/$defs/CreateDMResponse"
+    },
+    {
       "$ref": "#/$defs/ListRoomsResponse"
+    },
+    {
+      "$ref": "#/$defs/ListUsersResponse"
     },
     {
       "$ref": "#/$defs/LeaveRoomResponse"
     },
     {
       "$ref": "#/$defs/RoomInfoResponse"
+    },
+    {
+      "$ref": "#/$defs/GetProfileResponse"
+    },
+    {
+      "$ref": "#/$defs/UpdateProfileResponse"
     },
     {
       "$ref": "#/$defs/ErrorResponse"

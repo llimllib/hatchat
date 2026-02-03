@@ -34,21 +34,31 @@ export class AppState {
     if (!this.initialData) {
       throw new Error("Not yet initialized");
     }
-    return this.initialData.User;
+    return this.initialData.user;
   }
 
   /**
-   * Get all rooms the user is a member of
+   * Get all channel rooms the user is a member of
    */
   get rooms(): Room[] {
-    return this.initialData?.Rooms || [];
+    return this.initialData?.rooms || [];
   }
 
   /**
-   * Get a room by ID
+   * Get all DM rooms the user is a member of (sorted by most recent activity)
+   */
+  get dms(): Room[] {
+    return this.initialData?.dms || [];
+  }
+
+  /**
+   * Get a room by ID (searches both channels and DMs)
    */
   getRoom(roomId: string): Room | undefined {
-    return this.rooms.find((r) => r.id === roomId);
+    return (
+      this.rooms.find((r) => r.id === roomId) ||
+      this.dms.find((r) => r.id === roomId)
+    );
   }
 
   /**
@@ -58,12 +68,22 @@ export class AppState {
     if (!this.initialData) {
       throw new Error("Not yet initialized");
     }
-    // Avoid duplicates
-    const exists = this.initialData.Rooms.some((r) => r.id === room.id);
-    if (!exists) {
-      this.initialData.Rooms.push(room);
-      // Sort rooms by name
-      this.initialData.Rooms.sort((a, b) => a.name.localeCompare(b.name));
+    if (room.room_type === "dm") {
+      // Add DM to beginning (most recent)
+      const exists = this.initialData.dms.some((r) => r.id === room.id);
+      if (!exists) {
+        this.initialData.dms.unshift(room);
+      }
+    } else {
+      // Add channel
+      const exists = this.initialData.rooms.some((r) => r.id === room.id);
+      if (!exists) {
+        this.initialData.rooms.push(room);
+        // Sort channels by name
+        this.initialData.rooms.sort((a: Room, b: Room) =>
+          a.name.localeCompare(b.name),
+        );
+      }
     }
   }
 
@@ -74,9 +94,10 @@ export class AppState {
     if (!this.initialData) {
       throw new Error("Not yet initialized");
     }
-    this.initialData.Rooms = this.initialData.Rooms.filter(
+    this.initialData.rooms = this.initialData.rooms.filter(
       (r) => r.id !== roomId,
     );
+    this.initialData.dms = this.initialData.dms.filter((r) => r.id !== roomId);
     // Also clear the room state cache
     this.roomStates.delete(roomId);
   }
@@ -170,5 +191,17 @@ export class AppState {
    */
   setCurrentRoom(roomId: string) {
     this.currentRoom = roomId;
+  }
+
+  /**
+   * Move a DM to the top of the list (called when a new message is received)
+   */
+  bumpDM(roomId: string) {
+    if (!this.initialData) return;
+    const idx = this.initialData.dms.findIndex((r) => r.id === roomId);
+    if (idx > 0) {
+      const [dm] = this.initialData.dms.splice(idx, 1);
+      this.initialData.dms.unshift(dm);
+    }
   }
 }

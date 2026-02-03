@@ -55,6 +55,7 @@ func (a *Api) CreateRoom(user *models.User, msg json.RawMessage) (*CreateRoomRes
 	room := &models.Room{
 		ID:        models.GenerateRoomID(),
 		Name:      name,
+		RoomType:  "channel",
 		IsPrivate: boolToInt(req.IsPrivate),
 		IsDefault: models.FALSE,
 		CreatedAt: time.Now().Format(time.RFC3339),
@@ -95,6 +96,7 @@ func (a *Api) CreateRoom(user *models.User, msg json.RawMessage) (*CreateRoomRes
 				Room: protocol.Room{
 					ID:        room.ID,
 					Name:      room.Name,
+					RoomType:  room.RoomType,
 					IsPrivate: room.IsPrivate != 0,
 				},
 			},
