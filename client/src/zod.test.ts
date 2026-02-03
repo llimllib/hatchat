@@ -58,6 +58,7 @@ describe("Zod Schema Validation", () => {
       const room = {
         id: "roo_123456789abc",
         name: "general",
+        room_type: "channel",
         is_private: false,
       };
       const result = RoomSchema.safeParse(room);
@@ -68,6 +69,7 @@ describe("Zod Schema Validation", () => {
       const room = {
         id: "room_bad",
         name: "general",
+        room_type: "channel",
         is_private: false,
       };
       const result = RoomSchema.safeParse(room);
@@ -110,17 +112,19 @@ describe("Zod Schema Validation", () => {
       const envelope = {
         type: "init",
         data: {
-          User: {
+          user: {
             id: "usr_1234567890abcdef",
             username: "testuser",
           },
-          Rooms: [
+          rooms: [
             {
               id: "roo_123456789abc",
               name: "general",
+              room_type: "channel",
               is_private: false,
             },
           ],
+          dms: [],
           current_room: "roo_123456789abc",
         },
       };
@@ -171,6 +175,7 @@ describe("Zod Schema Validation", () => {
           room: {
             id: "roo_123456789abc",
             name: "general",
+            room_type: "channel",
             is_private: false,
           },
           joined: true,
@@ -198,6 +203,7 @@ describe("Zod Schema Validation", () => {
           room: {
             id: "roo_123456789abc",
             name: "new-channel",
+            room_type: "channel",
             is_private: false,
           },
         },
@@ -211,8 +217,18 @@ describe("Zod Schema Validation", () => {
         type: "list_rooms",
         data: {
           rooms: [
-            { id: "roo_123456789abc", name: "general", is_private: false },
-            { id: "roo_abcdef123456", name: "random", is_private: true },
+            {
+              id: "roo_123456789abc",
+              name: "general",
+              room_type: "channel",
+              is_private: false,
+            },
+            {
+              id: "roo_abcdef123456",
+              name: "random",
+              room_type: "channel",
+              is_private: true,
+            },
           ],
           is_member: [true, false],
         },
@@ -302,6 +318,7 @@ describe("Zod Type Inference", () => {
     const room: ReturnType<typeof RoomSchema.parse> = {
       id: "roo_123456789abc",
       name: "general",
+      room_type: "channel",
       is_private: false,
     };
 
