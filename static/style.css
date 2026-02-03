@@ -129,3 +129,42 @@ body {
 .auth-link a:hover {
   text-decoration: underline;
 }
+
+/* Auth Tabs */
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(91, 89, 88, 0.3);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-stone-cold);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.auth-tab:hover {
+  color: var(--color-coco-black);
+}
+
+.auth-tab.active {
+  color: var(--color-peat-brown);
+  border-bottom-color: var(--color-peat-brown);
+}
+
+/* Auth Forms */
+.auth-form {
+  display: none;
+}
+
+.auth-form.active {
+  display: block;
+}

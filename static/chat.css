@@ -30,7 +30,7 @@ body {
 /* Sidebar Styles */
 .sidebar {
   width: 220px;
-  background-color: var(--color-your-shadow);
+  background-color: var(--color-coco-black);
   color: var(--color-off-white);
   padding: 20px;
 }
@@ -82,7 +82,7 @@ body {
 
 .sidebar-channels li.active a,
 .sidebar-direct-messages li.active a {
-  background-color: var(--color-peat-brown);
+  background-color: rgba(255, 255, 255, 0.15);
   color: var(--color-off-white);
   font-weight: 600;
 }
