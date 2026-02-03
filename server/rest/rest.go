@@ -235,6 +235,7 @@ func (a *API) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	room := &models.Room{
 		ID:        models.GenerateRoomID(),
 		Name:      name,
+		RoomType:  "channel",
 		IsPrivate: isPrivate,
 		IsDefault: models.FALSE,
 		CreatedAt: time.Now().Format(time.RFC3339),
