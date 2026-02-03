@@ -20,8 +20,11 @@ export async function registerUser(
 
   await page.goto("/");
 
-  // Find the registration form (second form on the page)
-  const registerForm = page.locator('form[action="/register"]');
+  // Click the Register tab to show the registration form
+  await page.locator('.auth-tab[data-tab="register"]').click();
+
+  // Find the registration form
+  const registerForm = page.locator("#register-form");
 
   await registerForm.locator('input[name="username"]').fill(user);
   await registerForm.locator('input[name="password"]').fill(pass);
@@ -43,8 +46,11 @@ export async function login(
 ): Promise<void> {
   await page.goto("/");
 
-  // Find the login form (first form on the page)
-  const loginForm = page.locator('form[action="/login"]');
+  // Make sure the Sign in tab is active (it should be by default, but be explicit)
+  await page.locator('.auth-tab[data-tab="signin"]').click();
+
+  // Find the login form
+  const loginForm = page.locator("#signin-form");
 
   await loginForm.locator('input[name="username"]').fill(username);
   await loginForm.locator('input[name="password"]').fill(password);

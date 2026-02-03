@@ -13,8 +13,8 @@ test.describe("Authentication", () => {
   }) => {
     await page.goto("/");
 
-    // Check login form exists
-    const loginForm = page.locator('form[action="/login"]');
+    // Check login form is visible by default (Sign in tab is active)
+    const loginForm = page.locator("#signin-form");
     await expect(loginForm).toBeVisible();
     await expect(
       loginForm.locator('input[name="username"]')
@@ -23,8 +23,11 @@ test.describe("Authentication", () => {
       loginForm.locator('input[name="password"]')
     ).toBeVisible();
 
-    // Check registration form exists
-    const registerForm = page.locator('form[action="/register"]');
+    // Click Register tab to show registration form
+    await page.locator('.auth-tab[data-tab="register"]').click();
+
+    // Check registration form is now visible
+    const registerForm = page.locator("#register-form");
     await expect(registerForm).toBeVisible();
     await expect(
       registerForm.locator('input[name="username"]')
@@ -40,7 +43,10 @@ test.describe("Authentication", () => {
 
     await page.goto("/");
 
-    const registerForm = page.locator('form[action="/register"]');
+    // Click Register tab to show registration form
+    await page.locator('.auth-tab[data-tab="register"]').click();
+
+    const registerForm = page.locator("#register-form");
     await registerForm.locator('input[name="username"]').fill(username);
     await registerForm.locator('input[name="password"]').fill(password);
     await registerForm.locator('button[type="submit"]').click();
@@ -48,8 +54,8 @@ test.describe("Authentication", () => {
     // After registration, user is redirected back to home page
     await page.waitForURL("/");
 
-    // Now login should work
-    const loginForm = page.locator('form[action="/login"]');
+    // Now login should work (Sign in tab is active by default)
+    const loginForm = page.locator("#signin-form");
     await loginForm.locator('input[name="username"]').fill(username);
     await loginForm.locator('input[name="password"]').fill(password);
     await loginForm.locator('button[type="submit"]').click();
@@ -73,14 +79,14 @@ test.describe("Authentication", () => {
   test("should redirect to home on invalid login", async ({ page }) => {
     await page.goto("/");
 
-    const loginForm = page.locator('form[action="/login"]');
+    const loginForm = page.locator("#signin-form");
     await loginForm.locator('input[name="username"]').fill("nonexistent");
     await loginForm.locator('input[name="password"]').fill("wrongpassword");
     await loginForm.locator('button[type="submit"]').click();
 
     // Should stay on home page (redirected back)
     await page.waitForURL("/");
-    await expect(page.locator('form[action="/login"]')).toBeVisible();
+    await expect(page.locator("#signin-form")).toBeVisible();
   });
 
   test("should deny unauthenticated users access to chat", async ({

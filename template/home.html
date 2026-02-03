@@ -4,46 +4,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chat Server</title>
+  <title>Hatchat</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪓</text></svg>" />
 </head>
 
 <body>
-  <header>
-    <h1>Welcome to Chat Server</h1>
-  </header>
+  <div class="auth-card">
+    <h1>Hatchat 🪓</h1>
+    <p class="subtitle">Sign in or create an account</p>
 
-  <main>
-    <section>
-      <h2>Sign In</h2>
-      <form method="POST" action="/login">
-        <div>
-          <label for="username">Username:</label>
-          <input type="text" id="username" name="username" required />
-        </div>
-        <div>
-          <label for="password">Password:</label>
-          <input type="password" id="password" name="password" required />
-        </div>
-        <button type="submit">Sign in</button>
-      </form>
-    </section>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="signin">Sign in</button>
+      <button class="auth-tab" data-tab="register">Register</button>
+    </div>
 
-    <section>
-      <h2>Register</h2>
-      <form method="POST" action="/register">
-        <div>
-          <label for="username">Username:</label>
-          <input type="text" id="username" name="username" required />
-        </div>
-        <div>
-          <label for="password">Password:</label>
-          <input type="password" id="password" name="password" required />
-        </div>
-        <button type="submit">Register</button>
-      </form>
-    </section>
-  </main>
+    <form id="signin-form" class="auth-form active" method="POST" action="/login">
+      <div class="form-group">
+        <label for="signin-username">Username</label>
+        <input type="text" id="signin-username" name="username" required />
+      </div>
+      <div class="form-group">
+        <label for="signin-password">Password</label>
+        <input type="password" id="signin-password" name="password" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Sign in</button>
+    </form>
+
+    <form id="register-form" class="auth-form" method="POST" action="/register">
+      <div class="form-group">
+        <label for="register-username">Username</label>
+        <input type="text" id="register-username" name="username" required />
+      </div>
+      <div class="form-group">
+        <label for="register-password">Password</label>
+        <input type="password" id="register-password" name="password" required />
+      </div>
+      <button type="submit" class="btn btn-primary">Create account</button>
+    </form>
+  </div>
+
+  <script>
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab + '-form').classList.add('active');
+      });
+    });
+  </script>
 </body>
 
 </html>
