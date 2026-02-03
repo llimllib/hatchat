@@ -67,7 +67,7 @@ SQL
 
 # RoomMessages - first page (no cursor)
 go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T RoomMessagesFirstPage <<SQL
-SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, u.username
+SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, COALESCE(m.deleted_at, '') as deleted_at, u.username
 FROM messages m
 JOIN users u ON m.user_id = u.id
 WHERE m.room_id = %%roomID string%%
@@ -77,7 +77,7 @@ SQL
 
 # RoomMessages - subsequent pages (with cursor)
 go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T RoomMessagesWithCursor <<SQL
-SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, u.username
+SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, COALESCE(m.deleted_at, '') as deleted_at, u.username
 FROM messages m
 JOIN users u ON m.user_id = u.id
 WHERE m.room_id = %%roomID string%% AND m.created_at < %%cursor string%%

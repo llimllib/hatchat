@@ -63,8 +63,19 @@ func testDB(t *testing.T) *db.DB {
 			user_id TEXT REFERENCES users(id) NOT NULL,
 			body TEXT NOT NULL,
 			created_at TEXT NOT NULL,
-			modified_at TEXT NOT NULL
+			modified_at TEXT NOT NULL,
+			deleted_at TEXT
 		) STRICT;
+
+		CREATE TABLE IF NOT EXISTS reactions(
+			message_id TEXT REFERENCES messages(id) NOT NULL,
+			user_id TEXT REFERENCES users(id) NOT NULL,
+			emoji TEXT NOT NULL,
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (message_id, user_id, emoji)
+		) STRICT;
+
+		CREATE INDEX IF NOT EXISTS reactions_message ON reactions(message_id);
 	`
 	_, err = database.ExecContext(context.Background(), schema)
 	if err != nil {

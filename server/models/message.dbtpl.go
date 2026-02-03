@@ -4,16 +4,18 @@ package models
 
 import (
 	"context"
+	"database/sql"
 )
 
 // Message represents a row from 'messages'.
 type Message struct {
-	ID         string `json:"id"`          // id
-	RoomID     string `json:"room_id"`     // room_id
-	UserID     string `json:"user_id"`     // user_id
-	Body       string `json:"body"`        // body
-	CreatedAt  string `json:"created_at"`  // created_at
-	ModifiedAt string `json:"modified_at"` // modified_at
+	ID         string         `json:"id"`          // id
+	RoomID     string         `json:"room_id"`     // room_id
+	UserID     string         `json:"user_id"`     // user_id
+	Body       string         `json:"body"`        // body
+	CreatedAt  string         `json:"created_at"`  // created_at
+	ModifiedAt string         `json:"modified_at"` // modified_at
+	DeletedAt  sql.NullString `json:"deleted_at"`  // deleted_at
 	// xo fields
 	_exists, _deleted bool
 }
@@ -39,13 +41,13 @@ func (m *Message) Insert(ctx context.Context, db DB) error {
 	}
 	// insert (manual)
 	const sqlstr = `INSERT INTO messages (` +
-		`id, room_id, user_id, body, created_at, modified_at` +
+		`id, room_id, user_id, body, created_at, modified_at, deleted_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6` +
+		`$1, $2, $3, $4, $5, $6, $7` +
 		`)`
 	// run
-	logf(sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt); err != nil {
+	logf(sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -63,11 +65,11 @@ func (m *Message) Update(ctx context.Context, db DB) error {
 	}
 	// update with primary key
 	const sqlstr = `UPDATE messages SET ` +
-		`room_id = $1, user_id = $2, body = $3, created_at = $4, modified_at = $5 ` +
-		`WHERE id = $6`
+		`room_id = $1, user_id = $2, body = $3, created_at = $4, modified_at = $5, deleted_at = $6 ` +
+		`WHERE id = $7`
 	// run
-	logf(sqlstr, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.ID)
-	if _, err := db.ExecContext(ctx, sqlstr, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.ID); err != nil {
+	logf(sqlstr, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt, m.ID)
+	if _, err := db.ExecContext(ctx, sqlstr, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt, m.ID); err != nil {
 		return logerror(err)
 	}
 	return nil
@@ -89,16 +91,16 @@ func (m *Message) Upsert(ctx context.Context, db DB) error {
 	}
 	// upsert
 	const sqlstr = `INSERT INTO messages (` +
-		`id, room_id, user_id, body, created_at, modified_at` +
+		`id, room_id, user_id, body, created_at, modified_at, deleted_at` +
 		`) VALUES (` +
-		`$1, $2, $3, $4, $5, $6` +
+		`$1, $2, $3, $4, $5, $6, $7` +
 		`)` +
 		` ON CONFLICT (id) DO ` +
 		`UPDATE SET ` +
-		`room_id = EXCLUDED.room_id, user_id = EXCLUDED.user_id, body = EXCLUDED.body, created_at = EXCLUDED.created_at, modified_at = EXCLUDED.modified_at `
+		`room_id = EXCLUDED.room_id, user_id = EXCLUDED.user_id, body = EXCLUDED.body, created_at = EXCLUDED.created_at, modified_at = EXCLUDED.modified_at, deleted_at = EXCLUDED.deleted_at `
 	// run
-	logf(sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt)
-	if _, err := db.ExecContext(ctx, sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt); err != nil {
+	logf(sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt)
+	if _, err := db.ExecContext(ctx, sqlstr, m.ID, m.RoomID, m.UserID, m.Body, m.CreatedAt, m.ModifiedAt, m.DeletedAt); err != nil {
 		return logerror(err)
 	}
 	// set exists
@@ -133,7 +135,7 @@ func (m *Message) Delete(ctx context.Context, db DB) error {
 func MessagesByRoomIDCreatedAt(ctx context.Context, db DB, roomID, createdAt string) ([]*Message, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, room_id, user_id, body, created_at, modified_at ` +
+		`id, room_id, user_id, body, created_at, modified_at, deleted_at ` +
 		`FROM messages ` +
 		`WHERE room_id = $1 AND created_at = $2`
 	// run
@@ -150,7 +152,7 @@ func MessagesByRoomIDCreatedAt(ctx context.Context, db DB, roomID, createdAt str
 			_exists: true,
 		}
 		// scan
-		if err := rows.Scan(&m.ID, &m.RoomID, &m.UserID, &m.Body, &m.CreatedAt, &m.ModifiedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.RoomID, &m.UserID, &m.Body, &m.CreatedAt, &m.ModifiedAt, &m.DeletedAt); err != nil {
 			return nil, logerror(err)
 		}
 		res = append(res, &m)
@@ -167,7 +169,7 @@ func MessagesByRoomIDCreatedAt(ctx context.Context, db DB, roomID, createdAt str
 func MessageByID(ctx context.Context, db DB, id string) (*Message, error) {
 	// query
 	const sqlstr = `SELECT ` +
-		`id, room_id, user_id, body, created_at, modified_at ` +
+		`id, room_id, user_id, body, created_at, modified_at, deleted_at ` +
 		`FROM messages ` +
 		`WHERE id = $1`
 	// run
@@ -175,7 +177,7 @@ func MessageByID(ctx context.Context, db DB, id string) (*Message, error) {
 	m := Message{
 		_exists: true,
 	}
-	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&m.ID, &m.RoomID, &m.UserID, &m.Body, &m.CreatedAt, &m.ModifiedAt); err != nil {
+	if err := db.QueryRowContext(ctx, sqlstr, id).Scan(&m.ID, &m.RoomID, &m.UserID, &m.Body, &m.CreatedAt, &m.ModifiedAt, &m.DeletedAt); err != nil {
 		return nil, logerror(err)
 	}
 	return &m, nil

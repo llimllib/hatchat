@@ -1,4 +1,5 @@
 import { $ } from "./dom";
+import { renderMarkdown } from "./markdown";
 import { AppState } from "./state";
 import {
   type CreateDMResponse,
@@ -11,9 +12,13 @@ import {
   type ListRoomsResponse,
   type ListUsersResponse,
   type Message,
+  type MessageDeleted,
+  type MessageEdited,
   makePendingKey,
   type PendingMessage,
   parseServerEnvelope,
+  type Reaction,
+  type ReactionUpdated,
   type Room,
   type RoomInfoResponse,
   type UpdateProfileResponse,
@@ -107,6 +112,18 @@ class Client {
         }
         case "update_profile": {
           this.handleUpdateProfile(envelope.data);
+          break;
+        }
+        case "message_edited": {
+          this.handleMessageEdited(envelope.data);
+          break;
+        }
+        case "message_deleted": {
+          this.handleMessageDeleted(envelope.data);
+          break;
+        }
+        case "reaction_updated": {
+          this.handleReactionUpdated(envelope.data);
           break;
         }
         case "error": {
@@ -272,9 +289,32 @@ class Client {
     isGrouped: boolean,
     isOwn: boolean,
   ): HTMLElement {
+    // Handle deleted messages (tombstone)
+    if (msg.deleted_at) {
+      const wrapper = $("div", {
+        class: "chat-message deleted",
+        "data-message-id": msg.id,
+      });
+      const tombstone = $("div", { class: "message-content tombstone" });
+      tombstone.appendChild($("em", { text: "This message was deleted." }));
+      wrapper.appendChild(tombstone);
+      return wrapper;
+    }
+
     const wrapper = $("div", {
       class: `chat-message ${isGrouped ? "grouped" : ""} ${isOwn ? "own-message" : ""}`,
       "data-message-id": msg.id,
+    });
+
+    // Add hover handlers for the toolbar
+    wrapper.addEventListener("mouseenter", () => {
+      this.showHoverToolbar(wrapper);
+    });
+    wrapper.addEventListener("mouseleave", () => {
+      const toolbar = this.hoverToolbar;
+      if (toolbar && !toolbar.classList.contains("toolbar-active")) {
+        toolbar.style.display = "none";
+      }
     });
 
     if (!isGrouped) {
@@ -305,14 +345,26 @@ class Client {
 
       const textArea = $("div", { class: "message-text-area" });
       textArea.appendChild(header);
-      textArea.appendChild($("div", { class: "message-body", text: msg.body }));
-      content.appendChild(textArea);
 
+      const body = $("div", { class: "message-body" });
+      body.innerHTML = renderMarkdown(msg.body);
+      textArea.appendChild(body);
+
+      // Show (edited) indicator if message was modified after creation
+      if (msg.modified_at !== msg.created_at) {
+        textArea.appendChild(
+          $("span", { class: "edited-indicator", text: "(edited)" }),
+        );
+      }
+
+      content.appendChild(textArea);
       wrapper.appendChild(content);
     } else {
       // Grouped message - just the body with indent to align with text
       const content = $("div", { class: "message-content grouped-content" });
-      const body = $("div", { class: "message-body", text: msg.body });
+
+      const body = $("div", { class: "message-body" });
+      body.innerHTML = renderMarkdown(msg.body);
 
       // Add timestamp on hover
       const timestamp = $("span", {
@@ -323,7 +375,21 @@ class Client {
 
       content.appendChild(timestamp);
       content.appendChild(body);
+
+      // Show (edited) indicator if message was modified
+      if (msg.modified_at !== msg.created_at) {
+        content.appendChild(
+          $("span", { class: "edited-indicator", text: "(edited)" }),
+        );
+      }
+
       wrapper.appendChild(content);
+    }
+
+    // Add reactions if present
+    if (msg.reactions && msg.reactions.length > 0) {
+      const bar = this.createReactionBar(msg.id, msg.reactions);
+      wrapper.appendChild(bar);
     }
 
     return wrapper;
@@ -834,6 +900,573 @@ class Client {
 
     // Close the modal
     this.closeModal();
+  }
+
+  // =========================================================================
+  // Rich messaging handlers (edit, delete, reactions)
+  // =========================================================================
+
+  /**
+   * Handle a message_edited broadcast
+   */
+  handleMessageEdited(data: MessageEdited) {
+    console.debug("message_edited", data);
+
+    // Update message in state cache
+    const roomState = this.state.getRoomState(data.room_id);
+    const msg = roomState.messages.find((m) => m.id === data.message_id);
+    if (msg) {
+      msg.body = data.body;
+      msg.modified_at = data.modified_at;
+    }
+
+    // Update DOM if this room is currently visible
+    if (data.room_id === this.state.currentRoom) {
+      const el = document.querySelector(
+        `.chat-message[data-message-id="${data.message_id}"]`,
+      );
+      if (el) {
+        // Cancel inline edit if this message is being edited
+        if (this.editingMessageId === data.message_id) {
+          this.cancelEdit();
+        }
+
+        const bodyEl = el.querySelector(".message-body");
+        if (bodyEl) {
+          bodyEl.innerHTML = renderMarkdown(data.body);
+        }
+
+        // Add or update the (edited) indicator
+        let editedEl = el.querySelector(".edited-indicator");
+        if (!editedEl) {
+          editedEl = $("span", {
+            class: "edited-indicator",
+            text: "(edited)",
+          });
+          // Insert after the message body
+          const bodyContainer = bodyEl?.parentElement;
+          if (bodyContainer) {
+            bodyContainer.appendChild(editedEl);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle a message_deleted broadcast
+   */
+  handleMessageDeleted(data: MessageDeleted) {
+    console.debug("message_deleted", data);
+
+    // Update message in state cache
+    const roomState = this.state.getRoomState(data.room_id);
+    const msg = roomState.messages.find((m) => m.id === data.message_id);
+    if (msg) {
+      msg.body = "";
+      msg.deleted_at = new Date().toISOString();
+    }
+
+    // Update DOM if this room is currently visible
+    if (data.room_id === this.state.currentRoom) {
+      // Cancel inline edit if this message is being edited
+      if (this.editingMessageId === data.message_id) {
+        this.cancelEdit();
+      }
+
+      const el = document.querySelector(
+        `.chat-message[data-message-id="${data.message_id}"]`,
+      );
+      if (el) {
+        // Replace with tombstone
+        el.className = "chat-message deleted";
+        el.innerHTML = "";
+        const tombstone = $("div", { class: "message-content tombstone" });
+        tombstone.appendChild($("em", { text: "This message was deleted." }));
+        el.appendChild(tombstone);
+      }
+    }
+  }
+
+  /**
+   * Handle a reaction_updated broadcast
+   */
+  handleReactionUpdated(data: ReactionUpdated) {
+    console.debug("reaction_updated", data);
+
+    // Update message in state cache
+    const roomState = this.state.getRoomState(data.room_id);
+    const msg = roomState.messages.find((m) => m.id === data.message_id);
+    if (msg) {
+      if (!msg.reactions) {
+        msg.reactions = [];
+      }
+
+      const existing = msg.reactions.find((r) => r.emoji === data.emoji);
+      if (data.action === "add") {
+        if (existing) {
+          if (!existing.user_ids.includes(data.user_id)) {
+            existing.user_ids.push(data.user_id);
+            existing.count++;
+          }
+        } else {
+          msg.reactions.push({
+            emoji: data.emoji,
+            count: 1,
+            user_ids: [data.user_id],
+          });
+        }
+      } else if (data.action === "remove") {
+        if (existing) {
+          existing.user_ids = existing.user_ids.filter(
+            (id) => id !== data.user_id,
+          );
+          existing.count = existing.user_ids.length;
+          if (existing.count === 0) {
+            msg.reactions = msg.reactions.filter((r) => r.emoji !== data.emoji);
+          }
+        }
+      }
+    }
+
+    // Update DOM if this room is currently visible
+    if (data.room_id === this.state.currentRoom) {
+      this.renderReactionsForMessage(data.message_id);
+    }
+  }
+
+  /**
+   * Send an edit message request
+   */
+  requestEditMessage(messageId: string, body: string) {
+    const request = {
+      type: "edit_message",
+      data: {
+        message_id: messageId,
+        body: body,
+      },
+    };
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Send a delete message request
+   */
+  requestDeleteMessage(messageId: string) {
+    const request = {
+      type: "delete_message",
+      data: {
+        message_id: messageId,
+      },
+    };
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Send an add reaction request
+   */
+  requestAddReaction(messageId: string, emoji: string) {
+    const request = {
+      type: "add_reaction",
+      data: {
+        message_id: messageId,
+        emoji: emoji,
+      },
+    };
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Send a remove reaction request
+   */
+  requestRemoveReaction(messageId: string, emoji: string) {
+    const request = {
+      type: "remove_reaction",
+      data: {
+        message_id: messageId,
+        emoji: emoji,
+      },
+    };
+    this.conn.send(JSON.stringify(request));
+  }
+
+  // =========================================================================
+  // Inline editing
+  // =========================================================================
+
+  private editingMessageId: string | null = null;
+
+  /**
+   * Start inline editing of a message
+   */
+  startEdit(messageId: string) {
+    // Cancel any existing edit
+    if (this.editingMessageId) {
+      this.cancelEdit();
+    }
+
+    // Find the message in state
+    const roomState = this.state.getCurrentRoomState();
+    if (!roomState) return;
+    const msg = roomState.messages.find((m) => m.id === messageId);
+    if (!msg || msg.user_id !== this.state.user.id) return;
+    if (msg.deleted_at) return;
+
+    this.editingMessageId = messageId;
+
+    const el = document.querySelector(
+      `.chat-message[data-message-id="${messageId}"]`,
+    );
+    if (!el) return;
+
+    const bodyEl = el.querySelector(".message-body");
+    if (!bodyEl) return;
+
+    // Replace body with textarea
+    const editContainer = $("div", { class: "edit-container" });
+    const textarea = $("textarea", {
+      class: "edit-textarea",
+    }) as HTMLTextAreaElement;
+    textarea.value = msg.body;
+
+    const buttonRow = $("div", { class: "edit-buttons" });
+    const saveBtn = $("button", {
+      class: "btn btn-small btn-primary",
+      text: "Save",
+    });
+    const cancelBtn = $("button", {
+      class: "btn btn-small btn-secondary",
+      text: "Cancel",
+    });
+    const hint = $("span", {
+      class: "edit-hint",
+      text: "Enter to save, Escape to cancel",
+    });
+
+    saveBtn.addEventListener("click", () => {
+      const newBody = textarea.value.trim();
+      if (newBody && newBody !== msg.body) {
+        this.requestEditMessage(messageId, newBody);
+      }
+      this.cancelEdit();
+    });
+
+    cancelBtn.addEventListener("click", () => {
+      this.cancelEdit();
+    });
+
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const newBody = textarea.value.trim();
+        if (newBody && newBody !== msg.body) {
+          this.requestEditMessage(messageId, newBody);
+        }
+        this.cancelEdit();
+      } else if (e.key === "Escape") {
+        this.cancelEdit();
+      }
+    });
+
+    buttonRow.appendChild(hint);
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(saveBtn);
+    editContainer.appendChild(textarea);
+    editContainer.appendChild(buttonRow);
+
+    // Hide original body, show edit
+    (bodyEl as HTMLElement).style.display = "none";
+    bodyEl.parentElement?.insertBefore(editContainer, bodyEl.nextSibling);
+
+    // Auto-resize and focus
+    textarea.style.height = `${Math.max(textarea.scrollHeight, 40)}px`;
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }
+
+  /**
+   * Cancel inline editing
+   */
+  cancelEdit() {
+    if (!this.editingMessageId) return;
+
+    const el = document.querySelector(
+      `.chat-message[data-message-id="${this.editingMessageId}"]`,
+    );
+    if (el) {
+      const editContainer = el.querySelector(".edit-container");
+      if (editContainer) {
+        editContainer.remove();
+      }
+      const bodyEl = el.querySelector(".message-body") as HTMLElement;
+      if (bodyEl) {
+        bodyEl.style.display = "";
+      }
+    }
+
+    this.editingMessageId = null;
+  }
+
+  // =========================================================================
+  // Hover toolbar & reaction quick-pick
+  // =========================================================================
+
+  private hoverToolbar: HTMLElement | null = null;
+
+  /**
+   * Create the shared hover toolbar element (lazily)
+   */
+  getHoverToolbar(): HTMLElement {
+    if (this.hoverToolbar) return this.hoverToolbar;
+
+    const toolbar = $("div", { class: "message-hover-toolbar" });
+    toolbar.addEventListener("mouseenter", () => {
+      toolbar.classList.add("toolbar-active");
+    });
+    toolbar.addEventListener("mouseleave", () => {
+      toolbar.classList.remove("toolbar-active");
+      toolbar.style.display = "none";
+    });
+
+    this.hoverToolbar = toolbar;
+    document.body.appendChild(toolbar);
+    return toolbar;
+  }
+
+  /**
+   * Show the hover toolbar for a message element
+   */
+  showHoverToolbar(msgEl: HTMLElement) {
+    const messageId = msgEl.getAttribute("data-message-id");
+    if (!messageId) return;
+
+    // Don't show toolbar on deleted messages or pending messages
+    if (
+      msgEl.classList.contains("deleted") ||
+      msgEl.classList.contains("pending")
+    )
+      return;
+
+    const toolbar = this.getHoverToolbar();
+    toolbar.innerHTML = "";
+
+    // Reaction button (always shown)
+    const reactBtn = $("button", {
+      class: "toolbar-btn",
+      title: "Add reaction",
+      text: "😀",
+    });
+    reactBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.showReactionPicker(messageId, toolbar);
+    });
+    toolbar.appendChild(reactBtn);
+
+    // Edit and delete buttons (only for own messages)
+    const roomState = this.state.getCurrentRoomState();
+    const msg = roomState?.messages.find((m) => m.id === messageId);
+    if (msg && msg.user_id === this.state.user.id && !msg.deleted_at) {
+      const editBtn = $("button", {
+        class: "toolbar-btn",
+        title: "Edit message",
+        text: "✏️",
+      });
+      editBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toolbar.style.display = "none";
+        this.startEdit(messageId);
+      });
+      toolbar.appendChild(editBtn);
+
+      const deleteBtn = $("button", {
+        class: "toolbar-btn",
+        title: "Delete message",
+        text: "🗑️",
+      });
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.showDeleteConfirmation(messageId, deleteBtn);
+      });
+      toolbar.appendChild(deleteBtn);
+    }
+
+    // Position the toolbar at the top-right of the message
+    const rect = msgEl.getBoundingClientRect();
+    toolbar.style.display = "flex";
+    toolbar.style.top = `${rect.top - 8 + window.scrollY}px`;
+    toolbar.style.left = `${rect.right - toolbar.offsetWidth - 8}px`;
+  }
+
+  /**
+   * Show the emoji quick-pick bar
+   */
+  showReactionPicker(messageId: string, anchor: HTMLElement) {
+    // Remove any existing picker
+    document.querySelector(".reaction-picker")?.remove();
+
+    const quickEmojis = ["👍", "❤️", "😂", "😮", "🎉", "🔥", "👀", "🙏"];
+
+    const picker = $("div", { class: "reaction-picker" });
+    for (const emoji of quickEmojis) {
+      const btn = $("button", { class: "reaction-picker-btn", text: emoji });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.requestAddReaction(messageId, emoji);
+        picker.remove();
+        anchor.style.display = "none";
+      });
+      picker.appendChild(btn);
+    }
+
+    // Position below the toolbar
+    const rect = anchor.getBoundingClientRect();
+    picker.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    picker.style.left = `${rect.left + window.scrollX}px`;
+
+    document.body.appendChild(picker);
+
+    // Close when clicking elsewhere
+    const closeHandler = (e: MouseEvent) => {
+      if (!picker.contains(e.target as Node)) {
+        picker.remove();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  /**
+   * Show delete confirmation popover
+   */
+  showDeleteConfirmation(messageId: string, anchor: HTMLElement) {
+    // Remove any existing confirmation
+    document.querySelector(".delete-confirmation")?.remove();
+
+    const confirm = $("div", { class: "delete-confirmation" });
+    confirm.appendChild($("p", { text: "Delete this message?" }));
+
+    const buttonRow = $("div", { class: "confirm-buttons" });
+    const deleteBtn = $("button", {
+      class: "btn btn-small btn-danger",
+      text: "Delete",
+    });
+    const cancelBtn = $("button", {
+      class: "btn btn-small btn-secondary",
+      text: "Cancel",
+    });
+
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.requestDeleteMessage(messageId);
+      confirm.remove();
+      const toolbar = this.getHoverToolbar();
+      toolbar.style.display = "none";
+    });
+
+    cancelBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      confirm.remove();
+    });
+
+    buttonRow.appendChild(cancelBtn);
+    buttonRow.appendChild(deleteBtn);
+    confirm.appendChild(buttonRow);
+
+    // Position near the anchor
+    const rect = anchor.getBoundingClientRect();
+    confirm.style.top = `${rect.bottom + 4 + window.scrollY}px`;
+    confirm.style.left = `${rect.left + window.scrollX - 100}px`;
+
+    document.body.appendChild(confirm);
+
+    // Close when clicking elsewhere
+    const closeHandler = (e: MouseEvent) => {
+      if (!confirm.contains(e.target as Node)) {
+        confirm.remove();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  // =========================================================================
+  // Reaction display
+  // =========================================================================
+
+  /**
+   * Render reaction pills for a specific message
+   */
+  renderReactionsForMessage(messageId: string) {
+    const el = document.querySelector(
+      `.chat-message[data-message-id="${messageId}"]`,
+    );
+    if (!el) return;
+
+    const roomState = this.state.getCurrentRoomState();
+    const msg = roomState?.messages.find((m) => m.id === messageId);
+    if (!msg) return;
+
+    // Remove existing reaction bar
+    el.querySelector(".reaction-bar")?.remove();
+
+    if (!msg.reactions || msg.reactions.length === 0) return;
+
+    const bar = this.createReactionBar(messageId, msg.reactions);
+    el.appendChild(bar);
+  }
+
+  /**
+   * Create a reaction bar element
+   */
+  createReactionBar(messageId: string, reactions: Reaction[]): HTMLElement {
+    const bar = $("div", { class: "reaction-bar" });
+
+    for (const reaction of reactions) {
+      const isOwn = reaction.user_ids.includes(this.state.user.id);
+      const pill = $("button", {
+        class: `reaction-pill ${isOwn ? "reaction-own" : ""}`,
+        title: reaction.user_ids
+          .map((id) => {
+            // Try to find username from state
+            const roomState = this.state.getCurrentRoomState();
+            const msg = roomState?.messages.find((m) => m.user_id === id);
+            return msg?.username || id;
+          })
+          .join(", "),
+      });
+      pill.appendChild(
+        $("span", { class: "reaction-emoji", text: reaction.emoji }),
+      );
+      pill.appendChild(
+        $("span", { class: "reaction-count", text: ` ${reaction.count}` }),
+      );
+
+      // Toggle reaction on click
+      pill.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (isOwn) {
+          this.requestRemoveReaction(messageId, reaction.emoji);
+        } else {
+          this.requestAddReaction(messageId, reaction.emoji);
+        }
+      });
+
+      bar.appendChild(pill);
+    }
+
+    // Add "+" button for adding new reactions
+    const addBtn = $("button", {
+      class: "reaction-pill reaction-add",
+      title: "Add reaction",
+      text: "+",
+    });
+    addBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.showReactionPicker(messageId, addBtn);
+    });
+    bar.appendChild(addBtn);
+
+    return bar;
   }
 
   /**
@@ -1843,6 +2476,27 @@ class Client {
       this.submitTextbox();
     }
   }
+
+  onKeydown(e: KeyboardEvent) {
+    // Up arrow in empty input → edit last own message
+    if (e.key === "ArrowUp") {
+      const messageBox = document.querySelector("#message") as HTMLInputElement;
+      if (messageBox && messageBox.value === "") {
+        e.preventDefault();
+        const roomState = this.state.getCurrentRoomState();
+        if (!roomState) return;
+
+        // Find last own message that isn't deleted
+        for (let i = roomState.messages.length - 1; i >= 0; i--) {
+          const msg = roomState.messages[i];
+          if (msg.user_id === this.state.user.id && !msg.deleted_at) {
+            this.startEdit(msg.id);
+            break;
+          }
+        }
+      }
+    }
+  }
 }
 
 function main() {
@@ -1864,6 +2518,9 @@ function main() {
   document
     .getElementById("message")
     ?.addEventListener("keypress", client.onKeypress.bind(client));
+  document
+    .getElementById("message")
+    ?.addEventListener("keydown", client.onKeydown.bind(client));
   document
     .getElementById("sendmessage")
     ?.addEventListener("click", client.onSubmit.bind(client));

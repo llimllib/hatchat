@@ -44,8 +44,19 @@ CREATE TABLE IF NOT EXISTS messages(
   user_id TEXT REFERENCES users(id) NOT NULL,
   body TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  modified_at TEXT NOT NULL
+  modified_at TEXT NOT NULL,
+  deleted_at TEXT -- NULL = not deleted, RFC3339 timestamp = soft-deleted
 ) STRICT;
 
 -- Index for fetching messages by room, ordered by creation time (newest first for pagination)
 CREATE INDEX IF NOT EXISTS messages_room_created ON messages(room_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS reactions(
+  message_id TEXT REFERENCES messages(id) NOT NULL,
+  user_id TEXT REFERENCES users(id) NOT NULL,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (message_id, user_id, emoji)
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS reactions_message ON reactions(message_id);

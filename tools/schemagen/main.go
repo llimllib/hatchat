@@ -52,6 +52,14 @@ func main() {
 		protocol.GetProfileResponse{},
 		protocol.UpdateProfileResponse{},
 		protocol.ErrorResponse{},
+		protocol.Reaction{},
+		protocol.EditMessageRequest{},
+		protocol.DeleteMessageRequest{},
+		protocol.AddReactionRequest{},
+		protocol.RemoveReactionRequest{},
+		protocol.MessageEdited{},
+		protocol.MessageDeleted{},
+		protocol.ReactionUpdated{},
 		protocol.Envelope{},
 	}
 

@@ -14,13 +14,14 @@ type RoomMessagesFirstPage struct {
 	Body       string `json:"body"`        // body
 	CreatedAt  string `json:"created_at"`  // created_at
 	ModifiedAt string `json:"modified_at"` // modified_at
+	DeletedAt  string `json:"deleted_at"`  // deleted_at
 	Username   string `json:"username"`    // username
 }
 
 // RoomMessagesFirstPagesByRoomIDLimit runs a custom query, returning results as [RoomMessagesFirstPage].
 func RoomMessagesFirstPagesByRoomIDLimit(ctx context.Context, db DB, roomID string, limit int) ([]*RoomMessagesFirstPage, error) {
 	// query
-	const sqlstr = `SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, u.username ` +
+	const sqlstr = `SELECT m.id, m.room_id, m.user_id, m.body, m.created_at, m.modified_at, COALESCE(m.deleted_at, '') as deleted_at, u.username ` +
 		`FROM messages m ` +
 		`JOIN users u ON m.user_id = u.id ` +
 		`WHERE m.room_id = $1 ` +
@@ -38,7 +39,7 @@ func RoomMessagesFirstPagesByRoomIDLimit(ctx context.Context, db DB, roomID stri
 	for rows.Next() {
 		var rmfp RoomMessagesFirstPage
 		// scan
-		if err := rows.Scan(&rmfp.ID, &rmfp.RoomID, &rmfp.UserID, &rmfp.Body, &rmfp.CreatedAt, &rmfp.ModifiedAt, &rmfp.Username); err != nil {
+		if err := rows.Scan(&rmfp.ID, &rmfp.RoomID, &rmfp.UserID, &rmfp.Body, &rmfp.CreatedAt, &rmfp.ModifiedAt, &rmfp.DeletedAt, &rmfp.Username); err != nil {
 			return nil, logerror(err)
 		}
 		res = append(res, &rmfp)
