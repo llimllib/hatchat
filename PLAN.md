@@ -124,11 +124,11 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 - [x] Update `message` handler to set `last_message_at`
 - [x] Prevent leaving 1:1 DMs (only group DMs can be left)
 
-**Frontend (todo):**
-- [ ] DM section in sidebar (separate from channels)
-- [ ] DM room naming (derived from member names on client)
-- [ ] "New Message" button with user picker/autocomplete
-- [ ] Handle `create_dm` and `list_users` message types
+**Frontend (complete):**
+- [x] DM section in sidebar (separate from channels)
+- [x] DM room naming (derived from member names on client)
+- [x] "New Message" button with user picker/autocomplete
+- [x] Handle `create_dm` and `list_users` message types
 
 ### 2.2 User Presence (deferred)
 
@@ -145,11 +145,11 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 - [x] `update_profile` WebSocket handler
 - [x] Include display_name in User and RoomMember types
 
-**Frontend (todo):**
-- [ ] Profile viewing panel (click username or member in room info)
-- [ ] "Message" button to start DM from profile
-- [ ] Profile editor modal (click own name in sidebar)
-- [ ] User dropdown menu in sidebar header
+**Frontend (complete):**
+- [x] Profile viewing panel (click username or member in room info)
+- [x] "Message" button to start DM from profile
+- [x] Profile editor modal (click own name in sidebar)
+- [x] User dropdown menu in sidebar header
 
 ### 2.4 Typing Indicators (deferred)
 

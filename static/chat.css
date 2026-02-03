@@ -650,3 +650,277 @@ body {
 .btn-danger:hover {
   background-color: #8a2828;
 }
+
+/* Sidebar user section and dropdown */
+.sidebar-user {
+  position: relative;
+  margin-top: 12px;
+}
+
+.sidebar-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: rgba(250, 249, 247, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 2px;
+  width: 100%;
+  text-align: left;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.sidebar-user-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-off-white);
+}
+
+.dropdown-icon {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 160px;
+  background: var(--color-off-white);
+  border: 1px solid rgba(141, 124, 85, 0.3);
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-coco-black);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(141, 124, 85, 0.1);
+}
+
+.dropdown-item:first-child {
+  border-radius: 2px 2px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 2px 2px;
+}
+
+/* DM actions in sidebar */
+.dm-actions {
+  margin-top: 8px;
+}
+
+/* New message modal - user picker */
+.new-message-content {
+  padding: 20px;
+}
+
+.to-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.to-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-stone-cold);
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
+.user-tags-container {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--color-white);
+  border: 1px solid rgba(91, 89, 88, 0.5);
+  border-radius: 2px;
+  min-height: 40px;
+}
+
+.user-tags-container:focus-within {
+  border-color: var(--color-peat-brown);
+}
+
+.user-search-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  color: var(--color-coco-black);
+}
+
+.user-search-input::placeholder {
+  color: var(--color-shadow-colossus);
+}
+
+.user-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(84, 49, 28, 0.1);
+  color: var(--color-peat-brown);
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+.user-tag-remove {
+  background: transparent;
+  border: none;
+  color: var(--color-peat-brown);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.user-tag-remove:hover {
+  opacity: 1;
+}
+
+.user-search-results {
+  background: var(--color-white);
+  border: 1px solid rgba(141, 124, 85, 0.3);
+  border-radius: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0 20px;
+}
+
+.user-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.user-result-item:hover {
+  background-color: rgba(141, 124, 85, 0.1);
+}
+
+.user-result-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.user-result-name {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.user-result-display-name {
+  font-size: 14px;
+  color: var(--color-coco-black);
+  font-weight: 600;
+}
+
+.user-result-username {
+  font-size: 13px;
+  color: var(--color-stone-cold);
+}
+
+/* Profile modal */
+.profile-content {
+  padding: 20px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.profile-name-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-display-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-coco-black);
+}
+
+.profile-username {
+  font-size: 14px;
+  color: var(--color-stone-cold);
+}
+
+.profile-status-section {
+  padding-top: 16px;
+  border-top: 1px solid rgba(141, 124, 85, 0.3);
+}
+
+.profile-status-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-stone-cold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.profile-status {
+  font-size: 15px;
+  color: var(--color-coco-black);
+}
+
+/* Clickable member items */
+.member-item.clickable {
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin: 0 -8px;
+  padding: 8px;
+  border-radius: 2px;
+}
+
+.member-item.clickable:hover {
+  background-color: rgba(141, 124, 85, 0.1);
+}
+
+/* Message username hover effect - already in CSS, just ensuring cursor */
+.message-username {
+  cursor: pointer;
+}

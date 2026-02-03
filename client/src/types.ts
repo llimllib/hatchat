@@ -1,10 +1,14 @@
 // Re-export protocol types and schemas from generated file
 export type {
   ClientEnvelope,
+  CreateDMRequest,
+  CreateDMResponse,
   CreateRoomRequest,
   CreateRoomResponse,
   Envelope,
   ErrorResponse,
+  GetProfileRequest,
+  GetProfileResponse,
   HistoryRequest,
   HistoryResponse,
   InitRequest,
@@ -15,6 +19,8 @@ export type {
   LeaveRoomResponse,
   ListRoomsRequest,
   ListRoomsResponse,
+  ListUsersRequest,
+  ListUsersResponse,
   Message,
   MessageType,
   Room,
@@ -23,18 +29,23 @@ export type {
   RoomMember,
   SendMessageRequest,
   ServerEnvelope,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
   User,
 } from "./protocol.generated";
 
 export {
+  CreateDMResponseSchema,
   CreateRoomResponseSchema,
   ErrorResponseSchema,
+  GetProfileResponseSchema,
   HistoryResponseSchema,
   InitResponseSchema,
   isMessageType,
   JoinRoomResponseSchema,
   LeaveRoomResponseSchema,
   ListRoomsResponseSchema,
+  ListUsersResponseSchema,
   MessageSchema,
   parseServerEnvelope,
   RoomInfoResponseSchema,
@@ -43,6 +54,7 @@ export {
   // Zod schemas for runtime validation
   ServerEnvelopeSchema,
   safeParseServerEnvelope,
+  UpdateProfileResponseSchema,
   UserSchema,
 } from "./protocol.generated";
 
