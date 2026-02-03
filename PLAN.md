@@ -416,6 +416,58 @@ _Goal: Make development faster and debugging easier_
 
 - [ ] Add `just clean` command to remove build artifacts (hatchat binary, node_modules, etc.)
 
+### DX.5 Performance Testing
+
+- [ ] Establish performance baseline
+  - [ ] Benchmark WebSocket message throughput (messages/sec)
+  - [ ] Benchmark HTTP endpoint latency (p50, p95, p99)
+  - [ ] Benchmark database query performance
+  - [ ] Document baseline numbers in a `PERFORMANCE.md` file
+- [ ] Regression testing on PRs
+  - [ ] Add benchmark tests using Go's `testing.B`
+  - [ ] CI step to run benchmarks and compare against baseline
+  - [ ] Flag PRs that regress performance beyond threshold
+- [ ] Backend flame graphs
+  - [ ] Add pprof endpoints (`/debug/pprof/*`) behind admin auth
+  - [ ] Document how to capture and analyze CPU/memory profiles
+  - [ ] Add `just profile-cpu` and `just profile-mem` commands
+- [ ] Slow query logging
+  - [ ] Add query timing instrumentation to database layer
+  - [ ] Log queries exceeding configurable threshold (e.g., 100ms)
+  - [ ] Include query plan in slow query logs
+- [ ] Load testing
+  - [ ] Create load test scripts (k6, vegeta, or custom Go tool)
+  - [ ] Simulate concurrent users sending messages
+  - [ ] Test WebSocket connection limits
+  - [ ] Document capacity limits and bottlenecks
+
+### DX.6 Security Assessment & Analysis
+
+- [ ] Conduct critical security review
+  - [ ] Authentication & session management audit
+  - [ ] Authorization checks (room membership, message access)
+  - [ ] Input validation and sanitization
+  - [ ] WebSocket message validation
+  - [ ] SQL injection prevention (verify parameterized queries throughout)
+  - [ ] XSS prevention in message rendering
+  - [ ] CSRF protection for state-changing endpoints
+- [ ] Document security architecture
+  - [ ] Create `SECURITY.md` with threat model
+  - [ ] Document authentication flow and session lifecycle
+  - [ ] Document authorization model (who can do what)
+  - [ ] Document data flow and trust boundaries
+  - [ ] List security-sensitive code paths
+- [ ] Address findings
+  - [ ] Prioritize issues by severity (critical, high, medium, low)
+  - [ ] Fix critical and high issues immediately
+  - [ ] Create issues for medium/low findings
+  - [ ] Add security-focused tests for fixed vulnerabilities
+- [ ] Ongoing security practices
+  - [ ] Add security linting (gosec, staticcheck security checks)
+  - [ ] Dependency vulnerability scanning (dependabot, govulncheck)
+  - [ ] Document security release process
+  - [ ] Consider bug bounty or security contact info
+
 ---
 
 ## Phase 8: Advanced Features (Future)
