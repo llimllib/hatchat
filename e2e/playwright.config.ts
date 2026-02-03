@@ -15,6 +15,8 @@ export default defineConfig({
   workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? "github" : "list",
+  /* Global timeout for each test */
+  timeout: 10000,
   /* Shared settings for all the projects below. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -22,6 +24,9 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. */
     trace: "on-first-retry",
+
+    /* Action timeout */
+    actionTimeout: 5000,
   },
 
   /* Configure projects for major browsers */
