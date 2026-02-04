@@ -1,6 +1,6 @@
 /**
  * Markdown rendering pipeline for chat messages.
- * Message body → marked.parse() → DOMPurify.sanitize() → safe HTML
+ * Message body → mention transform → marked.parse() → DOMPurify.sanitize() → safe HTML
  */
 
 import DOMPurify from "dompurify";
@@ -97,14 +97,72 @@ const purifyConfig = {
     "tr",
     "ul",
   ],
-  ALLOWED_ATTR: ["class", "href", "rel", "target", "title"],
+  ALLOWED_ATTR: [
+    "class",
+    "href",
+    "rel",
+    "target",
+    "title",
+    "data-mention-type",
+    "data-mention-name",
+  ],
 };
+
+/**
+ * Transform @username and #channel-name mentions into styled spans.
+ * Must be called BEFORE markdown parsing to avoid interfering with code blocks.
+ *
+ * We use placeholder tokens that survive markdown parsing, then replace them after.
+ */
+
+// Regex for @username mentions: @ followed by word chars (letters, digits, underscores, hyphens)
+// Must be at start of string or preceded by whitespace/punctuation (not inside a word)
+const MENTION_RE = /(?:^|(?<=[\s(]))@([a-zA-Z0-9_-]+)/g;
+
+// Regex for #channel references: # followed by word chars and hyphens
+// Must be at start of string or preceded by whitespace/punctuation
+const CHANNEL_RE = /(?:^|(?<=[\s(]))#([a-zA-Z0-9_-]+)/g;
+
+/**
+ * Convert @username and #channel in text to HTML spans with data attributes.
+ * These survive the markdown + DOMPurify pipeline and are used for click handlers.
+ */
+function transformMentions(text: string): string {
+  // Don't transform inside code blocks - split on backtick-fenced and inline code
+  const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+  for (let i = 0; i < parts.length; i++) {
+    // Odd indices are code blocks/inline code - skip them
+    if (i % 2 === 1) continue;
+
+    parts[i] = parts[i]
+      .replace(
+        MENTION_RE,
+        '<span class="mention mention-user" data-mention-type="user" data-mention-name="$1">@$1</span>',
+      )
+      .replace(
+        CHANNEL_RE,
+        '<span class="mention mention-channel" data-mention-type="channel" data-mention-name="$1">#$1</span>',
+      );
+  }
+  return parts.join("");
+}
+
+/**
+ * Check if a message body contains an @mention of the given username.
+ */
+export function containsMention(body: string, username: string): boolean {
+  // Check for @username or @room
+  const re = new RegExp(`(?:^|[\\s(])@(${username}|room)(?=[\\s,.)!?]|$)`, "i");
+  return re.test(body);
+}
 
 /**
  * Render a Markdown string to sanitized HTML.
  * Returns safe HTML that can be set as innerHTML.
  */
 export function renderMarkdown(text: string): string {
-  const html = marked.parse(text) as string;
+  // Transform mentions before markdown parsing
+  const withMentions = transformMentions(text);
+  const html = marked.parse(withMentions) as string;
   return DOMPurify.sanitize(html, purifyConfig);
 }

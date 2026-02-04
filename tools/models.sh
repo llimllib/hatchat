@@ -42,7 +42,7 @@ SQL
 
 # UserDMs - get DM rooms for a user, ordered by most recent activity
 go tool dbtpl query sqlite://dbtpl.db -M -B -2 -o server/models -T UserDMs <<SQL
-SELECT r.id, r.name, r.room_type, r.is_private, r.last_message_at
+SELECT r.id, r.name, r.room_type, r.is_private, COALESCE(r.last_message_at, '') as last_message_at
 FROM rooms r
 JOIN rooms_members rm ON r.id = rm.room_id
 WHERE rm.user_id = %%userID string%% AND r.room_type = 'dm'
