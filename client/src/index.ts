@@ -1,5 +1,6 @@
+import { Autocomplete } from "./autocomplete";
 import { $ } from "./dom";
-import { renderMarkdown } from "./markdown";
+import { containsMention, renderMarkdown } from "./markdown";
 import { AppState } from "./state";
 import {
   type CreateDMResponse,
@@ -41,6 +42,9 @@ class Client {
 
   // Track loading state
   isLoadingHistory: boolean = false;
+
+  // Autocomplete for @mentions and #channels
+  autocomplete: Autocomplete | null = null;
 
   constructor(conn: WebSocket) {
     this.conn = conn;
@@ -148,11 +152,112 @@ class Client {
     // Render the sidebar with rooms
     this.renderSidebar();
 
+    // Initialize autocomplete for message input
+    this.initAutocomplete();
+
     // Request history for the current room
     if (this.state.currentRoom) {
       this.requestHistory(this.state.currentRoom);
       this.updateChatHeader();
     }
+  }
+
+  /**
+   * Initialize the autocomplete for @mentions and #channel references
+   */
+  initAutocomplete() {
+    const messageBox = document.querySelector(
+      "#message",
+    ) as HTMLTextAreaElement;
+    if (!messageBox) return;
+
+    this.autocomplete = new Autocomplete({
+      input: messageBox,
+      onQueryUsers: (query: string) => {
+        this.requestListUsers(query);
+      },
+      onSelectChannel: (channelName: string) => {
+        console.debug("selected channel mention:", channelName);
+      },
+    });
+
+    // Set available channels
+    this.updateAutocompleteChannels();
+
+    // Set up click delegation for mention spans in the message area
+    const messageWindow = document.querySelector(".chat-messages");
+    if (messageWindow) {
+      messageWindow.addEventListener("click", (e) => {
+        const target = e.target as HTMLElement;
+        if (!target.classList.contains("mention")) return;
+
+        const mentionType = target.getAttribute("data-mention-type");
+        const mentionName = target.getAttribute("data-mention-name");
+        if (!mentionType || !mentionName) return;
+
+        if (mentionType === "user") {
+          // Find user by username and open their profile
+          this.handleMentionUserClick(mentionName);
+        } else if (mentionType === "channel") {
+          // Find room by name and switch to it
+          this.handleMentionChannelClick(mentionName);
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle click on a @username mention
+   */
+  handleMentionUserClick(username: string) {
+    // We need the user ID to request their profile, but we only have the username.
+    // Search for the user to get their ID
+    // First check if we know this user from current room members
+    const roomState = this.state.getCurrentRoomState();
+    if (roomState) {
+      for (const msg of roomState.messages) {
+        if (msg.username === username) {
+          this.requestProfile(msg.user_id);
+          return;
+        }
+      }
+    }
+
+    // If we couldn't find them locally, request user list and open profile
+    // For now, request via list_users and handle the result
+    // We'll use a one-shot approach: request users with the username query
+    this.pendingMentionProfileLookup = username;
+    this.requestListUsers(username);
+  }
+
+  // Track pending @mention profile lookups
+  private pendingMentionProfileLookup: string | null = null;
+
+  /**
+   * Handle click on a #channel mention
+   */
+  handleMentionChannelClick(channelName: string) {
+    // Find the room by name
+    const room = this.state.rooms.find(
+      (r) => r.name.toLowerCase() === channelName.toLowerCase(),
+    );
+    if (room) {
+      this.switchRoom(room.id);
+    } else {
+      // Room not found in our list - might be one we're not a member of
+      // Try to join it
+      console.debug("channel not found locally, searching...", channelName);
+      // Request room list to find it
+      this.requestListRooms(channelName);
+    }
+  }
+
+  /**
+   * Update the autocomplete with current channel list
+   */
+  updateAutocompleteChannels() {
+    if (!this.autocomplete) return;
+    this.autocomplete.setChannels(this.state.rooms);
   }
 
   wsOpen(evt: Event) {
@@ -301,8 +406,12 @@ class Client {
       return wrapper;
     }
 
+    // Check if this message mentions the current user
+    const isMentioned = containsMention(msg.body, this.state.user.username);
+    const mentionClass = isMentioned ? " mentioned" : "";
+
     const wrapper = $("div", {
-      class: `chat-message ${isGrouped ? "grouped" : ""} ${isOwn ? "own-message" : ""}`,
+      class: `chat-message ${isGrouped ? "grouped" : ""} ${isOwn ? "own-message" : ""}${mentionClass}`,
       "data-message-id": msg.id,
     });
 
@@ -776,6 +885,7 @@ class Client {
     if (response.joined) {
       this.state.addRoom(response.room);
       this.renderSidebar();
+      this.updateAutocompleteChannels();
       // Update the header now that the room is in state
       this.updateChatHeader();
     }
@@ -792,6 +902,7 @@ class Client {
 
     // Re-render sidebar to show new room
     this.renderSidebar();
+    this.updateAutocompleteChannels();
 
     // Switch to the new room
     this.switchRoom(response.room.id);
@@ -830,6 +941,7 @@ class Client {
 
     // Re-render sidebar
     this.renderSidebar();
+    this.updateAutocompleteChannels();
   }
 
   /**
@@ -866,6 +978,21 @@ class Client {
     console.debug("list_users response", response);
     // Update the user list in the "New message" modal if it's open
     this.updateUserPickerResults(response.users);
+    // Also feed results to autocomplete if it's active
+    if (this.autocomplete?.isActive) {
+      this.autocomplete.updateUserSuggestions(response.users);
+    }
+    // Handle pending @mention profile lookup
+    if (this.pendingMentionProfileLookup) {
+      const username = this.pendingMentionProfileLookup;
+      this.pendingMentionProfileLookup = null;
+      const user = response.users.find(
+        (u) => u.username.toLowerCase() === username.toLowerCase(),
+      );
+      if (user) {
+        this.requestProfile(user.id);
+      }
+    }
   }
 
   /**
@@ -2151,11 +2278,9 @@ class Client {
 
     modal.appendChild(content);
 
-    // Button row
-    const buttonRow = $("div", { class: "button-row" });
-
-    // Only show "Message" button if viewing someone else's profile
+    // Only show button row if viewing someone else's profile (for Message button)
     if (user.id !== this.state.user.id) {
+      const buttonRow = $("div", { class: "button-row" });
       const messageBtn = $("button", {
         type: "button",
         class: "btn btn-primary",
@@ -2166,17 +2291,11 @@ class Client {
         this.requestCreateDM([user.id]);
       });
       buttonRow.appendChild(messageBtn);
+      modal.appendChild(buttonRow);
     }
 
-    const closeBtn = $("button", {
-      type: "button",
-      class: "btn btn-secondary",
-      text: "Close",
-    });
-    closeBtn.addEventListener("click", () => this.closeModal());
-    buttonRow.appendChild(closeBtn);
-
-    modal.appendChild(buttonRow);
+    // Mark as a profile modal for styling (no scrollbars, no close button)
+    modal.classList.add("modal-profile");
   }
 
   /**
@@ -2457,6 +2576,14 @@ class Client {
     ) as HTMLTextAreaElement;
     if (!messageBox) return;
 
+    // Let autocomplete handle keys when it's active
+    if (this.autocomplete?.isActive) {
+      if (["ArrowDown", "ArrowUp", "Enter", "Tab", "Escape"].includes(e.key)) {
+        // Autocomplete's own keydown handler will handle these
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       // Enter sends, Shift+Enter inserts newline
       e.preventDefault();
@@ -2486,7 +2613,10 @@ class Client {
     ) as HTMLTextAreaElement;
     if (!messageBox) return;
     messageBox.style.height = "auto";
-    messageBox.style.height = `${Math.min(messageBox.scrollHeight, 200)}px`;
+    // Only set explicit height if content exceeds the default single-line height
+    if (messageBox.scrollHeight > messageBox.clientHeight) {
+      messageBox.style.height = `${Math.min(messageBox.scrollHeight, 200)}px`;
+    }
   }
 }
 

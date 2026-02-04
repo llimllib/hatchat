@@ -190,7 +190,7 @@ _Goal: Messages beyond plain text_
 - [x] Show who reacted on hover
 - [x] Toggle own reaction by clicking existing
 
-### 3.4 File Uploads & Attachments
+### 3.4 File Uploads & Attachments (deferred to Phase 8)
 
 - [ ] File upload endpoint (size limits, type restrictions)
 - [ ] Upload button in message input
@@ -208,6 +208,14 @@ _Goal: Better conversation organization_
 
 ### 4.1 Threaded Replies
 
+> **Design note:** Before implementing threads, we need to carefully think through the threading model for our application. While we generally want to clone Slack's behavior, we may want to consider a different threading model. Slack's threading has known UX issues (threads are hidden from the main channel by default, the "also send to channel" toggle is confusing, threads within threads aren't supported, etc.). Consider alternatives like:
+> - Linear threading (Discord-style, with reply-to indicators inline)
+> - Branching threads (with inline expansion)
+> - A hybrid approach
+>
+> Write up a design doc in `docs/THREADS_DESIGN.md` before starting implementation.
+
+- [ ] Design and document threading model (see note above)
 - [ ] Reply to specific message (creates thread)
 - [ ] Thread panel slides in from right
 - [ ] Shows parent message + replies
@@ -216,12 +224,12 @@ _Goal: Better conversation organization_
 
 ### 4.2 Mentions
 
-- [ ] @username autocomplete (trigger on `@`)
-- [ ] @room (notify all room members)
-- [ ] #channel autocomplete
-- [ ] Style mentions differently in messages
-- [ ] Highlight messages where user is mentioned
-- [ ] Make mentions clickable
+- [x] @username autocomplete (trigger on `@`)
+- [x] @room (notify all room members) — `@room` is recognized by `containsMention` and highlights messages
+- [x] #channel autocomplete
+- [x] Style mentions differently in messages
+- [x] Highlight messages where user is mentioned
+- [x] Make mentions clickable (@username opens profile, #channel switches room)
 
 ### 4.3 Pinned Messages
 

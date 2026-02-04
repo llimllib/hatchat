@@ -856,7 +856,22 @@ body {
   color: var(--color-stone-cold);
 }
 
-/* Profile modal */
+/* Profile modal - compact, no scrollbars, no close button */
+.modal-profile {
+  min-width: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.modal-profile .modal-header {
+  display: none;
+}
+
+.modal-profile .button-row {
+  margin: 0;
+  border-radius: 0 0 2px 2px;
+}
+
 .profile-content {
   padding: 20px;
 }
@@ -1329,4 +1344,101 @@ body {
 
 .hljs-strong {
   font-weight: bold;
+}
+
+/* =========================================================================
+   Mentions & Channel Links - Phase 4.2
+   ========================================================================= */
+
+/* --- Mention spans in rendered messages --- */
+
+.mention {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mention-user {
+  background-color: rgba(84, 49, 28, 0.12);
+  color: var(--color-peat-brown);
+}
+
+.mention-user:hover {
+  background-color: rgba(84, 49, 28, 0.25);
+  text-decoration: underline;
+}
+
+.mention-channel {
+  background-color: rgba(84, 49, 28, 0.12);
+  color: var(--color-peat-brown);
+}
+
+.mention-channel:hover {
+  background-color: rgba(84, 49, 28, 0.25);
+  text-decoration: underline;
+}
+
+/* Highlight message where current user is mentioned */
+.chat-message.mentioned {
+  background-color: rgba(84, 49, 28, 0.06);
+  border-left: 3px solid var(--color-peat-brown);
+  padding-left: 17px;
+}
+
+.chat-message.mentioned:hover {
+  background-color: rgba(84, 49, 28, 0.1);
+}
+
+/* --- Autocomplete popup --- */
+
+.autocomplete-popup {
+  position: fixed;
+  z-index: 300;
+  background: var(--color-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+  font-size: 14px;
+}
+
+.autocomplete-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.autocomplete-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background-color: rgba(84, 49, 28, 0.1);
+}
+
+.autocomplete-label {
+  font-weight: 600;
+  color: var(--color-coco-black);
+}
+
+.autocomplete-secondary {
+  color: var(--color-stone-cold);
+  font-size: 13px;
+}
+
+.autocomplete-hint {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-shadow-colossus);
+  font-style: italic;
 }

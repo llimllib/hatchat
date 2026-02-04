@@ -18,7 +18,7 @@ type UserDMs struct {
 // UserDMsByUserID runs a custom query, returning results as [UserDMs].
 func UserDMsByUserID(ctx context.Context, db DB, userID string) ([]*UserDMs, error) {
 	// query
-	const sqlstr = `SELECT r.id, r.name, r.room_type, r.is_private, r.last_message_at ` +
+	const sqlstr = `SELECT r.id, r.name, r.room_type, r.is_private, COALESCE(r.last_message_at, '') as last_message_at ` +
 		`FROM rooms r ` +
 		`JOIN rooms_members rm ON r.id = rm.room_id ` +
 		`WHERE rm.user_id = $1 AND r.room_type = 'dm' ` +
