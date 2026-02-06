@@ -7,7 +7,7 @@ npm-deps:
     @test -d client/node_modules || (cd client && npm install)
 
 lint: npm-deps
-    golangci-lint run & (cd client && npx biome check src *.mjs)
+    mise exec -- golangci-lint run & (cd client && npx biome check src *.mjs) && wait
 
 test: lint
     cd client && npm test
