@@ -48,7 +48,7 @@ func setupSearchTestDB(t *testing.T) *db.DB {
 
 func TestSearch_EmptyQuery(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	api := NewApi(testDB, logger)
@@ -71,7 +71,7 @@ func TestSearch_EmptyQuery(t *testing.T) {
 
 func TestSearch_ReturnsMatchingMessages(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -162,7 +162,7 @@ func TestSearch_ReturnsMatchingMessages(t *testing.T) {
 
 func TestSearch_RespectsRoomMembership(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -259,7 +259,7 @@ func TestSearch_RespectsRoomMembership(t *testing.T) {
 
 func TestSearch_RoomFilter(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -338,7 +338,7 @@ func TestSearch_RoomFilter(t *testing.T) {
 
 func TestSearch_UserFilter(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -417,7 +417,7 @@ func TestSearch_UserFilter(t *testing.T) {
 
 func TestSearch_ExcludesDeletedMessages(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -488,7 +488,7 @@ func TestSearch_ExcludesDeletedMessages(t *testing.T) {
 
 func TestSearch_Pagination(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))

@@ -45,7 +45,7 @@ func setupSearchTestDB(t *testing.T) *DB {
 
 func TestSearchMessages_Basic(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 
@@ -118,7 +118,7 @@ func TestSearchMessages_Basic(t *testing.T) {
 
 func TestSearchMessages_FTS5Escaping(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 

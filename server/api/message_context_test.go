@@ -14,7 +14,7 @@ import (
 
 func TestGetMessageContext_ReturnsMessageAndRoom(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -85,7 +85,7 @@ func TestGetMessageContext_ReturnsMessageAndRoom(t *testing.T) {
 
 func TestGetMessageContext_MessageNotFound(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	api := NewApi(testDB, logger)
@@ -107,7 +107,7 @@ func TestGetMessageContext_MessageNotFound(t *testing.T) {
 
 func TestGetMessageContext_NoRoomAccess(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -182,7 +182,7 @@ func TestGetMessageContext_NoRoomAccess(t *testing.T) {
 
 func TestGetMessageContext_DeletedMessage(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -254,7 +254,7 @@ func TestGetMessageContext_DeletedMessage(t *testing.T) {
 
 func TestGetMessageContext_EmptyMessageID(t *testing.T) {
 	testDB := setupSearchTestDB(t)
-	defer testDB.Close()
+	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	api := NewApi(testDB, logger)
