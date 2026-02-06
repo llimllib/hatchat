@@ -60,3 +60,28 @@ CREATE TABLE IF NOT EXISTS reactions(
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS reactions_message ON reactions(message_id);
+
+-- FTS5 virtual table for full-text message search.
+-- Uses external content mode: stores only the index, not the text.
+-- The content='messages' links it to the messages table.
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+    body,
+    content='messages',
+    content_rowid='rowid'
+);
+
+-- Triggers to keep FTS index in sync with messages table.
+-- These fire on insert/update/delete to maintain the index automatically.
+
+CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
+    INSERT INTO messages_fts(rowid, body) VALUES (NEW.rowid, NEW.body);
+END;
+
+CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, body) VALUES('delete', OLD.rowid, OLD.body);
+    INSERT INTO messages_fts(rowid, body) VALUES (NEW.rowid, NEW.body);
+END;
+
+CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
+    INSERT INTO messages_fts(messages_fts, rowid, body) VALUES('delete', OLD.rowid, OLD.body);
+END;
