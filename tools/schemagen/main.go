@@ -60,6 +60,11 @@ func main() {
 		protocol.MessageEdited{},
 		protocol.MessageDeleted{},
 		protocol.ReactionUpdated{},
+		protocol.SearchRequest{},
+		protocol.SearchResponse{},
+		protocol.SearchResult{},
+		protocol.GetMessageContextRequest{},
+		protocol.GetMessageContextResponse{},
 		protocol.Envelope{},
 	}
 

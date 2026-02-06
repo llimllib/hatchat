@@ -302,6 +302,22 @@ func (c *Client) readPump() {
 					Message: res.Message,
 				}
 			}
+		case "search":
+			res, err := c.api.Search(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle search", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("search failed")))
+			} else {
+				must(c.conn.WriteJSON(res))
+			}
+		case "get_message_context":
+			res, err := c.api.GetMessageContext(c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle get_message_context", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get message context")))
+			} else {
+				must(c.conn.WriteJSON(res))
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

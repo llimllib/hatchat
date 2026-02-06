@@ -202,6 +202,24 @@ type RemoveReactionRequest struct {
 	Emoji     string `json:"emoji" jsonschema:"required,description=Emoji character(s) to remove"`
 }
 
+// SearchRequest searches messages across rooms the user has access to
+// Direction: client → server
+// Response: SearchResponse
+type SearchRequest struct {
+	Query  string `json:"query" jsonschema:"required,description=Search query text,minLength=1"`
+	RoomID string `json:"room_id,omitempty" jsonschema:"description=Filter to specific room"`
+	UserID string `json:"user_id,omitempty" jsonschema:"description=Filter to messages from specific user"`
+	Cursor string `json:"cursor,omitempty" jsonschema:"description=Pagination cursor for next page"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"description=Max results to return (default 20),minimum=1,maximum=100"`
+}
+
+// GetMessageContextRequest fetches a message with surrounding context for permalinks
+// Direction: client → server
+// Response: GetMessageContextResponse
+type GetMessageContextRequest struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to get context for"`
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -313,6 +331,32 @@ type GetProfileResponse struct {
 // Direction: server → client
 type UpdateProfileResponse struct {
 	User User `json:"user" jsonschema:"required,description=Updated user profile"`
+}
+
+// SearchResponse returns matching messages with snippets
+// Direction: server → client
+type SearchResponse struct {
+	Results    []SearchResult `json:"results" jsonschema:"required,description=Matching messages with snippets"`
+	NextCursor string         `json:"next_cursor,omitempty" jsonschema:"description=Pagination cursor for next page"`
+	Total      int            `json:"total,omitempty" jsonschema:"description=Approximate total matches"`
+}
+
+// SearchResult is a single search hit with context snippet
+type SearchResult struct {
+	MessageID string `json:"message_id" jsonschema:"required,description=ID of the matching message"`
+	RoomID    string `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
+	RoomName  string `json:"room_name" jsonschema:"required,description=Name of the room (for display)"`
+	UserID    string `json:"user_id" jsonschema:"required,description=Author of the message"`
+	Username  string `json:"username" jsonschema:"required,description=Username of the author"`
+	Snippet   string `json:"snippet" jsonschema:"required,description=Message excerpt with **highlighted** matches"`
+	CreatedAt string `json:"created_at" jsonschema:"required,description=RFC3339Nano timestamp of the message"`
+}
+
+// GetMessageContextResponse returns a message and its room for permalink navigation
+// Direction: server → client
+type GetMessageContextResponse struct {
+	Message Message `json:"message" jsonschema:"required,description=The requested message"`
+	RoomID  string  `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
 }
 
 // =============================================================================
@@ -480,5 +524,25 @@ var MessageTypes = []MessageMeta{
 		Type:        "reaction_updated",
 		Direction:   ServerToClient,
 		Description: "Broadcast when a reaction is added or removed",
+	},
+	{
+		Type:        "search",
+		Direction:   ClientToServer,
+		Description: "Search messages across accessible rooms",
+	},
+	{
+		Type:        "search",
+		Direction:   ServerToClient,
+		Description: "Response with matching messages and snippets",
+	},
+	{
+		Type:        "get_message_context",
+		Direction:   ClientToServer,
+		Description: "Get a message and its room for permalink navigation",
+	},
+	{
+		Type:        "get_message_context",
+		Direction:   ServerToClient,
+		Description: "Response with message and room ID",
 	},
 }
