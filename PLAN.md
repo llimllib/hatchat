@@ -115,6 +115,7 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 ### 2.1 Direct Messages
 
 **Backend (complete):**
+
 - [x] Add `room_type` column to rooms table (`'channel'` or `'dm'`)
 - [x] Add `last_message_at` column to rooms table (for DM ordering)
 - [x] DMs are private rooms with `room_type = 'dm'`
@@ -125,6 +126,7 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 - [x] Prevent leaving 1:1 DMs (only group DMs can be left)
 
 **Frontend (complete):**
+
 - [x] DM section in sidebar (separate from channels)
 - [x] DM room naming (derived from member names on client)
 - [x] "New Message" button with user picker/autocomplete
@@ -140,12 +142,14 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 ### 2.3 User Profiles
 
 **Backend (complete):**
+
 - [x] Add `display_name` and `status` columns to users table
 - [x] `get_profile` WebSocket handler
 - [x] `update_profile` WebSocket handler
 - [x] Include display_name in User and RoomMember types
 
 **Frontend (complete):**
+
 - [x] Profile viewing panel (click username or member in room info)
 - [x] "Message" button to start DM from profile
 - [x] Profile editor modal (click own name in sidebar)
@@ -209,6 +213,7 @@ _Goal: Better conversation organization_
 ### 4.1 Threaded Replies
 
 > **Design note:** Before implementing threads, we need to carefully think through the threading model for our application. While we generally want to clone Slack's behavior, we may want to consider a different threading model. Slack's threading has known UX issues (threads are hidden from the main channel by default, the "also send to channel" toggle is confusing, threads within threads aren't supported, etc.). Consider alternatives like:
+>
 > - Linear threading (Discord-style, with reply-to indicators inline)
 > - Branching threads (with inline expansion)
 > - A hybrid approach
@@ -242,30 +247,34 @@ _Goal: Better conversation organization_
 See `docs/plans/2026-02-05-search-design.md` for detailed design document.
 
 **Backend (complete):**
+
 - [x] SQLite FTS5 virtual table and triggers for message indexing
 - [x] `search` WebSocket handler with room/user filters and pagination
 - [x] `get_message_context` WebSocket handler for permalink navigation
 - [x] Authorization (only search rooms user is a member of)
 - [x] Prefix matching for intuitive search
 
-**Frontend (pending):**
-- [ ] Search page at `/search` with query input and filters
-- [ ] Room and user filter dropdowns
-- [ ] Search results with highlighted snippets
-- [ ] Quick-search modal (Cmd/Ctrl+K) for navigation
-- [ ] Recent rooms shown in quick-search
-- [ ] "Search messages" escape hatch from quick-search
+**Frontend (complete):**
+
+- [x] Search page at `/search` with query input and filters
+- [x] Room and user filter dropdowns
+- [x] Search results with highlighted snippets
+- [x] Quick-search modal (Cmd/Ctrl+K) for navigation
+- [x] Recent rooms shown in quick-search
+- [x] "Search messages" escape hatch from quick-search
 
 ### 4.5 Message Permalinks
 
 **Backend (complete):**
+
 - [x] `get_message_context` handler returns message and room ID
 
 **Frontend (pending):**
-- [ ] Handle `/chat#msg_...` URL hash on page load
-- [ ] Navigate to room and scroll to message
-- [ ] Highlight the linked message briefly
-- [ ] Copy permalink button on message hover/menu
+
+- [x] Handle `/chat#msg_...` URL hash on page load
+- [x] Navigate to room and scroll to message
+- [x] Highlight the linked message briefly
+- [x] Copy permalink button on message hover/menu
 
 ---
 
