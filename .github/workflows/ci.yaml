@@ -23,7 +23,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: unit tests
-        run: "go test ./..."
+        run: "go test -tags fts5 ./..."
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -70,7 +70,7 @@ jobs:
       - name: Build
         run: |
           cd client && node esbuild.config.mjs
-          cd .. && go build -o hatchat ./cmd/server.go
+          cd .. && go build -tags fts5 -o hatchat ./cmd/server.go
       - name: Run E2E tests
         run: cd e2e && npm test
       - name: Upload test results
