@@ -64,7 +64,9 @@ echo "  Building protocol.html..."
 
 # Generate the schema docs directly to site directory with CSS/JS
 echo "    Regenerating protocol schema docs..."
-generate-schema-doc --copy-css --copy-js --expand-buttons "$PROJECT_ROOT/schema/protocol.json" "$SITE_DIR/protocol-schema.html"
+uvx --from json-schema-for-humans generate-schema-doc \
+  --copy-css --copy-js --expand-buttons \
+  "$PROJECT_ROOT/schema/protocol.json" "$SITE_DIR/protocol-schema.html"
 
 # Create a page that embeds the protocol docs
 cat > /tmp/protocol.md << EOF
