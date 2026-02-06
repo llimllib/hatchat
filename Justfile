@@ -4,7 +4,7 @@ run: build
 # Install client npm dependencies if needed
 [private]
 npm-deps:
-    @test -d client/node_modules || (cd client && npm install)
+    @test client/node_modules -nt client/package.json || (cd client && npm install)
 
 lint: npm-deps
     mise exec -- golangci-lint run & (cd client && npx biome check src *.mjs) && wait
@@ -56,7 +56,7 @@ run-e2e: build
 # Install e2e test dependencies
 [private]
 e2e-deps:
-    @test -d e2e/node_modules || (cd e2e && npm install && npx playwright install chromium)
+    @test e2e/node_modules -nt e2e/package.json || (cd e2e && npm install && npx playwright install chromium)
 
 # Run e2e tests with Playwright
 e2e: build e2e-deps
