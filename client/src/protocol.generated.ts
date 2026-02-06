@@ -121,6 +121,18 @@ export const RemoveReactionRequestSchema = z.object({
   message_id: z.string(),
 });
 
+export const SearchRequestSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.int().min(1).max(100).optional(),
+  query: z.string().min(1),
+  room_id: z.string().optional(),
+  user_id: z.string().optional(),
+});
+
+export const GetMessageContextRequestSchema = z.object({
+  message_id: z.string(),
+});
+
 export const InitResponseSchema = z.object({
   current_room: z.string(),
   dms: z.array(RoomSchema),
@@ -200,6 +212,27 @@ export const ReactionUpdatedSchema = z.object({
   user_id: z.string(),
 });
 
+export const SearchResultSchema = z.object({
+  created_at: z.string(),
+  message_id: z.string(),
+  room_id: z.string(),
+  room_name: z.string(),
+  snippet: z.string(),
+  user_id: z.string(),
+  username: z.string(),
+});
+
+export const SearchResponseSchema = z.object({
+  next_cursor: z.string().optional(),
+  results: z.array(SearchResultSchema),
+  total: z.int().optional(),
+});
+
+export const GetMessageContextResponseSchema = z.object({
+  message: MessageSchema,
+  room_id: z.string(),
+});
+
 export const EnvelopeSchema = z.object({
   data: z.unknown(),
   type: z.string(),
@@ -230,6 +263,10 @@ export type EditMessageRequest = z.infer<typeof EditMessageRequestSchema>;
 export type DeleteMessageRequest = z.infer<typeof DeleteMessageRequestSchema>;
 export type AddReactionRequest = z.infer<typeof AddReactionRequestSchema>;
 export type RemoveReactionRequest = z.infer<typeof RemoveReactionRequestSchema>;
+export type SearchRequest = z.infer<typeof SearchRequestSchema>;
+export type GetMessageContextRequest = z.infer<
+  typeof GetMessageContextRequestSchema
+>;
 export type InitResponse = z.infer<typeof InitResponseSchema>;
 export type HistoryResponse = z.infer<typeof HistoryResponseSchema>;
 export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
@@ -245,6 +282,11 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;
 export type MessageEdited = z.infer<typeof MessageEditedSchema>;
 export type MessageDeleted = z.infer<typeof MessageDeletedSchema>;
 export type ReactionUpdated = z.infer<typeof ReactionUpdatedSchema>;
+export type SearchResult = z.infer<typeof SearchResultSchema>;
+export type SearchResponse = z.infer<typeof SearchResponseSchema>;
+export type GetMessageContextResponse = z.infer<
+  typeof GetMessageContextResponseSchema
+>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
 // =============================================================================
@@ -271,6 +313,8 @@ export type MessageType =
   | "delete_message"
   | "add_reaction"
   | "remove_reaction"
+  | "search"
+  | "get_message_context"
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
@@ -295,7 +339,9 @@ export type ClientEnvelope =
   | { type: "edit_message"; data: EditMessageRequest }
   | { type: "delete_message"; data: DeleteMessageRequest }
   | { type: "add_reaction"; data: AddReactionRequest }
-  | { type: "remove_reaction"; data: RemoveReactionRequest };
+  | { type: "remove_reaction"; data: RemoveReactionRequest }
+  | { type: "search"; data: SearchRequest }
+  | { type: "get_message_context"; data: GetMessageContextRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -313,6 +359,8 @@ export type ServerEnvelope =
   | { type: "room_info"; data: RoomInfoResponse }
   | { type: "get_profile"; data: GetProfileResponse }
   | { type: "update_profile"; data: UpdateProfileResponse }
+  | { type: "search"; data: SearchResponse }
+  | { type: "get_message_context"; data: GetMessageContextResponse }
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
@@ -402,6 +450,16 @@ export const ErrorEnvelopeSchema = z.object({
   data: ErrorResponseSchema,
 });
 
+export const SearchEnvelopeSchema = z.object({
+  type: z.literal("search"),
+  data: SearchResponseSchema,
+});
+
+export const GetMessageContextEnvelopeSchema = z.object({
+  type: z.literal("get_message_context"),
+  data: GetMessageContextResponseSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -418,6 +476,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   RoomInfoEnvelopeSchema,
   GetProfileEnvelopeSchema,
   UpdateProfileEnvelopeSchema,
+  SearchEnvelopeSchema,
+  GetMessageContextEnvelopeSchema,
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,

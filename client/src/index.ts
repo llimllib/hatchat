@@ -5,6 +5,7 @@ import { AppState } from "./state";
 import {
   type CreateDMResponse,
   type CreateRoomResponse,
+  type GetMessageContextResponse,
   type GetProfileResponse,
   type HistoryResponse,
   type InitResponse,
@@ -22,6 +23,8 @@ import {
   type ReactionUpdated,
   type Room,
   type RoomInfoResponse,
+  type SearchResponse,
+  type SearchResult,
   type UpdateProfileResponse,
   type User,
 } from "./types";
@@ -45,6 +48,15 @@ class Client {
 
   // Autocomplete for @mentions and #channels
   autocomplete: Autocomplete | null = null;
+
+  // Search state
+  isSearchPage: boolean = false;
+  searchResults: SearchResult[] = [];
+  searchNextCursor: string = "";
+  isSearching: boolean = false;
+
+  // Permalink jump target
+  pendingPermalinkMessageId: string | null = null;
 
   constructor(conn: WebSocket) {
     this.conn = conn;
@@ -130,6 +142,14 @@ class Client {
           this.handleReactionUpdated(envelope.data);
           break;
         }
+        case "search": {
+          this.handleSearch(envelope.data);
+          break;
+        }
+        case "get_message_context": {
+          this.handleGetMessageContext(envelope.data);
+          break;
+        }
         case "error": {
           console.error("server error:", envelope.data);
           break;
@@ -144,6 +164,13 @@ class Client {
   handleInit(data: InitResponse) {
     this.state.setInitialData(data);
 
+    // Check if we're on the search page
+    if (window.location.pathname === "/search") {
+      this.renderSearchPage();
+      this.populateSearchRoomFilter();
+      return;
+    }
+
     // Get room ID from URL or use the current_room from init
     const parts = window.location.pathname.split("/");
     const urlRoomID = parts[parts.length - 1];
@@ -154,6 +181,12 @@ class Client {
 
     // Initialize autocomplete for message input
     this.initAutocomplete();
+
+    // Check for permalink hash (e.g., #msg_abc123)
+    const hash = window.location.hash.slice(1);
+    if (hash?.startsWith("msg_")) {
+      this.pendingPermalinkMessageId = hash;
+    }
 
     // Request history for the current room
     if (this.state.currentRoom) {
@@ -314,6 +347,16 @@ class Client {
 
     // Re-render the messages from state
     this.renderMessages();
+
+    // If we have a pending permalink, try to jump to it now
+    if (this.pendingPermalinkMessageId) {
+      // Small delay to allow DOM to update
+      setTimeout(() => {
+        if (this.pendingPermalinkMessageId) {
+          this.jumpToMessage(this.pendingPermalinkMessageId);
+        }
+      }, 100);
+    }
   }
 
   /**
@@ -432,10 +475,15 @@ class Client {
         this.requestProfile(msg.user_id);
       });
 
-      const timestamp = $("span", {
+      const timestamp = $("a", {
         class: "message-timestamp",
+        href: `/chat/${msg.room_id}#${msg.id}`,
         text: formatTimestamp(msg.created_at),
-        title: formatTimestampFull(msg.created_at),
+        title: `${formatTimestampFull(msg.created_at)} · Click to copy link`,
+      });
+      timestamp.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.copyMessageLink(msg.id);
       });
 
       header.appendChild(usernameEl);
@@ -467,11 +515,16 @@ class Client {
       const body = $("div", { class: "message-body" });
       body.innerHTML = renderMarkdown(msg.body);
 
-      // Add timestamp on hover
-      const timestamp = $("span", {
+      // Add timestamp on hover (clickable permalink)
+      const timestamp = $("a", {
         class: "message-timestamp hover-timestamp",
+        href: `/chat/${msg.room_id}#${msg.id}`,
         text: formatTimestamp(msg.created_at),
-        title: formatTimestampFull(msg.created_at),
+        title: `${formatTimestampFull(msg.created_at)} · Click to copy link`,
+      });
+      timestamp.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.copyMessageLink(msg.id);
       });
 
       content.appendChild(timestamp);
@@ -1022,6 +1075,463 @@ class Client {
   }
 
   // =========================================================================
+  // Search and Permalinks
+  // =========================================================================
+
+  /**
+   * Handle search response from server
+   */
+  handleSearch(response: SearchResponse) {
+    console.debug("search response", response);
+    this.isSearching = false;
+
+    // Append to results if this is a "load more" (has cursor)
+    if (this.searchNextCursor && response.results.length > 0) {
+      this.searchResults = [...this.searchResults, ...response.results];
+    } else {
+      this.searchResults = response.results;
+    }
+
+    this.searchNextCursor = response.next_cursor || "";
+    this.renderSearchResults();
+  }
+
+  /**
+   * Handle get_message_context response for permalinks
+   */
+  handleGetMessageContext(response: GetMessageContextResponse) {
+    console.debug("get_message_context response", response);
+
+    const message = response.message;
+    const roomId = response.room_id;
+
+    // If the message is deleted, show a toast and navigate to room anyway
+    if (message.deleted_at) {
+      this.showToast("Message was deleted");
+    }
+
+    // Store the message ID we want to jump to
+    this.pendingPermalinkMessageId = message.id;
+
+    // If we're on the search page, navigate to chat first
+    if (this.isSearchPage) {
+      window.location.href = `/chat/${roomId}#${message.id}`;
+      return;
+    }
+
+    // If already in this room, just scroll to the message
+    if (roomId === this.state.currentRoom) {
+      this.jumpToMessage(message.id);
+    } else {
+      // Switch rooms and wait for messages to load
+      this.switchRoom(roomId);
+      // The message will be jumped to after history loads
+    }
+  }
+
+  /**
+   * Request search results from server
+   */
+  requestSearch(
+    query: string,
+    roomId?: string,
+    userId?: string,
+    cursor?: string,
+  ) {
+    if (this.isSearching) return;
+
+    this.isSearching = true;
+    this.searchNextCursor = cursor || "";
+
+    const request = {
+      type: "search",
+      data: {
+        query: query,
+        room_id: roomId || "",
+        user_id: userId || "",
+        cursor: cursor || "",
+        limit: 20,
+      },
+    };
+    console.debug("requesting search", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Request message context for permalink navigation
+   */
+  requestMessageContext(messageId: string) {
+    const request = {
+      type: "get_message_context",
+      data: {
+        message_id: messageId,
+      },
+    };
+    console.debug("requesting get_message_context", request);
+    this.conn.send(JSON.stringify(request));
+  }
+
+  /**
+   * Jump to and highlight a specific message
+   */
+  jumpToMessage(messageId: string) {
+    this.pendingPermalinkMessageId = null;
+
+    const messageEl = document.querySelector(
+      `.chat-message[data-message-id="${messageId}"]`,
+    );
+
+    if (messageEl) {
+      // Scroll the message into view
+      messageEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // Add highlight animation
+      messageEl.classList.add("highlight-flash");
+      setTimeout(() => {
+        messageEl.classList.remove("highlight-flash");
+      }, 2000);
+
+      // Update URL hash without triggering navigation
+      window.history.replaceState(
+        null,
+        "",
+        `/chat/${this.state.currentRoom}#${messageId}`,
+      );
+    } else {
+      // Message not in current view - may need to load more history
+      console.debug("message not found in view, may need to load more history");
+      this.showToast("Message not found in current view");
+    }
+  }
+
+  /**
+   * Copy a permalink to a message to the clipboard
+   */
+  copyMessageLink(messageId: string) {
+    const url = `${window.location.origin}/chat/${this.state.currentRoom}#${messageId}`;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        this.showToast("Link copied to clipboard");
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+        this.showToast("Failed to copy link");
+      });
+  }
+
+  /**
+   * Show a toast notification
+   */
+  showToast(message: string, duration = 3000) {
+    // Remove any existing toast
+    document.querySelector(".toast")?.remove();
+
+    const toast = $("div", { class: "toast", text: message });
+    document.body.appendChild(toast);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      toast.classList.add("show");
+    });
+
+    setTimeout(() => {
+      toast.classList.remove("show");
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+
+  /**
+   * Render the search page UI
+   */
+  renderSearchPage() {
+    this.isSearchPage = true;
+
+    // Parse URL params for initial query
+    const params = new URLSearchParams(window.location.search);
+    const initialQuery = params.get("q") || "";
+    const initialFrom = params.get("from") || "";
+
+    // Replace the main chat area with search UI
+    const chatArea = document.querySelector(".chat-area");
+    if (!chatArea) return;
+
+    chatArea.innerHTML = "";
+
+    // Header with back button
+    const header = $("div", { class: "search-header" });
+    const backBtn = $("button", {
+      class: "search-back-btn",
+      text: "← Back to Chat",
+    });
+    backBtn.addEventListener("click", () => {
+      window.location.href = "/chat";
+    });
+    header.appendChild(backBtn);
+    header.appendChild($("h2", { text: "Search Messages" }));
+    chatArea.appendChild(header);
+
+    // Search form
+    const form = $("form", { class: "search-form" });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.performSearch();
+    });
+
+    const searchInput = $("input", {
+      type: "text",
+      id: "search-input",
+      class: "search-input",
+      placeholder: "Search messages...",
+      value: initialQuery,
+    }) as HTMLInputElement;
+    form.appendChild(searchInput);
+
+    // Filters row
+    const filtersRow = $("div", { class: "search-filters" });
+
+    // Room filter dropdown
+    const roomSelect = $("select", {
+      id: "search-room-filter",
+      class: "search-select",
+    });
+    roomSelect.appendChild($("option", { value: "", text: "All rooms" }));
+    // Rooms will be populated after init
+
+    // User filter (will use the search input approach for simplicity)
+    const userInput = $("input", {
+      type: "text",
+      id: "search-user-filter",
+      class: "search-filter-input",
+      placeholder: "From user...",
+      value: initialFrom,
+    });
+
+    filtersRow.appendChild(
+      $("label", { text: "Room:", for: "search-room-filter" }),
+    );
+    filtersRow.appendChild(roomSelect);
+    filtersRow.appendChild(
+      $("label", { text: "From:", for: "search-user-filter" }),
+    );
+    filtersRow.appendChild(userInput);
+    filtersRow.appendChild(
+      $("button", { type: "submit", class: "btn btn-primary", text: "Search" }),
+    );
+
+    form.appendChild(filtersRow);
+    chatArea.appendChild(form);
+
+    // Results area
+    const resultsArea = $("div", {
+      class: "search-results",
+      id: "search-results",
+    });
+    resultsArea.appendChild(
+      $("p", {
+        class: "search-hint",
+        text: "Enter a search term to find messages.",
+      }),
+    );
+    chatArea.appendChild(resultsArea);
+
+    // Focus input
+    searchInput.focus();
+
+    // If there's an initial query, run the search
+    if (initialQuery) {
+      this.performSearch();
+    }
+  }
+
+  /**
+   * Perform a search using current form values
+   */
+  performSearch() {
+    const queryInput = document.getElementById(
+      "search-input",
+    ) as HTMLInputElement;
+    const roomSelect = document.getElementById(
+      "search-room-filter",
+    ) as HTMLSelectElement;
+    const userInput = document.getElementById(
+      "search-user-filter",
+    ) as HTMLInputElement;
+
+    const query = queryInput?.value.trim() || "";
+    if (!query) {
+      this.showToast("Please enter a search term");
+      return;
+    }
+
+    const roomId = roomSelect?.value || "";
+    const userId = userInput?.value.trim() || "";
+
+    // Update URL
+    const params = new URLSearchParams();
+    params.set("q", query);
+    if (roomId) params.set("room", roomId);
+    if (userId) params.set("from", userId);
+    window.history.replaceState(null, "", `/search?${params.toString()}`);
+
+    // Clear previous results and search
+    this.searchResults = [];
+    this.searchNextCursor = "";
+    this.requestSearch(query, roomId, userId);
+
+    // Show loading state
+    const resultsArea = document.getElementById("search-results");
+    if (resultsArea) {
+      resultsArea.innerHTML = "";
+      resultsArea.appendChild(
+        $("p", { class: "search-loading", text: "Searching..." }),
+      );
+    }
+  }
+
+  /**
+   * Render search results
+   */
+  renderSearchResults() {
+    const resultsArea = document.getElementById("search-results");
+    if (!resultsArea) return;
+
+    resultsArea.innerHTML = "";
+
+    if (this.searchResults.length === 0) {
+      resultsArea.appendChild(
+        $("p", {
+          class: "search-empty",
+          text: "No messages found. Try a different search term.",
+        }),
+      );
+      return;
+    }
+
+    // Results count
+    resultsArea.appendChild(
+      $("p", {
+        class: "search-count",
+        text: `${this.searchResults.length} result${this.searchResults.length === 1 ? "" : "s"}`,
+      }),
+    );
+
+    // Render each result
+    for (const result of this.searchResults) {
+      const card = this.createSearchResultCard(result);
+      resultsArea.appendChild(card);
+    }
+
+    // Load more button
+    if (this.searchNextCursor) {
+      const loadMoreBtn = $("button", {
+        class: "btn btn-secondary load-more-search",
+        text: "Load more results",
+      });
+      loadMoreBtn.addEventListener("click", () => {
+        const queryInput = document.getElementById(
+          "search-input",
+        ) as HTMLInputElement;
+        const roomSelect = document.getElementById(
+          "search-room-filter",
+        ) as HTMLSelectElement;
+        const userInput = document.getElementById(
+          "search-user-filter",
+        ) as HTMLInputElement;
+
+        const query = queryInput?.value.trim() || "";
+        const roomId = roomSelect?.value || "";
+        const userId = userInput?.value.trim() || "";
+
+        this.requestSearch(query, roomId, userId, this.searchNextCursor);
+      });
+      resultsArea.appendChild(loadMoreBtn);
+    }
+  }
+
+  /**
+   * Create a search result card element
+   */
+  createSearchResultCard(result: SearchResult): HTMLElement {
+    const card = $("div", { class: "search-result-card" });
+
+    // Header line: room · user · date
+    const header = $("div", { class: "search-result-header" });
+    header.appendChild(
+      $("span", { class: "search-result-room", text: `#${result.room_name}` }),
+    );
+    header.appendChild($("span", { class: "search-result-sep", text: " · " }));
+    header.appendChild(
+      $("span", { class: "search-result-user", text: result.username }),
+    );
+    header.appendChild($("span", { class: "search-result-sep", text: " · " }));
+    header.appendChild(
+      $("span", {
+        class: "search-result-date",
+        text: formatTimestamp(result.created_at),
+      }),
+    );
+    card.appendChild(header);
+
+    // Snippet with highlighted matches (** → <strong>)
+    const snippet = $("div", { class: "search-result-snippet" });
+    // Convert **term** to <strong>term</strong>
+    const highlightedSnippet = result.snippet.replace(
+      /\*\*(.+?)\*\*/g,
+      "<strong>$1</strong>",
+    );
+    snippet.innerHTML = highlightedSnippet;
+    card.appendChild(snippet);
+
+    // Click to navigate to message
+    card.addEventListener("click", () => {
+      this.requestMessageContext(result.message_id);
+    });
+
+    return card;
+  }
+
+  /**
+   * Populate room filter dropdown with user's rooms
+   */
+  populateSearchRoomFilter() {
+    const roomSelect = document.getElementById(
+      "search-room-filter",
+    ) as HTMLSelectElement;
+    if (!roomSelect) return;
+
+    // Clear existing options except "All rooms"
+    while (roomSelect.options.length > 1) {
+      roomSelect.remove(1);
+    }
+
+    // Add channels
+    for (const room of this.state.rooms) {
+      roomSelect.appendChild(
+        $("option", {
+          value: room.id,
+          text: `# ${room.name}`,
+        }) as HTMLOptionElement,
+      );
+    }
+
+    // Add DMs
+    for (const dm of this.state.dms) {
+      const name = this.getDMDisplayName(dm);
+      roomSelect.appendChild(
+        $("option", { value: dm.id, text: name }) as HTMLOptionElement,
+      );
+    }
+
+    // Set initial value from URL if present
+    const params = new URLSearchParams(window.location.search);
+    const initialRoom = params.get("room") || "";
+    if (initialRoom) {
+      roomSelect.value = initialRoom;
+    }
+  }
+
+  // =========================================================================
   // Rich messaging handlers (edit, delete, reactions)
   // =========================================================================
 
@@ -1361,6 +1871,18 @@ class Client {
       this.showReactionPicker(messageId, reactBtn);
     });
     toolbar.appendChild(reactBtn);
+
+    // Copy link button (always shown)
+    const linkBtn = $("button", {
+      class: "toolbar-btn",
+      title: "Copy link to message",
+      text: "🔗",
+    });
+    linkBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.copyMessageLink(messageId);
+    });
+    toolbar.appendChild(linkBtn);
 
     // Edit and delete buttons (only for own messages)
     const roomState = this.state.getCurrentRoomState();

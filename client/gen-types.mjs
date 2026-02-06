@@ -38,6 +38,8 @@ const typeOrder = [
   "DeleteMessageRequest",
   "AddReactionRequest",
   "RemoveReactionRequest",
+  "SearchRequest",
+  "GetMessageContextRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
@@ -53,6 +55,9 @@ const typeOrder = [
   "MessageEdited",
   "MessageDeleted",
   "ReactionUpdated",
+  "SearchResult",
+  "SearchResponse",
+  "GetMessageContextResponse",
   "Envelope",
 ];
 
@@ -194,6 +199,8 @@ export type MessageType =
   | "delete_message"
   | "add_reaction"
   | "remove_reaction"
+  | "search"
+  | "get_message_context"
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
@@ -218,7 +225,9 @@ export type ClientEnvelope =
   | { type: "edit_message"; data: EditMessageRequest }
   | { type: "delete_message"; data: DeleteMessageRequest }
   | { type: "add_reaction"; data: AddReactionRequest }
-  | { type: "remove_reaction"; data: RemoveReactionRequest };
+  | { type: "remove_reaction"; data: RemoveReactionRequest }
+  | { type: "search"; data: SearchRequest }
+  | { type: "get_message_context"; data: GetMessageContextRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -236,6 +245,8 @@ export type ServerEnvelope =
   | { type: "room_info"; data: RoomInfoResponse }
   | { type: "get_profile"; data: GetProfileResponse }
   | { type: "update_profile"; data: UpdateProfileResponse }
+  | { type: "search"; data: SearchResponse }
+  | { type: "get_message_context"; data: GetMessageContextResponse }
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
@@ -325,6 +336,16 @@ export const ErrorEnvelopeSchema = z.object({
   data: ErrorResponseSchema,
 });
 
+export const SearchEnvelopeSchema = z.object({
+  type: z.literal("search"),
+  data: SearchResponseSchema,
+});
+
+export const GetMessageContextEnvelopeSchema = z.object({
+  type: z.literal("get_message_context"),
+  data: GetMessageContextResponseSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -341,6 +362,8 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   RoomInfoEnvelopeSchema,
   GetProfileEnvelopeSchema,
   UpdateProfileEnvelopeSchema,
+  SearchEnvelopeSchema,
+  GetMessageContextEnvelopeSchema,
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,

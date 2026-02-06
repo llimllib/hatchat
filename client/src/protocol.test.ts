@@ -296,6 +296,87 @@ describe("Protocol Schema Validation", () => {
   });
 });
 
+describe("Search Messages", () => {
+  it("validates SearchRequest", () => {
+    const req = {
+      query: "hello world",
+      room_id: "roo_123456789abc",
+      user_id: "usr_1234567890abcdef",
+      cursor: "",
+      limit: 20,
+    };
+    const result = validate("SearchRequest", req);
+    expect(result.valid).toBe(true);
+  });
+
+  it("validates SearchRequest with minimal fields", () => {
+    const req = {
+      query: "hello",
+    };
+    const result = validate("SearchRequest", req);
+    expect(result.valid).toBe(true);
+  });
+
+  it("validates SearchResult", () => {
+    const result = {
+      message_id: "msg_123456789abc",
+      room_id: "roo_123456789abc",
+      room_name: "general",
+      user_id: "usr_1234567890abcdef",
+      username: "alice",
+      snippet: "...said **hello** to everyone...",
+      created_at: "2024-01-15T10:30:00Z",
+    };
+    const validationResult = validate("SearchResult", result);
+    expect(validationResult.valid).toBe(true);
+  });
+
+  it("validates SearchResponse", () => {
+    const res = {
+      results: [
+        {
+          message_id: "msg_123456789abc",
+          room_id: "roo_123456789abc",
+          room_name: "general",
+          user_id: "usr_1234567890abcdef",
+          username: "alice",
+          snippet: "...said **hello** to everyone...",
+          created_at: "2024-01-15T10:30:00Z",
+        },
+      ],
+      next_cursor: "20",
+      total: 0,
+    };
+    const result = validate("SearchResponse", res);
+    expect(result.valid).toBe(true);
+  });
+
+  it("validates GetMessageContextRequest", () => {
+    const req = {
+      message_id: "msg_123456789abc",
+    };
+    const result = validate("GetMessageContextRequest", req);
+    expect(result.valid).toBe(true);
+  });
+
+  it("validates GetMessageContextResponse", () => {
+    const res = {
+      message: {
+        id: "msg_123456789abc",
+        room_id: "roo_123456789abc",
+        user_id: "usr_1234567890abcdef",
+        username: "alice",
+        body: "Hello world",
+        created_at: "2024-01-15T10:30:00Z",
+        modified_at: "2024-01-15T10:30:00Z",
+      },
+      room_id: "roo_123456789abc",
+    };
+    const result = validate("GetMessageContextResponse", res);
+    expect(result.valid).toBe(true);
+  });
+});
+
 describe("Type Safety", () => {
   it("ClientEnvelope type is correctly defined", () => {
     // These should compile without errors
@@ -350,5 +431,44 @@ describe("Type Safety", () => {
     expect(messageEnvelope.type).toBe("message");
     expect(historyEnvelope.type).toBe("history");
     expect(errorEnvelope.type).toBe("error");
+  });
+
+  it("ClientEnvelope includes search types", () => {
+    const searchEnvelope: ClientEnvelope = {
+      type: "search",
+      data: { query: "hello" },
+    };
+    const messageContextEnvelope: ClientEnvelope = {
+      type: "get_message_context",
+      data: { message_id: "msg_123" },
+    };
+
+    expect(searchEnvelope.type).toBe("search");
+    expect(messageContextEnvelope.type).toBe("get_message_context");
+  });
+
+  it("ServerEnvelope includes search types", () => {
+    const searchEnvelope: ServerEnvelope = {
+      type: "search",
+      data: { results: [], next_cursor: "", total: 0 },
+    };
+    const messageContextEnvelope: ServerEnvelope = {
+      type: "get_message_context",
+      data: {
+        message: {
+          id: "msg_123",
+          room_id: "roo_123",
+          user_id: "usr_123",
+          username: "test",
+          body: "hello",
+          created_at: "",
+          modified_at: "",
+        },
+        room_id: "roo_123",
+      },
+    };
+
+    expect(searchEnvelope.type).toBe("search");
+    expect(messageContextEnvelope.type).toBe("get_message_context");
   });
 });

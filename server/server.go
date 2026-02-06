@@ -253,6 +253,7 @@ func (h *ChatServer) Run(addr string) {
 	staticHandler := http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))).ServeHTTP
 	http.HandleFunc("/static/", h.middleware("/static", staticHandler))
 	http.HandleFunc("/chat/", h.middleware("/chat/", authRequired(h.serveChat)))
+	http.HandleFunc("/search", h.middleware("/search", authRequired(h.serveChat)))
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
 	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
