@@ -1966,6 +1966,9 @@ class Client {
     const item = this.quickSearchItems[this.quickSearchSelectedIndex];
     if (!item) return;
 
+    // Save the query before closing (closeQuickSearch clears it)
+    const savedQuery = this.quickSearchQuery;
+
     this.closeQuickSearch();
 
     switch (item.type) {
@@ -1992,7 +1995,7 @@ class Client {
 
       case "search-escape":
         // Navigate to search page with query
-        window.location.href = `/search?q=${encodeURIComponent(this.quickSearchQuery)}`;
+        window.location.href = `/search?q=${encodeURIComponent(savedQuery)}`;
         break;
     }
   }
