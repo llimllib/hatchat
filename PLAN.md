@@ -239,17 +239,31 @@ _Goal: Better conversation organization_
 
 ### 4.4 Search
 
-- [ ] Global search input in header (Cmd/Ctrl+K)
-- [ ] Full-text search across messages (SQLite FTS5)
-- [ ] Filter by room, user, date range
-- [ ] Search result context (surrounding messages)
-- [ ] Click to jump to message in context
-- [ ] Highlight search terms
+See `docs/plans/2026-02-05-search-design.md` for detailed design document.
+
+**Backend (complete):**
+- [x] SQLite FTS5 virtual table and triggers for message indexing
+- [x] `search` WebSocket handler with room/user filters and pagination
+- [x] `get_message_context` WebSocket handler for permalink navigation
+- [x] Authorization (only search rooms user is a member of)
+- [x] Prefix matching for intuitive search
+
+**Frontend (pending):**
+- [ ] Search page at `/search` with query input and filters
+- [ ] Room and user filter dropdowns
+- [ ] Search results with highlighted snippets
+- [ ] Quick-search modal (Cmd/Ctrl+K) for navigation
+- [ ] Recent rooms shown in quick-search
+- [ ] "Search messages" escape hatch from quick-search
 
 ### 4.5 Message Permalinks
 
-- [ ] Generate unique permalink URL for each message
-- [ ] Clicking permalink navigates to room and scrolls to message in context
+**Backend (complete):**
+- [x] `get_message_context` handler returns message and room ID
+
+**Frontend (pending):**
+- [ ] Handle `/chat#msg_...` URL hash on page load
+- [ ] Navigate to room and scroll to message
 - [ ] Highlight the linked message briefly
 - [ ] Copy permalink button on message hover/menu
 
