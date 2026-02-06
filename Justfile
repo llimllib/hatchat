@@ -11,7 +11,7 @@ lint: npm-deps
 
 test: lint
     cd client && npm test
-    go test ./...
+    go test -tags fts5 ./...
 
 # Run all tests including e2e (slower but comprehensive)
 test-all: test e2e
@@ -35,10 +35,10 @@ build-js: npm-deps
     cd client && npx tsgo --noEmit && node esbuild.config.mjs
 
 build-go:
-    go build -o hatchat ./cmd/server.go
+    go build -tags fts5 -o hatchat ./cmd/server.go
 
 build: npm-deps
-    (cd client && node esbuild.config.mjs) & go build -o hatchat ./cmd/server.go
+    (cd client && node esbuild.config.mjs) & go build -tags fts5 -o hatchat ./cmd/server.go
 
 browse-db:
     # Maybe use datasette on the command line instead for broader applicability?
