@@ -36,6 +36,21 @@ import {
   stringToColor,
 } from "./utils";
 
+// Local storage key for recent rooms
+const RECENT_ROOMS_KEY = "hatchat:recent_rooms";
+const MAX_RECENT_ROOMS = 8;
+
+/**
+ * Quick-search result item for display
+ */
+interface QuickSearchItem {
+  type: "room" | "dm" | "user" | "search-escape";
+  id: string;
+  name: string;
+  secondary?: string; // e.g., @username for users with display name
+  isMember?: boolean; // For rooms: whether user is already a member
+}
+
 class Client {
   conn: WebSocket;
   state: AppState;
@@ -57,6 +72,15 @@ class Client {
 
   // Permalink jump target
   pendingPermalinkMessageId: string | null = null;
+
+  // Quick-search state
+  quickSearchOpen: boolean = false;
+  quickSearchSelectedIndex: number = 0;
+  quickSearchItems: QuickSearchItem[] = [];
+  quickSearchQuery: string = "";
+  quickSearchUsers: User[] = []; // Cached users for quick-search
+  quickSearchAllRooms: Room[] = []; // All accessible rooms (not just joined)
+  quickSearchRoomMembership: boolean[] = []; // Membership status for quickSearchAllRooms
 
   constructor(conn: WebSocket) {
     this.conn = conn;
@@ -900,6 +924,9 @@ class Client {
     // Update current room
     this.state.setCurrentRoom(roomId);
 
+    // Track in recent rooms for quick-search
+    this.addRecentRoom(roomId);
+
     // Update URL without reload
     window.history.pushState({ roomId }, "", `/chat/${roomId}`);
 
@@ -969,7 +996,16 @@ class Client {
    */
   handleListRooms(response: ListRoomsResponse) {
     console.debug("list_rooms response", response);
-    this.showBrowseChannelsModal(response.rooms, response.is_member);
+
+    // Update quick-search room data if open
+    if (this.quickSearchOpen) {
+      this.quickSearchAllRooms = response.rooms;
+      this.quickSearchRoomMembership = response.is_member;
+      this.updateQuickSearchResults();
+    } else {
+      // Only show browse modal if quick-search is not open
+      this.showBrowseChannelsModal(response.rooms, response.is_member);
+    }
   }
 
   /**
@@ -1045,6 +1081,11 @@ class Client {
       if (user) {
         this.requestProfile(user.id);
       }
+    }
+    // Update quick-search user results if open
+    if (this.quickSearchOpen) {
+      this.quickSearchUsers = response.users;
+      this.updateQuickSearchResults();
     }
   }
 
@@ -1528,6 +1569,454 @@ class Client {
     const initialRoom = params.get("room") || "";
     if (initialRoom) {
       roomSelect.value = initialRoom;
+    }
+  }
+
+  // =========================================================================
+  // Quick-Search (Cmd+K) Panel
+  // =========================================================================
+
+  /**
+   * Get recent rooms from localStorage
+   */
+  getRecentRooms(): string[] {
+    try {
+      const stored = localStorage.getItem(RECENT_ROOMS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Add a room to the recent rooms list
+   */
+  addRecentRoom(roomId: string) {
+    const recent = this.getRecentRooms().filter((id) => id !== roomId);
+    recent.unshift(roomId);
+    const trimmed = recent.slice(0, MAX_RECENT_ROOMS);
+    try {
+      localStorage.setItem(RECENT_ROOMS_KEY, JSON.stringify(trimmed));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }
+
+  /**
+   * Open the quick-search modal
+   */
+  openQuickSearch() {
+    if (this.quickSearchOpen) return;
+    this.quickSearchOpen = true;
+    this.quickSearchQuery = "";
+    this.quickSearchSelectedIndex = 0;
+    this.quickSearchUsers = [];
+    this.quickSearchAllRooms = [];
+    this.quickSearchRoomMembership = [];
+
+    // Request all accessible rooms from server
+    this.requestListRooms();
+
+    // Create modal
+    const overlay = $("div", { class: "quick-search-overlay" });
+    const modal = $("div", { class: "quick-search-modal" });
+
+    // Search input
+    const inputContainer = $("div", { class: "quick-search-input-container" });
+    const searchIcon = $("span", { class: "quick-search-icon", text: "🔍" });
+    const input = $("input", {
+      type: "text",
+      class: "quick-search-input",
+      placeholder: "Search rooms, users, or messages...",
+      id: "quick-search-input",
+    }) as HTMLInputElement;
+
+    inputContainer.appendChild(searchIcon);
+    inputContainer.appendChild(input);
+    modal.appendChild(inputContainer);
+
+    // Results container
+    const results = $("div", {
+      class: "quick-search-results",
+      id: "quick-search-results",
+    });
+    modal.appendChild(results);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Show initial results (recents)
+    this.updateQuickSearchResults();
+
+    // Focus input
+    input.focus();
+
+    // Event handlers
+    input.addEventListener("input", () => {
+      this.quickSearchQuery = input.value;
+      this.quickSearchSelectedIndex = 0;
+
+      // If there's a query with 2+ chars, request users from server
+      if (this.quickSearchQuery.length >= 2) {
+        this.requestListUsers(this.quickSearchQuery);
+      } else {
+        this.quickSearchUsers = [];
+      }
+
+      this.updateQuickSearchResults();
+    });
+
+    input.addEventListener("keydown", (e) => {
+      this.handleQuickSearchKeydown(e);
+    });
+
+    // Close on overlay click
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        this.closeQuickSearch();
+      }
+    });
+  }
+
+  /**
+   * Close the quick-search modal
+   */
+  closeQuickSearch() {
+    if (!this.quickSearchOpen) return;
+    this.quickSearchOpen = false;
+    this.quickSearchQuery = "";
+    this.quickSearchItems = [];
+    this.quickSearchUsers = [];
+    this.quickSearchAllRooms = [];
+    this.quickSearchRoomMembership = [];
+
+    const overlay = document.querySelector(".quick-search-overlay");
+    if (overlay) {
+      overlay.remove();
+    }
+  }
+
+  /**
+   * Handle keyboard navigation in quick-search
+   */
+  handleQuickSearchKeydown(e: KeyboardEvent) {
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        this.closeQuickSearch();
+        break;
+
+      case "ArrowDown":
+        e.preventDefault();
+        if (this.quickSearchItems.length > 0) {
+          this.quickSearchSelectedIndex =
+            (this.quickSearchSelectedIndex + 1) % this.quickSearchItems.length;
+          this.renderQuickSearchSelection();
+        }
+        break;
+
+      case "ArrowUp":
+        e.preventDefault();
+        if (this.quickSearchItems.length > 0) {
+          this.quickSearchSelectedIndex =
+            (this.quickSearchSelectedIndex - 1 + this.quickSearchItems.length) %
+            this.quickSearchItems.length;
+          this.renderQuickSearchSelection();
+        }
+        break;
+
+      case "Enter":
+        e.preventDefault();
+        this.selectQuickSearchItem();
+        break;
+    }
+  }
+
+  /**
+   * Update quick-search results based on current query
+   */
+  updateQuickSearchResults() {
+    const query = this.quickSearchQuery.toLowerCase().trim();
+    const items: QuickSearchItem[] = [];
+
+    if (!query) {
+      // Show recent rooms
+      const recentIds = this.getRecentRooms();
+      for (const roomId of recentIds) {
+        const room = this.state.getRoom(roomId);
+        if (room) {
+          if (room.room_type === "dm") {
+            items.push({
+              type: "dm",
+              id: room.id,
+              name: this.getDMDisplayName(room),
+              isMember: true,
+            });
+          } else {
+            items.push({
+              type: "room",
+              id: room.id,
+              name: room.name,
+              isMember: true,
+            });
+          }
+        }
+      }
+    } else {
+      // Filter channels from ALL accessible rooms (not just joined)
+      // Use quickSearchAllRooms if available, fall back to user's rooms
+      const roomsToSearch =
+        this.quickSearchAllRooms.length > 0
+          ? this.quickSearchAllRooms
+          : this.state.rooms;
+
+      for (let i = 0; i < roomsToSearch.length; i++) {
+        const room = roomsToSearch[i];
+        if (room.name.toLowerCase().includes(query)) {
+          // Determine membership status
+          const isMember =
+            this.quickSearchAllRooms.length > 0
+              ? this.quickSearchRoomMembership[i]
+              : true; // If using state.rooms, user is always a member
+
+          items.push({
+            type: "room",
+            id: room.id,
+            name: room.name,
+            isMember: isMember,
+            secondary: isMember ? undefined : "Join",
+          });
+        }
+      }
+
+      // Filter DMs (user is always a member of their DMs)
+      for (const dm of this.state.dms) {
+        const displayName = this.getDMDisplayName(dm).toLowerCase();
+        if (displayName.includes(query)) {
+          items.push({
+            type: "dm",
+            id: dm.id,
+            name: this.getDMDisplayName(dm),
+            isMember: true,
+          });
+        }
+      }
+
+      // Add users from server response (filtered to exclude already-shown DMs and self)
+      for (const user of this.quickSearchUsers) {
+        if (user.id === this.state.user.id) continue;
+
+        const matchesUsername = user.username.toLowerCase().includes(query);
+        const matchesDisplayName = user.display_name
+          ?.toLowerCase()
+          .includes(query);
+
+        if (matchesUsername || matchesDisplayName) {
+          // Check if we already have a DM with this user shown
+          const existingDM = items.find(
+            (item) =>
+              item.type === "dm" &&
+              this.state.dms
+                .find((d) => d.id === item.id)
+                ?.members?.some((m) => m.id === user.id),
+          );
+          if (!existingDM) {
+            items.push({
+              type: "user",
+              id: user.id,
+              name: user.display_name || user.username,
+              secondary: user.display_name ? `@${user.username}` : undefined,
+            });
+          }
+        }
+      }
+
+      // Limit total results
+      items.splice(10);
+
+      // Add "Search messages" escape hatch at the end
+      items.push({
+        type: "search-escape",
+        id: "search",
+        name: `Search messages for "${this.quickSearchQuery}"`,
+      });
+    }
+
+    this.quickSearchItems = items;
+
+    // Ensure selected index is valid
+    if (this.quickSearchSelectedIndex >= items.length) {
+      this.quickSearchSelectedIndex = Math.max(0, items.length - 1);
+    }
+
+    this.renderQuickSearchResults();
+  }
+
+  /**
+   * Render the quick-search results list
+   */
+  renderQuickSearchResults() {
+    const container = document.getElementById("quick-search-results");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (this.quickSearchItems.length === 0) {
+      const empty = $("div", {
+        class: "quick-search-empty",
+        text: "No results found",
+      });
+      container.appendChild(empty);
+      return;
+    }
+
+    // Section header for recents
+    if (!this.quickSearchQuery) {
+      const header = $("div", {
+        class: "quick-search-section-header",
+        text: "Recent",
+      });
+      container.appendChild(header);
+    }
+
+    // Render items
+    for (let i = 0; i < this.quickSearchItems.length; i++) {
+      const item = this.quickSearchItems[i];
+      const isSelected = i === this.quickSearchSelectedIndex;
+
+      const el = $("div", {
+        class: `quick-search-item ${isSelected ? "selected" : ""}`,
+        "data-index": String(i),
+      });
+
+      // Icon
+      let icon = "";
+      if (item.type === "room") {
+        icon = "#";
+      } else if (item.type === "dm") {
+        icon = "💬";
+      } else if (item.type === "user") {
+        icon = "👤";
+      } else if (item.type === "search-escape") {
+        icon = "🔍";
+      }
+
+      const iconSpan = $("span", {
+        class: "quick-search-item-icon",
+        text: icon,
+      });
+      el.appendChild(iconSpan);
+
+      // Name
+      const nameSpan = $("span", {
+        class: "quick-search-item-name",
+        text: item.name,
+      });
+      el.appendChild(nameSpan);
+
+      // Secondary text (e.g., @username or "Join" for non-member rooms)
+      if (item.secondary) {
+        const isJoinHint = item.type === "room" && item.isMember === false;
+        const secondarySpan = $("span", {
+          class: `quick-search-item-secondary${isJoinHint ? " join-hint" : ""}`,
+          text: item.secondary,
+        });
+        el.appendChild(secondarySpan);
+      }
+
+      // Click handler
+      el.addEventListener("click", () => {
+        this.quickSearchSelectedIndex = i;
+        this.selectQuickSearchItem();
+      });
+
+      // Hover to select
+      el.addEventListener("mouseenter", () => {
+        this.quickSearchSelectedIndex = i;
+        this.renderQuickSearchSelection();
+      });
+
+      container.appendChild(el);
+    }
+  }
+
+  /**
+   * Update the visual selection without re-rendering all items
+   */
+  renderQuickSearchSelection() {
+    const items = document.querySelectorAll(".quick-search-item");
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.toggle(
+        "selected",
+        i === this.quickSearchSelectedIndex,
+      );
+    }
+
+    // Scroll selected item into view
+    const selected = items[this.quickSearchSelectedIndex];
+    if (selected) {
+      selected.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  /**
+   * Select the currently highlighted quick-search item
+   */
+  selectQuickSearchItem() {
+    const item = this.quickSearchItems[this.quickSearchSelectedIndex];
+    if (!item) return;
+
+    this.closeQuickSearch();
+
+    switch (item.type) {
+      case "room":
+        this.addRecentRoom(item.id);
+        if (item.isMember) {
+          // Already a member, just switch to the room
+          this.switchRoom(item.id);
+        } else {
+          // Not a member, join the room first (joinRoom handles the switch)
+          this.joinRoom(item.id);
+        }
+        break;
+
+      case "dm":
+        this.addRecentRoom(item.id);
+        this.switchRoom(item.id);
+        break;
+
+      case "user":
+        // Start a DM with this user
+        this.requestCreateDM([item.id]);
+        break;
+
+      case "search-escape":
+        // Navigate to search page with query
+        window.location.href = `/search?q=${encodeURIComponent(this.quickSearchQuery)}`;
+        break;
+    }
+  }
+
+  /**
+   * Handle global Cmd+K / Ctrl+K keyboard shortcut
+   */
+  handleGlobalKeydown(e: KeyboardEvent) {
+    // Cmd+K (Mac) or Ctrl+K (Windows/Linux) to open quick-search
+    const isMac = navigator.platform.toUpperCase().includes("MAC");
+    const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+    if (modifier && e.key === "k") {
+      e.preventDefault();
+      if (this.quickSearchOpen) {
+        this.closeQuickSearch();
+      } else {
+        this.openQuickSearch();
+      }
+    }
+
+    // Escape to close quick-search (handled in modal keydown, but also here for safety)
+    if (e.key === "Escape" && this.quickSearchOpen) {
+      this.closeQuickSearch();
     }
   }
 
@@ -3157,6 +3646,9 @@ function main() {
       client.switchRoom(roomId);
     }
   });
+
+  // Global keyboard shortcuts (Cmd+K / Ctrl+K for quick-search)
+  document.addEventListener("keydown", client.handleGlobalKeydown.bind(client));
 
   document
     .getElementById("message")
