@@ -2,6 +2,8 @@
 go = "1.25"
 node = "24"
 uv = "latest"
+golangci-lint = "2"
 
 [env]
 SEED_DEVELOPMENT_DB="1"
+LOG_LEVEL="DEBUG"
