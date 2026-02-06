@@ -1,7 +1,7 @@
 [tools]
 go = "1.25"
 node = "24"
-python = "3.12"
+uv = "latest"
 
 [env]
 SEED_DEVELOPMENT_DB="1"

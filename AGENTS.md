@@ -47,7 +47,7 @@ hatchat/
 ├── tools/
 │   ├── models.sh          # Regenerates DB models from schema
 │   └── schemagen/         # Tool to generate JSON Schema from protocol types
-├── requirements.txt       # Python dependencies (for doc generation)
+
 └── justfile               # Build commands
 ```
 
