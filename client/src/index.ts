@@ -190,6 +190,7 @@ class Client {
 
     // Check if we're on the search page
     if (window.location.pathname === "/search") {
+      this.renderSidebar();
       this.renderSearchPage();
       this.populateSearchRoomFilter();
       return;
@@ -895,7 +896,13 @@ class Client {
   }
 
   switchRoom(roomId: string) {
-    if (roomId === this.state.currentRoom) {
+    if (roomId === this.state.currentRoom && !this.isSearchPage) {
+      return;
+    }
+
+    // If on search page, navigate to chat instead of trying to update in place
+    if (this.isSearchPage) {
+      window.location.href = `/chat/${roomId}`;
       return;
     }
 
