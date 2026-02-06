@@ -147,6 +147,37 @@
       ],
       "type": "object"
     },
+    "GetMessageContextRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "message_id": {
+          "description": "ID of the message to get context for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id"
+      ],
+      "type": "object"
+    },
+    "GetMessageContextResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "$ref": "#/$defs/Message",
+          "description": "The requested message"
+        },
+        "room_id": {
+          "description": "Room the message belongs to",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message",
+        "room_id"
+      ],
+      "type": "object"
+    },
     "GetProfileRequest": {
       "additionalProperties": false,
       "properties": {
@@ -670,6 +701,105 @@
       ],
       "type": "object"
     },
+    "SearchRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "description": "Pagination cursor for next page",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Max results to return (default 20)",
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "query": {
+          "description": "Search query text",
+          "minLength": 1,
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Filter to specific room",
+          "type": "string"
+        },
+        "user_id": {
+          "description": "Filter to messages from specific user",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "SearchResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "next_cursor": {
+          "description": "Pagination cursor for next page",
+          "type": "string"
+        },
+        "results": {
+          "description": "Matching messages with snippets",
+          "items": {
+            "$ref": "#/$defs/SearchResult"
+          },
+          "type": "array"
+        },
+        "total": {
+          "description": "Approximate total matches",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "type": "object"
+    },
+    "SearchResult": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "description": "RFC3339Nano timestamp of the message",
+          "type": "string"
+        },
+        "message_id": {
+          "description": "ID of the matching message",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room the message belongs to",
+          "type": "string"
+        },
+        "room_name": {
+          "description": "Name of the room (for display)",
+          "type": "string"
+        },
+        "snippet": {
+          "description": "Message excerpt with **highlighted** matches",
+          "type": "string"
+        },
+        "user_id": {
+          "description": "Author of the message",
+          "type": "string"
+        },
+        "username": {
+          "description": "Username of the author",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "room_id",
+        "room_name",
+        "user_id",
+        "username",
+        "snippet",
+        "created_at"
+      ],
+      "type": "object"
+    },
     "SendMessageRequest": {
       "additionalProperties": false,
       "properties": {
@@ -859,6 +989,21 @@
     },
     {
       "$ref": "#/$defs/ReactionUpdated"
+    },
+    {
+      "$ref": "#/$defs/SearchRequest"
+    },
+    {
+      "$ref": "#/$defs/SearchResponse"
+    },
+    {
+      "$ref": "#/$defs/SearchResult"
+    },
+    {
+      "$ref": "#/$defs/GetMessageContextRequest"
+    },
+    {
+      "$ref": "#/$defs/GetMessageContextResponse"
     },
     {
       "$ref": "#/$defs/Envelope"
