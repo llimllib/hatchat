@@ -44,6 +44,9 @@ func NewChatServer(level string, dbLocation string) (*ChatServer, error) {
 		if err := seedDevUsers(db, logger); err != nil {
 			return nil, fmt.Errorf("seed dev users: %w", err)
 		}
+		if err := seedDevMessages(db, logger); err != nil {
+			return nil, fmt.Errorf("seed dev messages: %w", err)
+		}
 	}
 
 	return &ChatServer{
