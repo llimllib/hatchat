@@ -1674,3 +1674,171 @@ body {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
+
+/* =========================================================================
+   Quick-Search (Cmd+K) Styles - Phase 4.4E
+   ========================================================================= */
+
+/* --- Overlay --- */
+
+.quick-search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(31, 28, 26, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1100;
+  padding-top: 15vh;
+}
+
+/* --- Modal container --- */
+
+.quick-search-modal {
+  background: var(--color-white);
+  border-radius: 12px;
+  box-shadow: 0 16px 70px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 560px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Search input area --- */
+
+.quick-search-input-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(141, 124, 85, 0.2);
+}
+
+.quick-search-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.quick-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 18px;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-coco-black);
+}
+
+.quick-search-input::placeholder {
+  color: var(--color-shadow-colossus);
+}
+
+/* --- Results area --- */
+
+.quick-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.quick-search-empty {
+  padding: 24px 20px;
+  text-align: center;
+  color: var(--color-stone-cold);
+  font-size: 14px;
+}
+
+.quick-search-section-header {
+  padding: 8px 20px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-shadow-colossus);
+}
+
+/* --- Result items --- */
+
+.quick-search-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.quick-search-item:hover,
+.quick-search-item.selected {
+  background-color: rgba(84, 49, 28, 0.08);
+}
+
+.quick-search-item-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--color-stone-cold);
+}
+
+/* For # channel icon */
+.quick-search-item-icon:first-child {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.quick-search-item-name {
+  flex: 1;
+  font-size: 15px;
+  color: var(--color-coco-black);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-search-item-secondary {
+  font-size: 13px;
+  color: var(--color-stone-cold);
+  white-space: nowrap;
+}
+
+/* "Join" badge for rooms user isn't a member of */
+.quick-search-item-secondary.join-hint {
+  background: rgba(84, 49, 28, 0.1);
+  color: var(--color-peat-brown);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* --- Keyboard hint at bottom (optional enhancement) --- */
+
+.quick-search-footer {
+  padding: 10px 20px;
+  border-top: 1px solid rgba(141, 124, 85, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-shadow-colossus);
+}
+
+.quick-search-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: rgba(91, 89, 88, 0.1);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
