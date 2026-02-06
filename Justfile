@@ -59,7 +59,7 @@ e2e-deps:
     @test -d e2e/node_modules || (cd e2e && npm install && npx playwright install chromium)
 
 # Run e2e tests with Playwright
-e2e: e2e-deps
+e2e: build e2e-deps
     cd e2e && npm test
 
 # Run e2e tests in headed mode (visible browser)
