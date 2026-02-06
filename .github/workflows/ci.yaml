@@ -5,8 +5,33 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: "Detect changes"
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'server/**'
+              - 'cmd/**'
+              - 'schema.sql'
+              - 'go.mod'
+              - 'go.sum'
+              - 'justfile'
+            frontend:
+              - 'client/**'
+              - 'justfile'
+
   ci:
     name: "golang CI"
+    needs: changes
+    if: github.ref == 'refs/heads/main' || needs.changes.outputs.backend == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +55,9 @@ jobs:
           version: v2.8.0
 
   js-ci:
+    name: "frontend CI"
+    needs: changes
+    if: github.ref == 'refs/heads/main' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
