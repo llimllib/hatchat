@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  issues: write
 
 # Allow only one concurrent deployment
 concurrency:
@@ -34,7 +35,7 @@ jobs:
           node-version: "24"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
 
       - name: Install Pandoc
         run: sudo apt-get install -y pandoc
@@ -52,6 +53,45 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: docs/site
+
+      - name: Create or update issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Site build failed';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const body = `The site build failed. See the [workflow run](${runUrl}) for details.`;
+
+            // Check for existing open issue with this title
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+
+            const existingIssue = issues.find(issue => issue.title === title);
+
+            if (existingIssue) {
+              // Add a comment to the existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: body
+              });
+              console.log(`Added comment to existing issue #${existingIssue.number}`);
+            } else {
+              // Create a new issue
+              const { data: newIssue } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body
+              });
+              console.log(`Created new issue #${newIssue.number}`);
+            }
 
   deploy:
     environment:
