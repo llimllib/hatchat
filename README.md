@@ -4,6 +4,7 @@ The aim of Hatchat is to build a slack-like chat application on top of SQLite.
 
 The goal is simplicity for running the server over more features.
 
+![A screenshot of the running application](./screenshot.png)
 ## Server
 
 To build a binary: `go build ./cmd/server.go -o hatchat`
