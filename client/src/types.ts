@@ -26,6 +26,8 @@ export type {
   ListRoomsResponse,
   ListUsersRequest,
   ListUsersResponse,
+  MarkReadRequest,
+  MarkReadResponse,
   Message,
   MessageDeleted,
   MessageEdited,
@@ -42,6 +44,7 @@ export type {
   SearchResult,
   SendMessageRequest,
   ServerEnvelope,
+  UnreadCounts,
   UpdateProfileRequest,
   UpdateProfileResponse,
   User,
@@ -60,6 +63,7 @@ export {
   LeaveRoomResponseSchema,
   ListRoomsResponseSchema,
   ListUsersResponseSchema,
+  MarkReadResponseSchema,
   MessageDeletedSchema,
   MessageEditedSchema,
   MessageSchema,
@@ -74,6 +78,7 @@ export {
   // Zod schemas for runtime validation
   ServerEnvelopeSchema,
   safeParseServerEnvelope,
+  UnreadCountsSchema,
   UpdateProfileResponseSchema,
   UserSchema,
 } from "./protocol.generated";

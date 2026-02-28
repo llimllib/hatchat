@@ -220,6 +220,14 @@ type GetMessageContextRequest struct {
 	MessageID string `json:"message_id" jsonschema:"required,description=ID of the message to get context for"`
 }
 
+// MarkReadRequest marks all messages in a room as read up to a timestamp
+// Direction: client → server
+// Response: MarkReadResponse
+type MarkReadRequest struct {
+	RoomID string `json:"room_id" jsonschema:"required,description=Room to mark as read"`
+	ReadAt string `json:"read_at" jsonschema:"required,description=Timestamp to mark as read up to (typically the latest message timestamp)"`
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -227,10 +235,11 @@ type GetMessageContextRequest struct {
 // InitResponse is sent by the server in response to InitRequest
 // Direction: server → client
 type InitResponse struct {
-	User        User    `json:"user" jsonschema:"required,description=The authenticated user"`
-	Rooms       []*Room `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
-	DMs         []*Room `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
-	CurrentRoom string  `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
+	User         User           `json:"user" jsonschema:"required,description=The authenticated user"`
+	Rooms        []*Room        `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
+	DMs          []*Room        `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
+	CurrentRoom  string         `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
+	UnreadCounts map[string]int `json:"unread_counts" jsonschema:"required,description=Map of room ID to unread message count"`
 }
 
 // HistoryResponse is sent by the server in response to HistoryRequest
@@ -357,6 +366,20 @@ type SearchResult struct {
 type GetMessageContextResponse struct {
 	Message Message `json:"message" jsonschema:"required,description=The requested message"`
 	RoomID  string  `json:"room_id" jsonschema:"required,description=Room the message belongs to"`
+}
+
+// MarkReadResponse confirms the read position was updated
+// Direction: server → client
+type MarkReadResponse struct {
+	RoomID      string `json:"room_id" jsonschema:"required,description=Room that was marked as read"`
+	ReadAt      string `json:"read_at" jsonschema:"required,description=Timestamp that was recorded"`
+	UnreadCount int    `json:"unread_count" jsonschema:"required,description=New unread count (always 0 after marking current)"`
+}
+
+// UnreadCounts provides unread message counts for all rooms
+// Direction: server → client (sent as part of init and optionally on updates)
+type UnreadCounts struct {
+	Counts map[string]int `json:"counts" jsonschema:"required,description=Map of room ID to unread message count"`
 }
 
 // =============================================================================
@@ -544,5 +567,15 @@ var MessageTypes = []MessageMeta{
 		Type:        "get_message_context",
 		Direction:   ServerToClient,
 		Description: "Response with message and room ID",
+	},
+	{
+		Type:        "mark_read",
+		Direction:   ClientToServer,
+		Description: "Mark all messages in a room as read up to a timestamp",
+	},
+	{
+		Type:        "mark_read",
+		Direction:   ServerToClient,
+		Description: "Response confirming read position was updated",
 	},
 }

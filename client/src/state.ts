@@ -20,11 +20,22 @@ export class AppState {
   // Per-room cached state
   private roomStates: Map<string, RoomState> = new Map();
 
+  // Unread counts per room
+  unreadCounts: Map<string, number> = new Map();
+
   /**
    * Initialize state with data from server
    */
   setInitialData(data: InitResponse) {
     this.initialData = data;
+
+    // Initialize unread counts from server
+    this.unreadCounts.clear();
+    for (const [roomId, count] of Object.entries(data.unread_counts)) {
+      if (count > 0) {
+        this.unreadCounts.set(roomId, count);
+      }
+    }
   }
 
   /**
@@ -203,5 +214,48 @@ export class AppState {
       const [dm] = this.initialData.dms.splice(idx, 1);
       this.initialData.dms.unshift(dm);
     }
+  }
+
+  /**
+   * Get unread count for a room
+   */
+  getUnreadCount(roomId: string): number {
+    return this.unreadCounts.get(roomId) || 0;
+  }
+
+  /**
+   * Increment unread count for a room
+   */
+  incrementUnread(roomId: string) {
+    const current = this.unreadCounts.get(roomId) || 0;
+    this.unreadCounts.set(roomId, current + 1);
+  }
+
+  /**
+   * Mark a room as read (set unread count to 0)
+   */
+  markRoomAsRead(roomId: string) {
+    this.unreadCounts.delete(roomId);
+  }
+
+  /**
+   * Set unread count for a room (from server response)
+   */
+  setUnreadCount(roomId: string, count: number) {
+    if (count > 0) {
+      this.unreadCounts.set(roomId, count);
+    } else {
+      this.unreadCounts.delete(roomId);
+    }
+  }
+
+  /**
+   * Check if any room has unread messages
+   */
+  hasAnyUnread(): boolean {
+    for (const count of this.unreadCounts.values()) {
+      if (count > 0) return true;
+    }
+    return false;
   }
 }

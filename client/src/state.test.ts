@@ -24,6 +24,7 @@ describe("AppState", () => {
     dms: [],
     user: { id: "usr_abc123", username: "testuser" },
     current_room: "roo_123",
+    unread_counts: {},
   });
 
   // For backwards compatibility with existing tests
@@ -268,6 +269,77 @@ describe("AppState", () => {
 
       expect(state.getRoomState("roo_123").scrollPosition).toBe(100);
       expect(state.getRoomState("roo_456").scrollPosition).toBe(200);
+    });
+  });
+
+  describe("unread counts", () => {
+    it("initializes unread counts from init data", () => {
+      const data = createMockInitialData();
+      data.unread_counts = { roo_123: 5, roo_456: 10 };
+      state.setInitialData(data);
+
+      expect(state.getUnreadCount("roo_123")).toBe(5);
+      expect(state.getUnreadCount("roo_456")).toBe(10);
+    });
+
+    it("returns 0 for rooms with no unread", () => {
+      state.setInitialData(createMockInitialData());
+      expect(state.getUnreadCount("roo_123")).toBe(0);
+      expect(state.getUnreadCount("roo_nonexistent")).toBe(0);
+    });
+
+    it("increments unread count", () => {
+      state.setInitialData(createMockInitialData());
+      expect(state.getUnreadCount("roo_123")).toBe(0);
+
+      state.incrementUnread("roo_123");
+      expect(state.getUnreadCount("roo_123")).toBe(1);
+
+      state.incrementUnread("roo_123");
+      expect(state.getUnreadCount("roo_123")).toBe(2);
+    });
+
+    it("marks room as read", () => {
+      const data = createMockInitialData();
+      data.unread_counts = { roo_123: 5 };
+      state.setInitialData(data);
+
+      expect(state.getUnreadCount("roo_123")).toBe(5);
+
+      state.markRoomAsRead("roo_123");
+      expect(state.getUnreadCount("roo_123")).toBe(0);
+    });
+
+    it("sets unread count", () => {
+      state.setInitialData(createMockInitialData());
+
+      state.setUnreadCount("roo_123", 7);
+      expect(state.getUnreadCount("roo_123")).toBe(7);
+
+      // Setting to 0 should remove from map
+      state.setUnreadCount("roo_123", 0);
+      expect(state.getUnreadCount("roo_123")).toBe(0);
+    });
+
+    it("checks hasAnyUnread", () => {
+      state.setInitialData(createMockInitialData());
+      expect(state.hasAnyUnread()).toBe(false);
+
+      state.incrementUnread("roo_123");
+      expect(state.hasAnyUnread()).toBe(true);
+
+      state.markRoomAsRead("roo_123");
+      expect(state.hasAnyUnread()).toBe(false);
+    });
+
+    it("excludes zero counts from unread map", () => {
+      const data = createMockInitialData();
+      data.unread_counts = { roo_123: 0, roo_456: 5 };
+      state.setInitialData(data);
+
+      // roo_123 should not be in the map since count is 0
+      expect(state.unreadCounts.has("roo_123")).toBe(false);
+      expect(state.unreadCounts.has("roo_456")).toBe(true);
     });
   });
 });

@@ -133,10 +133,16 @@ export const GetMessageContextRequestSchema = z.object({
   message_id: z.string(),
 });
 
+export const MarkReadRequestSchema = z.object({
+  read_at: z.string(),
+  room_id: z.string(),
+});
+
 export const InitResponseSchema = z.object({
   current_room: z.string(),
   dms: z.array(RoomSchema),
   rooms: z.array(RoomSchema),
+  unread_counts: z.record(z.string(), z.int()),
   user: UserSchema,
 });
 
@@ -233,6 +239,16 @@ export const GetMessageContextResponseSchema = z.object({
   room_id: z.string(),
 });
 
+export const MarkReadResponseSchema = z.object({
+  read_at: z.string(),
+  room_id: z.string(),
+  unread_count: z.int(),
+});
+
+export const UnreadCountsSchema = z.object({
+  counts: z.record(z.string(), z.int()),
+});
+
 export const EnvelopeSchema = z.object({
   data: z.unknown(),
   type: z.string(),
@@ -267,6 +283,7 @@ export type SearchRequest = z.infer<typeof SearchRequestSchema>;
 export type GetMessageContextRequest = z.infer<
   typeof GetMessageContextRequestSchema
 >;
+export type MarkReadRequest = z.infer<typeof MarkReadRequestSchema>;
 export type InitResponse = z.infer<typeof InitResponseSchema>;
 export type HistoryResponse = z.infer<typeof HistoryResponseSchema>;
 export type JoinRoomResponse = z.infer<typeof JoinRoomResponseSchema>;
@@ -287,6 +304,8 @@ export type SearchResponse = z.infer<typeof SearchResponseSchema>;
 export type GetMessageContextResponse = z.infer<
   typeof GetMessageContextResponseSchema
 >;
+export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>;
+export type UnreadCounts = z.infer<typeof UnreadCountsSchema>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
 // =============================================================================
@@ -315,6 +334,7 @@ export type MessageType =
   | "remove_reaction"
   | "search"
   | "get_message_context"
+  | "mark_read"
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
@@ -341,7 +361,8 @@ export type ClientEnvelope =
   | { type: "add_reaction"; data: AddReactionRequest }
   | { type: "remove_reaction"; data: RemoveReactionRequest }
   | { type: "search"; data: SearchRequest }
-  | { type: "get_message_context"; data: GetMessageContextRequest };
+  | { type: "get_message_context"; data: GetMessageContextRequest }
+  | { type: "mark_read"; data: MarkReadRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -361,6 +382,7 @@ export type ServerEnvelope =
   | { type: "update_profile"; data: UpdateProfileResponse }
   | { type: "search"; data: SearchResponse }
   | { type: "get_message_context"; data: GetMessageContextResponse }
+  | { type: "mark_read"; data: MarkReadResponse }
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
@@ -460,6 +482,11 @@ export const GetMessageContextEnvelopeSchema = z.object({
   data: GetMessageContextResponseSchema,
 });
 
+export const MarkReadEnvelopeSchema = z.object({
+  type: z.literal("mark_read"),
+  data: MarkReadResponseSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -478,6 +505,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   UpdateProfileEnvelopeSchema,
   SearchEnvelopeSchema,
   GetMessageContextEnvelopeSchema,
+  MarkReadEnvelopeSchema,
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,

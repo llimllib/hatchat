@@ -85,3 +85,12 @@ END;
 CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
     INSERT INTO messages_fts(messages_fts, rowid, body) VALUES('delete', OLD.rowid, OLD.body);
 END;
+
+-- Track last-read message position per user per room for unread tracking.
+-- Uses timestamp rather than message ID so comparisons work even if messages are deleted.
+CREATE TABLE IF NOT EXISTS read_positions(
+  user_id TEXT REFERENCES users(id) NOT NULL,
+  room_id TEXT REFERENCES rooms(id) NOT NULL,
+  last_read_at TEXT NOT NULL, -- RFC3339Nano timestamp of the last message read
+  PRIMARY KEY (user_id, room_id)
+) STRICT;

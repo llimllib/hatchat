@@ -284,11 +284,12 @@ _Goal: Don't miss important messages_
 
 ### 5.1 Unread Tracking
 
-- [ ] Track last-read message per user per room
-- [ ] Unread count badges in sidebar
-- [ ] Bold room name if unread
+- [x] Track last-read message per user per room (read_positions table)
+- [x] Unread count badges in sidebar
+- [x] Bold room name if unread
+- [x] Auto-mark as read when viewing room
 - [ ] "New messages" divider line at first unread
-- [ ] "Mark as read" on room view
+- [ ] Manual "Mark as read" context menu option
 - [ ] "Mark all as read" option
 
 ### 5.2 In-App Notifications

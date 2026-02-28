@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -315,6 +316,14 @@ func (c *Client) readPump() {
 			if err != nil {
 				c.logger.Error("failed to handle get_message_context", "error", err, "msg", msg)
 				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get message context")))
+			} else {
+				must(c.conn.WriteJSON(res))
+			}
+		case "mark_read":
+			res, err := c.api.MarkRead(context.Background(), c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle mark_read", "error", err, "msg", msg)
+				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to mark as read")))
 			} else {
 				must(c.conn.WriteJSON(res))
 			}
