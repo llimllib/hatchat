@@ -1864,3 +1864,38 @@ body {
   font-family: monospace;
   font-size: 11px;
 }
+
+
+/* --- Connection status bar (reconnection indicator) --- */
+
+.connection-status {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 10000;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.connection-status.reconnecting {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.connection-status.error {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}

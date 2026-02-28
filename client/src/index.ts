@@ -83,18 +83,136 @@ class Client {
   quickSearchAllRooms: Room[] = []; // All accessible rooms (not just joined)
   quickSearchRoomMembership: boolean[] = []; // Membership status for quickSearchAllRooms
 
+  // Reconnection state
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private reconnectTimeoutId: number | null = null;
+  private isReconnecting: boolean = false;
+
   constructor(conn: WebSocket) {
     this.conn = conn;
     this.state = new AppState();
 
+    this.setupWebSocketListeners(conn);
+  }
+
+  private setupWebSocketListeners(conn: WebSocket) {
     conn.addEventListener("open", this.wsOpen.bind(this));
     conn.addEventListener("message", this.wsReceive.bind(this));
     conn.addEventListener("close", this.wsClose.bind(this));
+    conn.addEventListener("error", this.wsError.bind(this));
   }
 
-  wsClose(_: CloseEvent) {
-    // TODO: try to reconnect
-    console.warn("connection closed", _);
+  private wsError(evt: Event) {
+    console.error("WebSocket error:", evt);
+  }
+
+  wsClose(evt: CloseEvent) {
+    console.warn("WebSocket connection closed", {
+      code: evt.code,
+      reason: evt.reason,
+      wasClean: evt.wasClean,
+    });
+
+    // Don't reconnect if we're already trying or if it was a clean close
+    // Code 1000 = normal closure, 1001 = going away (page navigation)
+    if (evt.code === 1000 || evt.code === 1001) {
+      console.log("Clean close, not reconnecting");
+      return;
+    }
+
+    this.scheduleReconnect();
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("Max reconnection attempts reached");
+      this.showConnectionError(
+        "Connection lost. Please refresh the page to reconnect.",
+      );
+      return;
+    }
+
+    if (this.reconnectTimeoutId !== null) {
+      // Already scheduled
+      return;
+    }
+
+    this.isReconnecting = true;
+    this.reconnectAttempts++;
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
+    const delay = Math.min(1000 * 2 ** (this.reconnectAttempts - 1), 30000);
+    console.log(
+      `Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`,
+    );
+
+    this.showReconnecting(this.reconnectAttempts, delay);
+
+    this.reconnectTimeoutId = window.setTimeout(() => {
+      this.reconnectTimeoutId = null;
+      this.attemptReconnect();
+    }, delay);
+  }
+
+  private attemptReconnect() {
+    console.log(`Attempting to reconnect (attempt ${this.reconnectAttempts})`);
+
+    const newConn = new WebSocket(`ws://${document.location.host}/ws`);
+    this.conn = newConn;
+
+    // Expose for e2e testing
+    // biome-ignore lint/suspicious/noExplicitAny: needed for e2e test access
+    (window as any).__ws = newConn;
+
+    this.setupWebSocketListeners(newConn);
+  }
+
+  private onReconnected() {
+    console.log("Reconnected successfully");
+    this.reconnectAttempts = 0;
+    this.isReconnecting = false;
+    this.hideConnectionStatus();
+
+    // Request fresh history for the current room to catch up on missed messages
+    if (this.state.currentRoom) {
+      this.requestHistory(this.state.currentRoom);
+    }
+  }
+
+  private showReconnecting(attempt: number, delay: number) {
+    let statusBar = document.getElementById("connection-status");
+    if (!statusBar) {
+      statusBar = $("div", {
+        id: "connection-status",
+        class: "connection-status reconnecting",
+      });
+      document.body.prepend(statusBar);
+    }
+
+    statusBar.className = "connection-status reconnecting";
+    statusBar.textContent = `Reconnecting... (attempt ${attempt}, retrying in ${Math.round(delay / 1000)}s)`;
+  }
+
+  private showConnectionError(message: string) {
+    let statusBar = document.getElementById("connection-status");
+    if (!statusBar) {
+      statusBar = $("div", {
+        id: "connection-status",
+        class: "connection-status error",
+      });
+      document.body.prepend(statusBar);
+    }
+
+    statusBar.className = "connection-status error";
+    statusBar.textContent = message;
+  }
+
+  private hideConnectionStatus() {
+    const statusBar = document.getElementById("connection-status");
+    if (statusBar) {
+      statusBar.remove();
+    }
   }
 
   wsReceive(evt: MessageEvent) {
@@ -324,7 +442,14 @@ class Client {
   }
 
   wsOpen(evt: Event) {
-    console.log("opened", evt);
+    console.log("WebSocket opened", evt);
+
+    // If this was a reconnection, handle it
+    if (this.isReconnecting) {
+      this.onReconnected();
+    }
+
+    // Send init message to establish session
     this.conn.send(
       JSON.stringify({
         type: "init",
