@@ -87,6 +87,28 @@ body {
   font-weight: 600;
 }
 
+/* Unread badges */
+.sidebar-channels li.has-unread > a,
+.sidebar-direct-messages li.has-unread > a {
+  color: var(--color-off-white);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.unread-badge {
+  background-color: var(--color-accent);
+  color: var(--color-off-white);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  margin-left: 8px;
+}
+
 /* Chat Area Styles */
 .chat-area {
   flex: 1;

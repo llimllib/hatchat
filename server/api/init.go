@@ -87,6 +87,14 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 		currentRoom = defaultRoom.ID
 	}
 
+	// Get unread counts for all rooms
+	unreadCounts, err := a.db.GetUnreadCounts(ctx, user.ID)
+	if err != nil {
+		a.logger.Error("failed to get unread counts", "error", err)
+		// Don't fail init, just return empty counts
+		unreadCounts = make(map[string]int)
+	}
+
 	return &InitResult{
 		Envelope: &Envelope{
 			Type: "init",
@@ -98,9 +106,10 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 					Status:      user.Status,
 					Avatar:      user.Avatar.String,
 				},
-				Rooms:       rooms,
-				DMs:         dms,
-				CurrentRoom: currentRoom,
+				Rooms:        rooms,
+				DMs:          dms,
+				CurrentRoom:  currentRoom,
+				UnreadCounts: unreadCounts,
 			},
 		},
 		CurrentRoom: currentRoom,

@@ -40,6 +40,7 @@ const typeOrder = [
   "RemoveReactionRequest",
   "SearchRequest",
   "GetMessageContextRequest",
+  "MarkReadRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
@@ -58,6 +59,8 @@ const typeOrder = [
   "SearchResult",
   "SearchResponse",
   "GetMessageContextResponse",
+  "MarkReadResponse",
+  "UnreadCounts",
   "Envelope",
 ];
 
@@ -113,6 +116,20 @@ function jsonSchemaToZod(schema, defs, depth = 0) {
     const properties = schema.properties || {};
     const required = new Set(schema.required || []);
 
+    // Handle map types (additionalProperties with no explicit properties)
+    if (
+      Object.keys(properties).length === 0 &&
+      schema.additionalProperties &&
+      typeof schema.additionalProperties === "object"
+    ) {
+      const valueType = jsonSchemaToZod(
+        schema.additionalProperties,
+        defs,
+        depth + 1,
+      );
+      return `z.record(z.string(), ${valueType})`;
+    }
+
     if (Object.keys(properties).length === 0) {
       // Empty object - use record for flexibility
       return "z.object({})";
@@ -122,6 +139,25 @@ function jsonSchemaToZod(schema, defs, depth = 0) {
     const closingIndent = "  ".repeat(depth);
 
     const props = Object.entries(properties).map(([key, prop]) => {
+      // Check if property itself is a map type (has additionalProperties)
+      if (
+        prop.type === "object" &&
+        Object.keys(prop.properties || {}).length === 0 &&
+        prop.additionalProperties &&
+        typeof prop.additionalProperties === "object"
+      ) {
+        const valueType = jsonSchemaToZod(
+          prop.additionalProperties,
+          defs,
+          depth + 1,
+        );
+        let zodType = `z.record(z.string(), ${valueType})`;
+        if (!required.has(key)) {
+          zodType += ".optional()";
+        }
+        return `${indent}${key}: ${zodType},`;
+      }
+
       let zodType = jsonSchemaToZod(prop, defs, depth + 1);
       if (!required.has(key)) {
         zodType += ".optional()";
@@ -201,6 +237,7 @@ export type MessageType =
   | "remove_reaction"
   | "search"
   | "get_message_context"
+  | "mark_read"
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
@@ -227,7 +264,8 @@ export type ClientEnvelope =
   | { type: "add_reaction"; data: AddReactionRequest }
   | { type: "remove_reaction"; data: RemoveReactionRequest }
   | { type: "search"; data: SearchRequest }
-  | { type: "get_message_context"; data: GetMessageContextRequest };
+  | { type: "get_message_context"; data: GetMessageContextRequest }
+  | { type: "mark_read"; data: MarkReadRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -247,6 +285,7 @@ export type ServerEnvelope =
   | { type: "update_profile"; data: UpdateProfileResponse }
   | { type: "search"; data: SearchResponse }
   | { type: "get_message_context"; data: GetMessageContextResponse }
+  | { type: "mark_read"; data: MarkReadResponse }
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
@@ -346,6 +385,11 @@ export const GetMessageContextEnvelopeSchema = z.object({
   data: GetMessageContextResponseSchema,
 });
 
+export const MarkReadEnvelopeSchema = z.object({
+  type: z.literal("mark_read"),
+  data: MarkReadResponseSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -364,6 +408,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   UpdateProfileEnvelopeSchema,
   SearchEnvelopeSchema,
   GetMessageContextEnvelopeSchema,
+  MarkReadEnvelopeSchema,
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,

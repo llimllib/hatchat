@@ -279,6 +279,13 @@
           },
           "type": "array"
         },
+        "unread_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Map of room ID to unread message count",
+          "type": "object"
+        },
         "user": {
           "$ref": "#/$defs/User",
           "description": "The authenticated user"
@@ -288,7 +295,8 @@
         "user",
         "rooms",
         "dms",
-        "current_room"
+        "current_room",
+        "unread_counts"
       ],
       "type": "object"
     },
@@ -406,6 +414,47 @@
       },
       "required": [
         "users"
+      ],
+      "type": "object"
+    },
+    "MarkReadRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "read_at": {
+          "description": "Timestamp to mark as read up to (typically the latest message timestamp)",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room to mark as read",
+          "type": "string"
+        }
+      },
+      "required": [
+        "room_id",
+        "read_at"
+      ],
+      "type": "object"
+    },
+    "MarkReadResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "read_at": {
+          "description": "Timestamp that was recorded",
+          "type": "string"
+        },
+        "room_id": {
+          "description": "Room that was marked as read",
+          "type": "string"
+        },
+        "unread_count": {
+          "description": "New unread count (always 0 after marking current)",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "room_id",
+        "read_at",
+        "unread_count"
       ],
       "type": "object"
     },
@@ -820,6 +869,22 @@
       ],
       "type": "object"
     },
+    "UnreadCounts": {
+      "additionalProperties": false,
+      "properties": {
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Map of room ID to unread message count",
+          "type": "object"
+        }
+      },
+      "required": [
+        "counts"
+      ],
+      "type": "object"
+    },
     "UpdateProfileRequest": {
       "additionalProperties": false,
       "properties": {
@@ -1004,6 +1069,15 @@
     },
     {
       "$ref": "#/$defs/GetMessageContextResponse"
+    },
+    {
+      "$ref": "#/$defs/MarkReadRequest"
+    },
+    {
+      "$ref": "#/$defs/MarkReadResponse"
+    },
+    {
+      "$ref": "#/$defs/UnreadCounts"
     },
     {
       "$ref": "#/$defs/Envelope"

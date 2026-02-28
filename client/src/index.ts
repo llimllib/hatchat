@@ -13,6 +13,7 @@ import {
   type LeaveRoomResponse,
   type ListRoomsResponse,
   type ListUsersResponse,
+  type MarkReadResponse,
   type Message,
   type MessageDeleted,
   type MessageEdited,
@@ -172,6 +173,10 @@ class Client {
         }
         case "get_message_context": {
           this.handleGetMessageContext(envelope.data);
+          break;
+        }
+        case "mark_read": {
+          this.handleMarkRead(envelope.data);
           break;
         }
         case "error": {
@@ -346,6 +351,40 @@ class Client {
     this.conn.send(JSON.stringify(request));
   }
 
+  /**
+   * Mark all messages in a room as read up to the given timestamp
+   */
+  markRead(roomId: string, readAt: string) {
+    const request = {
+      type: "mark_read",
+      data: {
+        room_id: roomId,
+        read_at: readAt,
+      },
+    };
+    console.debug("marking room as read", request);
+    this.conn.send(JSON.stringify(request));
+
+    // Optimistically update local state
+    this.state.markRoomAsRead(roomId);
+    this.renderSidebar();
+  }
+
+  /**
+   * Mark the current room as read using the latest message timestamp
+   */
+  markCurrentRoomAsRead() {
+    const roomId = this.state.currentRoom;
+    if (!roomId) return;
+
+    const roomState = this.state.getCurrentRoomState();
+    if (!roomState || roomState.messages.length === 0) return;
+
+    // Get the latest message timestamp
+    const latestMessage = roomState.messages[roomState.messages.length - 1];
+    this.markRead(roomId, latestMessage.created_at);
+  }
+
   handleHistory(response: HistoryResponse) {
     this.isLoadingHistory = false;
 
@@ -372,6 +411,11 @@ class Client {
 
     // Re-render the messages from state
     this.renderMessages();
+
+    // Mark room as read after loading messages (if not loading more)
+    if (!isLoadingMore) {
+      this.markCurrentRoomAsRead();
+    }
 
     // If we have a pending permalink, try to jump to it now
     if (this.pendingPermalinkMessageId) {
@@ -596,14 +640,21 @@ class Client {
       // Still cache the message so it's there when we switch
       this.state.addMessage(msg.room_id, msg);
 
+      // Update unread count for other room
+      // Only increment if the message is from someone else
+      if (msg.user_id !== this.state.user.id) {
+        this.state.incrementUnread(msg.room_id);
+      }
+
       // Bump DM to top of list if it's a DM
       const room = this.state.getRoom(msg.room_id);
       if (room?.room_type === "dm") {
         this.state.bumpDM(msg.room_id);
-        this.renderSidebar();
       }
 
-      // TODO: Update unread count for other room (Phase 5)
+      // Re-render sidebar to show updated unread badges
+      this.renderSidebar();
+
       console.debug("message for different room", msg.room_id);
       return;
     }
@@ -666,10 +717,26 @@ class Client {
     // Render each channel room
     for (const room of this.state.rooms) {
       const li = $("li", { "data-room-id": room.id });
+      const unreadCount = this.state.getUnreadCount(room.id);
+      const hasUnread = unreadCount > 0;
+
       const link = $("a", {
         href: `/chat/${room.id}`,
-        text: `# ${room.name}`,
       });
+
+      // Room name span
+      const nameSpan = $("span", { text: `# ${room.name}` });
+      link.appendChild(nameSpan);
+
+      // Unread badge
+      if (hasUnread) {
+        li.classList.add("has-unread");
+        const badge = $("span", {
+          class: "unread-badge",
+          text: unreadCount > 99 ? "99+" : String(unreadCount),
+        });
+        link.appendChild(badge);
+      }
 
       // Mark the active room
       if (room.id === this.state.currentRoom) {
@@ -724,10 +791,26 @@ class Client {
       for (const dm of this.state.dms) {
         const li = $("li", { "data-room-id": dm.id });
         const displayName = this.getDMDisplayName(dm);
+        const unreadCount = this.state.getUnreadCount(dm.id);
+        const hasUnread = unreadCount > 0;
+
         const link = $("a", {
           href: `/chat/${dm.id}`,
-          text: displayName,
         });
+
+        // DM name span
+        const nameSpan = $("span", { text: displayName });
+        link.appendChild(nameSpan);
+
+        // Unread badge
+        if (hasUnread) {
+          li.classList.add("has-unread");
+          const badge = $("span", {
+            class: "unread-badge",
+            text: unreadCount > 99 ? "99+" : String(unreadCount),
+          });
+          link.appendChild(badge);
+        }
 
         // Mark the active DM
         if (dm.id === this.state.currentRoom) {
@@ -950,10 +1033,13 @@ class Client {
     if (this.state.hasMessagesForRoom(roomId)) {
       // Render from cache
       this.renderMessages();
+      // Mark as read since we're viewing cached messages
+      this.markCurrentRoomAsRead();
     } else {
       // Clear messages and request history
       this.clearMessageUI();
       this.requestHistory(roomId);
+      // Mark as read will happen after history loads
     }
   }
 
@@ -1175,6 +1261,17 @@ class Client {
       this.switchRoom(roomId);
       // The message will be jumped to after history loads
     }
+  }
+
+  /**
+   * Handle mark_read response from server
+   */
+  handleMarkRead(response: MarkReadResponse) {
+    console.debug("mark_read response", response);
+    // Update local unread count
+    this.state.setUnreadCount(response.room_id, response.unread_count);
+    // Re-render sidebar to update unread badges
+    this.renderSidebar();
   }
 
   /**

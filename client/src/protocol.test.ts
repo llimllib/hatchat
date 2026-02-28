@@ -221,6 +221,7 @@ describe("Protocol Schema Validation", () => {
           ],
           dms: [],
           current_room: "roo_123456789abc",
+          unread_counts: {},
         };
         const result = validate("InitResponse", res);
         expect(result.valid).toBe(true);
@@ -246,6 +247,7 @@ describe("Protocol Schema Validation", () => {
             },
           ],
           current_room: "roo_123456789abc",
+          unread_counts: { roo_123456789abc: 5 },
         };
         const result = validate("InitResponse", res);
         expect(result.valid).toBe(true);
