@@ -9,6 +9,10 @@ npm-deps:
 lint: npm-deps
     mise exec -- golangci-lint run & (cd client && npx biome check src *.mjs) && wait
 
+# Check that schema changes have corresponding version bumps
+check-schema-version:
+    ./tools/check-schema-version.sh
+
 test: lint
     cd client && npm test
     go test -tags fts5 ./...

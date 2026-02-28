@@ -1,3 +1,14 @@
+-- Schema version tracking. Contains exactly one row with the current version.
+-- The server checks this on startup to ensure compatibility.
+-- Schema changes must be backward-compatible (see AGENTS.md for details).
+CREATE TABLE IF NOT EXISTS schema_version(
+  version INTEGER NOT NULL
+) STRICT;
+
+-- Initialize schema version if table is empty (first run)
+INSERT INTO schema_version (version)
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
+
 CREATE TABLE IF NOT EXISTS users(
   id TEXT PRIMARY KEY NOT NULL,
   username TEXT NOT NULL,

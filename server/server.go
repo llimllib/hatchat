@@ -200,18 +200,24 @@ func initLog(level string) *slog.Logger {
 }
 
 func initDb(location string, logger *slog.Logger) (*db.DB, error) {
-	db, err := db.NewDB(location, logger)
+	database, err := db.NewDB(location, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.RunSQLFile("schema.sql")
+	err = database.RunSQLFile("schema.sql")
 	if err != nil {
 		return nil, err
+	}
+
+	// Check schema version compatibility
+	if err := db.CheckSchemaVersion(context.Background(), database, logger); err != nil {
+		_ = database.Close()
+		return nil, fmt.Errorf("schema version check failed: %w", err)
 	}
 
 	// If there are no rooms, create a default room
-	row := db.QueryRowContext(context.Background(), "SELECT count(*) FROM rooms")
+	row := database.QueryRowContext(context.Background(), "SELECT count(*) FROM rooms")
 	var n int
 	err = row.Scan(&n)
 	if err != nil {
@@ -227,12 +233,12 @@ func initDb(location string, logger *slog.Logger) (*db.DB, error) {
 			IsDefault: models.TRUE,
 			CreatedAt: time.Now().Format(time.RFC3339),
 		}
-		if err := room.Insert(context.Background(), db); err != nil {
+		if err := room.Insert(context.Background(), database); err != nil {
 			return nil, err
 		}
 	}
 
-	return db, nil
+	return database, nil
 }
 
 func (h *ChatServer) middleware(route string, handler http.HandlerFunc) http.HandlerFunc {
