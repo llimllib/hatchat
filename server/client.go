@@ -71,6 +71,16 @@ func mustV[T any](value T, err error) T {
 	return value
 }
 
+// writeJSON writes a JSON message to the WebSocket connection with a proper
+// write deadline. This should be used for all writes from readPump to avoid
+// i/o timeout errors caused by stale write deadlines.
+func (c *Client) writeJSON(v interface{}) error {
+	if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+		return err
+	}
+	return c.conn.WriteJSON(v)
+}
+
 // readPump pumps messages from the websocket connection to the hub.
 //
 // The application runs readPump in a per-connection goroutine. The application
@@ -115,7 +125,7 @@ func (c *Client) readPump() {
 			// Set the client's current room for message routing
 			c.currentRoom = res.CurrentRoom
 
-			err = c.conn.WriteJSON(res.Envelope)
+			err = c.writeJSON(res.Envelope)
 			if err != nil {
 				c.logger.Error("failed to write init json", "error", err)
 				return
@@ -124,9 +134,9 @@ func (c *Client) readPump() {
 			res, err := c.api.HistoryMessage(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle history request", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to fetch history")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to fetch history")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write history json", "error", err)
 					return
@@ -136,7 +146,7 @@ func (c *Client) readPump() {
 			res, err := c.api.MessageMessage(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle message", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to handle message")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to handle message")))
 			} else {
 				// Update the client's current room and broadcast to room members only
 				c.currentRoom = res.RoomID
@@ -149,11 +159,11 @@ func (c *Client) readPump() {
 			res, err := c.api.JoinRoom(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle join_room", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to join room")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to join room")))
 			} else {
 				// Update the client's current room
 				c.currentRoom = res.RoomID
-				err = c.conn.WriteJSON(res.Envelope)
+				err = c.writeJSON(res.Envelope)
 				if err != nil {
 					c.logger.Error("failed to write join_room json", "error", err)
 					return
@@ -163,11 +173,11 @@ func (c *Client) readPump() {
 			res, err := c.api.CreateRoom(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle create_room", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to create room")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to create room")))
 			} else {
 				// Update the client's current room to the new room
 				c.currentRoom = res.RoomID
-				err = c.conn.WriteJSON(res.Envelope)
+				err = c.writeJSON(res.Envelope)
 				if err != nil {
 					c.logger.Error("failed to write create_room json", "error", err)
 					return
@@ -177,9 +187,9 @@ func (c *Client) readPump() {
 			res, err := c.api.ListRooms(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle list_rooms", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to list rooms")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to list rooms")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write list_rooms json", "error", err)
 					return
@@ -189,9 +199,9 @@ func (c *Client) readPump() {
 			res, err := c.api.LeaveRoom(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle leave_room", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to leave room")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to leave room")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write leave_room json", "error", err)
 					return
@@ -201,9 +211,9 @@ func (c *Client) readPump() {
 			res, err := c.api.RoomInfo(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle room_info", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get room info")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to get room info")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write room_info json", "error", err)
 					return
@@ -213,11 +223,11 @@ func (c *Client) readPump() {
 			res, err := c.api.CreateDM(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle create_dm", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to create DM")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to create DM")))
 			} else {
 				// Update the client's current room to the DM
 				c.currentRoom = res.RoomID
-				err = c.conn.WriteJSON(res.Envelope)
+				err = c.writeJSON(res.Envelope)
 				if err != nil {
 					c.logger.Error("failed to write create_dm json", "error", err)
 					return
@@ -227,9 +237,9 @@ func (c *Client) readPump() {
 			res, err := c.api.ListUsers(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle list_users", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to list users")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to list users")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write list_users json", "error", err)
 					return
@@ -239,9 +249,9 @@ func (c *Client) readPump() {
 			res, err := c.api.GetProfile(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle get_profile", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get profile")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to get profile")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write get_profile json", "error", err)
 					return
@@ -251,9 +261,9 @@ func (c *Client) readPump() {
 			res, err := c.api.UpdateProfile(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle update_profile", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to update profile")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to update profile")))
 			} else {
-				err = c.conn.WriteJSON(res)
+				err = c.writeJSON(res)
 				if err != nil {
 					c.logger.Error("failed to write update_profile json", "error", err)
 					return
@@ -263,7 +273,7 @@ func (c *Client) readPump() {
 			res, err := c.api.EditMessage(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle edit_message", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to edit message")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to edit message")))
 			} else {
 				c.hub.broadcast <- RoomMessage{
 					RoomID:  res.RoomID,
@@ -274,7 +284,7 @@ func (c *Client) readPump() {
 			res, err := c.api.DeleteMessage(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle delete_message", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to delete message")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to delete message")))
 			} else {
 				c.hub.broadcast <- RoomMessage{
 					RoomID:  res.RoomID,
@@ -285,7 +295,7 @@ func (c *Client) readPump() {
 			res, err := c.api.AddReaction(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle add_reaction", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to add reaction")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to add reaction")))
 			} else {
 				c.hub.broadcast <- RoomMessage{
 					RoomID:  res.RoomID,
@@ -296,7 +306,7 @@ func (c *Client) readPump() {
 			res, err := c.api.RemoveReaction(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle remove_reaction", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to remove reaction")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to remove reaction")))
 			} else {
 				c.hub.broadcast <- RoomMessage{
 					RoomID:  res.RoomID,
@@ -307,25 +317,25 @@ func (c *Client) readPump() {
 			res, err := c.api.Search(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle search", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("search failed")))
+				must(c.writeJSON(c.api.ErrorMessage("search failed")))
 			} else {
-				must(c.conn.WriteJSON(res))
+				must(c.writeJSON(res))
 			}
 		case "get_message_context":
 			res, err := c.api.GetMessageContext(c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle get_message_context", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to get message context")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to get message context")))
 			} else {
-				must(c.conn.WriteJSON(res))
+				must(c.writeJSON(res))
 			}
 		case "mark_read":
 			res, err := c.api.MarkRead(context.Background(), c.user, msg)
 			if err != nil {
 				c.logger.Error("failed to handle mark_read", "error", err, "msg", msg)
-				must(c.conn.WriteJSON(c.api.ErrorMessage("failed to mark as read")))
+				must(c.writeJSON(c.api.ErrorMessage("failed to mark as read")))
 			} else {
-				must(c.conn.WriteJSON(res))
+				must(c.writeJSON(res))
 			}
 		}
 
