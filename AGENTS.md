@@ -317,6 +317,92 @@ This saves an HTML transcript to `transcripts/` which should be committed with t
 3. **Session-based auth**: Cookie-based sessions, no JWT
 4. **Room-based access**: Users must be members of a room to see messages
 5. **Real-time first**: WebSocket is primary API; REST/HTTP for auth only
+6. **Backward-compatible schema**: Database schema changes must be backward-compatible to allow server rollbacks
+
+## Schema Versioning
+
+The database schema is versioned to ensure compatibility between the server and database. This system enables safe rollbacks: you can roll back the server to an older version without rolling back the database.
+
+### How It Works
+
+- The `schema_version` table contains a single row with the current schema version
+- The constant `db.SchemaVersion` in `server/db/version.go` defines what version the server expects
+- On startup, the server checks compatibility:
+  - **Database version < Server version**: Server refuses to start with a clear error message. You must run migrations first.
+  - **Database version = Server version**: Normal operation.
+  - **Database version > Server version**: Server starts with a warning log. This is expected during rollbacks.
+
+### Backward Compatibility Requirements
+
+**All schema changes MUST be backward-compatible.** This means older server versions can run against newer schemas. Follow these rules:
+
+| ✅ Allowed | ❌ Not Allowed |
+|-----------|---------------|
+| Add new columns with DEFAULT values | Remove columns |
+| Add new tables | Rename columns |
+| Add new indexes | Change column types |
+| Add nullable columns | Remove tables |
+| | Add NOT NULL columns without defaults |
+
+**Why?** If a deployment fails and we need to roll back the server, the database will still have the new schema. Backward-compatible changes ensure the old server can still function.
+
+### Making Schema Changes
+
+1. **Modify `schema.sql`** with your backward-compatible change:
+   ```sql
+   -- Good: New column with default
+   ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT 'light';
+   
+   -- Bad: This would break older servers!
+   -- ALTER TABLE users DROP COLUMN old_field;
+   ```
+
+2. **Increment the schema version** in `server/db/version.go`:
+   ```go
+   const SchemaVersion = 2  // was 1
+   ```
+
+3. **Update the schema_version table** in your migration or `schema.sql`:
+   ```sql
+   UPDATE schema_version SET version = 2;
+   ```
+
+4. **Regenerate models**: `just models`
+
+5. **Test the rollback scenario**: Verify an older server version can run against your new schema.
+
+### CI Check
+
+The `check-schema-version` script (`tools/check-schema-version.sh`) runs in CI to ensure schema changes are accompanied by version bumps:
+
+```bash
+just check-schema-version   # Run manually
+```
+
+The script:
+1. Normalizes `schema.sql` (strips comments/whitespace) and hashes it
+2. Compares the hash against the base branch (main)
+3. **Fails** if the schema changed but `SchemaVersion` wasn't incremented
+4. **Passes** if schema is unchanged, or if schema changed AND version was bumped
+
+**What triggers a required version bump:**
+- Adding/removing tables
+- Adding/removing columns
+- Adding/removing indexes
+- Any structural SQL change
+
+**What doesn't trigger a version bump requirement:**
+- Comments and whitespace changes
+- Changes to the `schema_version` table itself (expected when bumping)
+
+### Breaking Changes (Rare)
+
+If you absolutely must make a breaking schema change:
+
+1. Get explicit approval - this is a major decision
+2. Document it clearly in the PR and changelog
+3. Coordinate the deployment to ensure no rollback is needed
+4. Consider a multi-step migration (deprecate → migrate data → remove)
 
 ## Adding New Features
 
