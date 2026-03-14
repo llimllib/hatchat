@@ -17,7 +17,7 @@ func TestJoinRoom_ValidMember(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and two rooms
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -82,7 +82,7 @@ func TestJoinRoom_NonMemberJoinsPublicRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and two rooms, but only add user to room1
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -131,7 +131,7 @@ func TestJoinRoom_PrivateRoomRejected(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and two rooms, but only add user to room1
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -167,7 +167,7 @@ func TestJoinRoom_MemberJoinsReturnsJoinedFalse(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and room, add user to room
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -201,7 +201,7 @@ func TestJoinRoom_EmptyRoomID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -222,7 +222,7 @@ func TestJoinRoom_NonexistentRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -243,7 +243,7 @@ func TestJoinRoom_InvalidJSON(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 

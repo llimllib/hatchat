@@ -7,7 +7,10 @@ CREATE TABLE IF NOT EXISTS schema_version(
 
 -- Initialize schema version if table is empty (first run)
 INSERT INTO schema_version (version)
-SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
+SELECT 2 WHERE NOT EXISTS (SELECT 1 FROM schema_version);
+
+-- Bump schema version if still at 1
+UPDATE schema_version SET version = 2 WHERE version < 2;
 
 CREATE TABLE IF NOT EXISTS users(
   id TEXT PRIMARY KEY NOT NULL,
@@ -17,6 +20,7 @@ CREATE TABLE IF NOT EXISTS users(
   status TEXT NOT NULL DEFAULT '', -- custom status message
   active INTEGER, -- true if the user has been recently active
   avatar TEXT, -- the URL of an avatar image
+  last_seen_at TEXT, -- RFC3339 timestamp of when user was last online (NULL if never)
   last_room TEXT NOT NULL, -- the id of last room the user was in
   created_at TEXT NOT NULL,
   modified_at TEXT NOT NULL

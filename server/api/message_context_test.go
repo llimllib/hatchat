@@ -18,7 +18,7 @@ func TestGetMessageContext_ReturnsMessageAndRoom(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create user and room
 	user := &models.User{
@@ -88,7 +88,7 @@ func TestGetMessageContext_MessageNotFound(t *testing.T) {
 	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{ID: "usr_test123456789a"}
 
@@ -111,7 +111,7 @@ func TestGetMessageContext_NoRoomAccess(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create two users
 	alice := &models.User{
@@ -186,7 +186,7 @@ func TestGetMessageContext_DeletedMessage(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{
 		ID:         "usr_test123456789a",
@@ -257,7 +257,7 @@ func TestGetMessageContext_EmptyMessageID(t *testing.T) {
 	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{ID: "usr_test123456789a"}
 

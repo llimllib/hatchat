@@ -1899,3 +1899,110 @@ body {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
 }
+
+/* =============================================================================
+ * Presence Indicators
+ * ============================================================================= */
+
+/* Presence dot used in sidebar DMs */
+.sidebar-direct-messages .presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.sidebar-direct-messages .presence-dot.online {
+  background-color: #22c55e;
+}
+
+.sidebar-direct-messages .presence-dot.offline {
+  background-color: var(--color-stone-cold);
+}
+
+/* Presence dot on message avatars */
+.message-avatar {
+  position: relative;
+}
+
+.message-avatar .presence-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-off-white);
+}
+
+.message-avatar .presence-dot.online {
+  background-color: #22c55e;
+}
+
+.message-avatar .presence-dot.offline {
+  display: none;
+}
+
+/* Presence indicator in member list (dot before name) */
+.presence-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.presence-indicator.online {
+  background-color: #22c55e;
+}
+
+.presence-indicator.offline {
+  background-color: var(--color-stone-cold);
+}
+
+/* Presence text in profile modal */
+.profile-presence {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.profile-presence.online {
+  color: #22c55e;
+}
+
+.profile-presence.offline {
+  color: var(--color-shadow-colossus);
+}
+
+/* Avatar initials (needed because avatar now has children elements) */
+.avatar-initials {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure DM links show presence dot inline */
+.sidebar-direct-messages a {
+  display: flex;
+  align-items: center;
+}
+
+/* Profile avatar presence dot is larger */
+.profile-avatar .presence-dot {
+  width: 14px;
+  height: 14px;
+  border-width: 3px;
+}
+
+.profile-avatar .presence-dot.online {
+  display: block;
+}
+
+.profile-avatar .presence-dot.offline {
+  display: block;
+  background-color: var(--color-stone-cold);
+}

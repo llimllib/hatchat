@@ -29,6 +29,17 @@ func (a *Api) GetProfile(user *models.User, msg json.RawMessage) (*Envelope, err
 		return ErrorResponse("user not found"), nil
 	}
 
+	// Check if user is online
+	isOnline := false
+	if a.onlineProvider != nil {
+		for _, id := range a.onlineProvider.OnlineUserIDs() {
+			if id == targetUser.ID {
+				isOnline = true
+				break
+			}
+		}
+	}
+
 	return &Envelope{
 		Type: "get_profile",
 		Data: protocol.GetProfileResponse{
@@ -38,6 +49,8 @@ func (a *Api) GetProfile(user *models.User, msg json.RawMessage) (*Envelope, err
 				DisplayName: targetUser.DisplayName,
 				Status:      targetUser.Status,
 				Avatar:      targetUser.Avatar.String,
+				Online:      isOnline,
+				LastSeenAt:  targetUser.LastSeenAt.String,
 			},
 		},
 	}, nil

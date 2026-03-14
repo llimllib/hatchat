@@ -14,6 +14,8 @@ export const UserSchema = z.object({
   avatar: z.string().optional(),
   display_name: z.string().optional(),
   id: z.string().regex(/^usr_[a-f0-9]{16}$/),
+  last_seen_at: z.string().optional(),
+  online: z.boolean().optional(),
   status: z.string().optional(),
   username: z.string(),
 });
@@ -141,6 +143,7 @@ export const MarkReadRequestSchema = z.object({
 export const InitResponseSchema = z.object({
   current_room: z.string(),
   dms: z.array(RoomSchema),
+  online_user_ids: z.array(z.string()),
   rooms: z.array(RoomSchema),
   unread_counts: z.record(z.string(), z.int()),
   user: UserSchema,
@@ -249,6 +252,12 @@ export const UnreadCountsSchema = z.object({
   counts: z.record(z.string(), z.int()),
 });
 
+export const PresenceUpdateSchema = z.object({
+  last_seen_at: z.string().optional(),
+  online: z.boolean(),
+  user_id: z.string(),
+});
+
 export const EnvelopeSchema = z.object({
   data: z.unknown(),
   type: z.string(),
@@ -306,6 +315,7 @@ export type GetMessageContextResponse = z.infer<
 >;
 export type MarkReadResponse = z.infer<typeof MarkReadResponseSchema>;
 export type UnreadCounts = z.infer<typeof UnreadCountsSchema>;
+export type PresenceUpdate = z.infer<typeof PresenceUpdateSchema>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
 // =============================================================================
@@ -338,6 +348,7 @@ export type MessageType =
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
+  | "presence"
   | "error";
 
 /**
@@ -386,6 +397,7 @@ export type ServerEnvelope =
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
+  | { type: "presence"; data: PresenceUpdate }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -487,6 +499,11 @@ export const MarkReadEnvelopeSchema = z.object({
   data: MarkReadResponseSchema,
 });
 
+export const PresenceEnvelopeSchema = z.object({
+  type: z.literal("presence"),
+  data: PresenceUpdateSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -509,6 +526,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,
+  PresenceEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

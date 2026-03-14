@@ -16,7 +16,7 @@ func TestDeleteMessage_Success(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_del1234567890", "deleter")
 	room := createTestRoom(t, database, "roo_del123456789", "general", true)
@@ -64,7 +64,7 @@ func TestDeleteMessage_NotOwner(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	author := createTestUser(t, database, "usr_del_auth__123", "author")
 	other := createTestUser(t, database, "usr_del_other_123", "other")
@@ -88,7 +88,7 @@ func TestDeleteMessage_Idempotent(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_del_idem12345", "idempotent")
 	room := createTestRoom(t, database, "roo_delidem12345", "general", true)

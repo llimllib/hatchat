@@ -13,7 +13,7 @@ func TestLeaveRoom_Success(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "test-channel", false)
@@ -43,7 +43,7 @@ func TestLeaveRoom_NotMember(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	_ = createTestRoom(t, database, "roo_test12345678", "test-channel", false)
@@ -64,7 +64,7 @@ func TestLeaveRoom_DefaultRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_default12345", "general", true) // true = isDefault
@@ -94,7 +94,7 @@ func TestLeaveRoom_RoomNotFound(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -113,7 +113,7 @@ func TestLeaveRoom_EmptyRoomID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -132,7 +132,7 @@ func TestLeaveRoom_InvalidJSON(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 

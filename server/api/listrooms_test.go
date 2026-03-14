@@ -15,7 +15,7 @@ func TestListRooms_Empty(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -47,7 +47,7 @@ func TestListRooms_OnlyPublicRooms(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -80,7 +80,7 @@ func TestListRooms_WithMembership(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -129,7 +129,7 @@ func TestListRooms_OrderedByName(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -167,7 +167,7 @@ func TestListRooms_InvalidJSON(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -184,7 +184,7 @@ func TestListRooms_WithQuery(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -230,7 +230,7 @@ func TestListRooms_ViaCreateRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 

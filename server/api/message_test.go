@@ -32,6 +32,7 @@ func testDB(t *testing.T) *db.DB {
 			status TEXT NOT NULL DEFAULT '',
 			active INTEGER,
 			avatar TEXT,
+			last_seen_at TEXT,
 			last_room TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			modified_at TEXT NOT NULL
@@ -158,7 +159,7 @@ func TestMessageMessage_ValidMember(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and room
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -203,7 +204,7 @@ func TestMessageMessage_NonMemberRejected(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and room, but DON'T add user to room
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -243,7 +244,7 @@ func TestMessageMessage_NonExistentRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -270,7 +271,7 @@ func TestMessageMessage_EmptyBody(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
@@ -299,7 +300,7 @@ func TestMessageMessage_EmptyRoomID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -326,7 +327,7 @@ func TestMessageMessage_InvalidJSON(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -350,7 +351,7 @@ func TestMessageMessage_MultipleRoomsSecurity(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create two users
 	user1 := createTestUser(t, database, "usr_user100000001", "alice")
@@ -413,7 +414,7 @@ func TestMessageMessage_MembershipRevokedDuringSession(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
@@ -466,7 +467,7 @@ func TestMessageMessage_ResponseContainsCorrectRoomID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -505,7 +506,7 @@ func TestMessageMessage_ResponseEnvelopeFormat(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)

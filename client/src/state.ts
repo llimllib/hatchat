@@ -1,4 +1,4 @@
-import type { InitResponse, Message, Room } from "./types";
+import type { InitResponse, Message, PresenceUpdate, Room } from "./types";
 
 /**
  * Per-room state that persists when switching rooms
@@ -23,6 +23,12 @@ export class AppState {
   // Unread counts per room
   unreadCounts: Map<string, number> = new Map();
 
+  // Online user tracking
+  onlineUsers: Set<string> = new Set();
+
+  // Last seen timestamps for offline users (user ID → RFC3339 timestamp)
+  lastSeenAt: Map<string, string> = new Map();
+
   /**
    * Initialize state with data from server
    */
@@ -36,6 +42,14 @@ export class AppState {
         this.unreadCounts.set(roomId, count);
       }
     }
+
+    // Initialize online users from server
+    this.onlineUsers.clear();
+    for (const userId of data.online_user_ids) {
+      this.onlineUsers.add(userId);
+    }
+    // Current user is always online
+    this.onlineUsers.add(data.user.id);
   }
 
   /**
@@ -257,5 +271,34 @@ export class AppState {
       if (count > 0) return true;
     }
     return false;
+  }
+
+  /**
+   * Update presence for a user (online/offline)
+   */
+  updatePresence(update: PresenceUpdate) {
+    if (update.online) {
+      this.onlineUsers.add(update.user_id);
+      this.lastSeenAt.delete(update.user_id);
+    } else {
+      this.onlineUsers.delete(update.user_id);
+      if (update.last_seen_at) {
+        this.lastSeenAt.set(update.user_id, update.last_seen_at);
+      }
+    }
+  }
+
+  /**
+   * Check if a user is online
+   */
+  isUserOnline(userId: string): boolean {
+    return this.onlineUsers.has(userId);
+  }
+
+  /**
+   * Get the last seen timestamp for an offline user
+   */
+  getLastSeenAt(userId: string): string | undefined {
+    return this.lastSeenAt.get(userId);
   }
 }

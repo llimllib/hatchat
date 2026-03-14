@@ -14,7 +14,7 @@ func TestAddReaction_Success(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_react123456789", "reactor")
 	room := createTestRoom(t, database, "roo_react1234567", "general", true)
@@ -50,7 +50,7 @@ func TestAddReaction_Idempotent(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_reactidem1234", "reactor")
 	room := createTestRoom(t, database, "roo_reactidem123", "general", true)
@@ -79,7 +79,7 @@ func TestAddReaction_DeletedMessage(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_reactdel12345", "reactor")
 	room := createTestRoom(t, database, "roo_reactdel1234", "general", true)
@@ -109,7 +109,7 @@ func TestAddReaction_NonMember(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	member := createTestUser(t, database, "usr_reactmem12345", "member")
 	nonMember := createTestUser(t, database, "usr_reactnon12345", "nonmember")
@@ -132,7 +132,7 @@ func TestRemoveReaction_Success(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_unreact1234567", "unreactor")
 	room := createTestRoom(t, database, "roo_unreact12345", "general", true)
@@ -172,7 +172,7 @@ func TestRemoveReaction_Idempotent(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_unreactidem12", "unreactor")
 	room := createTestRoom(t, database, "roo_unreactidem1", "general", true)

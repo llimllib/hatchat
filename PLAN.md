@@ -132,12 +132,12 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 - [x] "New Message" button with user picker/autocomplete
 - [x] Handle `create_dm` and `list_users` message types
 
-### 2.2 User Presence (deferred)
+### 2.2 User Presence
 
-- [ ] Track online/offline status based on WebSocket connection
-- [ ] Broadcast presence changes to relevant users
-- [ ] Show presence indicators in UI (green/gray dot)
-- [ ] "Last seen" timestamp for offline users
+- [x] Track online/offline status based on WebSocket connection
+- [x] Broadcast presence changes to relevant users
+- [x] Show presence indicators in UI (green/gray dot)
+- [x] "Last seen" timestamp for offline users
 
 ### 2.3 User Profiles
 

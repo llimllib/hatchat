@@ -254,7 +254,7 @@ func (h *ChatServer) Run(addr string) {
 	hub := newHub(h.db, h.logger)
 	go hub.run()
 
-	wsAPI := api.NewApi(h.db, h.logger)
+	wsAPI := api.NewApi(h.db, h.logger, hub)
 	restAPI := rest.NewAPI(h.db, h.logger)
 
 	authRequired := middleware.AuthMiddleware(h.db, h.logger, h.sessionKey)

@@ -37,7 +37,7 @@ func TestHistoryMessage_ValidMember(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and room
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -100,7 +100,7 @@ func TestHistoryMessage_NonMemberRejected(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create user and room, but DON'T add user to room
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
@@ -136,7 +136,7 @@ func TestHistoryMessage_Pagination(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
@@ -208,7 +208,7 @@ func TestHistoryMessage_EmptyRoom(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "empty-room", true)
@@ -240,7 +240,7 @@ func TestHistoryMessage_MissingRoomID(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -265,7 +265,7 @@ func TestHistoryMessage_DefaultLimit(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
@@ -304,7 +304,7 @@ func TestHistoryMessage_MaxLimit(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 	room := createTestRoom(t, database, "roo_test12345678", "general", true)
@@ -341,7 +341,7 @@ func TestHistoryMessage_InvalidJSON(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_test123456789", "testuser")
 
@@ -363,7 +363,7 @@ func TestHistoryMessage_MultipleRoomsSecurity(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	// Create two users
 	alice := createTestUser(t, database, "usr_alice1234567", "alice")
