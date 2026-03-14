@@ -17,7 +17,7 @@ import (
 // - Don't change column types
 //
 // This allows older servers to run against newer schemas (for rollbacks).
-const SchemaVersion = 1
+const SchemaVersion = 2
 
 // ErrSchemaVersionMismatch is returned when the database schema version
 // is older than what the server requires.

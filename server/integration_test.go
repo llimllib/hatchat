@@ -93,7 +93,7 @@ func newTestServer(t *testing.T) *testServer {
 	hub := newHub(testDB, logger)
 	go hub.run()
 
-	apiHandler := api.NewApi(testDB, logger)
+	apiHandler := api.NewApi(testDB, logger, hub)
 
 	// Create HTTP mux with all routes
 	mux := http.NewServeMux()
@@ -253,22 +253,30 @@ func (tc *testClient) close() {
 	<-tc.done // Wait for reader to finish
 }
 
-// sendInit sends an init message and returns the response
+// sendInit sends an init message and returns the response.
+// Skips any presence updates that may arrive before the init response.
 func (tc *testClient) sendInit() (*api.Envelope, error) {
 	msg := `{"type":"init","data":{}}`
 	if err := tc.conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 		return nil, err
 	}
 
-	select {
-	case response := <-tc.messages:
-		var env api.Envelope
-		if err := json.Unmarshal(response, &env); err != nil {
-			return nil, err
+	// Loop to skip any presence updates that arrive before the init response
+	for {
+		select {
+		case response := <-tc.messages:
+			var env api.Envelope
+			if err := json.Unmarshal(response, &env); err != nil {
+				return nil, err
+			}
+			if env.Type == "presence" {
+				// Skip presence updates, keep waiting for init
+				continue
+			}
+			return &env, nil
+		case <-time.After(2 * time.Second):
+			return nil, fmt.Errorf("timeout waiting for init response")
 		}
-		return &env, nil
-	case <-time.After(2 * time.Second):
-		return nil, fmt.Errorf("timeout waiting for init response")
 	}
 }
 
@@ -966,4 +974,123 @@ func TestIntegration_MessageHistorySecurityNonMember(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestIntegration_PresenceOnlineOffline tests that presence updates are broadcast
+// when users connect and disconnect.
+func TestIntegration_PresenceOnlineOffline(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create two users - both members of default "main" room
+	httpClient1 := ts.createUser("alice", "password123")
+	httpClient2 := ts.createUser("bob", "password456")
+
+	// Alice connects and inits first
+	client1 := ts.connectWebSocket(httpClient1, "alice")
+	defer client1.close()
+	_, err := client1.sendInit()
+	if err != nil {
+		t.Fatalf("Alice init failed: %v", err)
+	}
+
+	// Bob connects - Alice should receive a presence update
+	client2 := ts.connectWebSocket(httpClient2, "bob")
+	_, err = client2.sendInit()
+	if err != nil {
+		t.Fatalf("Bob init failed: %v", err)
+	}
+
+	// Alice should receive a presence update for Bob coming online
+	msg, err := client1.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Alice did not receive presence update for Bob connecting: %v", err)
+	}
+
+	var env api.Envelope
+	if err := json.Unmarshal(msg, &env); err != nil {
+		t.Fatalf("Failed to unmarshal presence update: %v", err)
+	}
+
+	if env.Type != "presence" {
+		t.Fatalf("Expected presence message, got %s", env.Type)
+	}
+
+	presenceData := env.Data.(map[string]interface{})
+	if online, ok := presenceData["online"].(bool); !ok || !online {
+		t.Errorf("Expected online=true, got %v", presenceData["online"])
+	}
+
+	// Bob disconnects - Alice should receive an offline presence update
+	client2.close()
+
+	msg, err = client1.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Alice did not receive presence update for Bob disconnecting: %v", err)
+	}
+
+	if err := json.Unmarshal(msg, &env); err != nil {
+		t.Fatalf("Failed to unmarshal offline presence update: %v", err)
+	}
+
+	if env.Type != "presence" {
+		t.Fatalf("Expected presence message, got %s", env.Type)
+	}
+
+	presenceData = env.Data.(map[string]interface{})
+	if online, ok := presenceData["online"].(bool); !ok || online {
+		t.Errorf("Expected online=false, got %v", presenceData["online"])
+	}
+	if lastSeen, ok := presenceData["last_seen_at"].(string); !ok || lastSeen == "" {
+		t.Errorf("Expected last_seen_at to be set, got %v", presenceData["last_seen_at"])
+	}
+}
+
+// TestIntegration_PresenceInitResponse tests that the init response includes
+// online user IDs.
+func TestIntegration_PresenceInitResponse(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create two users
+	httpClient1 := ts.createUser("alice", "password123")
+	httpClient2 := ts.createUser("bob", "password456")
+
+	// Alice connects first
+	client1 := ts.connectWebSocket(httpClient1, "alice")
+	defer client1.close()
+	_, err := client1.sendInit()
+	if err != nil {
+		t.Fatalf("Alice init failed: %v", err)
+	}
+
+	// Bob connects and inits - should see Alice in online_user_ids
+	client2 := ts.connectWebSocket(httpClient2, "bob")
+	defer client2.close()
+
+	initEnv, err := client2.sendInit()
+	if err != nil {
+		t.Fatalf("Bob init failed: %v", err)
+	}
+
+	// Parse init response
+	initData := initEnv.Data.(map[string]interface{})
+	onlineIDs, ok := initData["online_user_ids"].([]interface{})
+	if !ok {
+		t.Fatalf("Expected online_user_ids in init response, got %v", initData["online_user_ids"])
+	}
+
+	// Should contain at least Alice's ID
+	if len(onlineIDs) < 1 {
+		t.Errorf("Expected at least 1 online user, got %d", len(onlineIDs))
+	}
+
+	// Drain presence update that Alice receives for Bob
+	_, _ = client1.waitForMessage(2 * time.Second)
 }

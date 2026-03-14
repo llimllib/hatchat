@@ -272,6 +272,13 @@
           },
           "type": "array"
         },
+        "online_user_ids": {
+          "description": "IDs of users who are currently online",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "rooms": {
           "description": "Channel rooms the user is a member of",
           "items": {
@@ -296,7 +303,8 @@
         "rooms",
         "dms",
         "current_room",
-        "unread_counts"
+        "unread_counts",
+        "online_user_ids"
       ],
       "type": "object"
     },
@@ -556,6 +564,28 @@
         "body",
         "room_id",
         "modified_at"
+      ],
+      "type": "object"
+    },
+    "PresenceUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "last_seen_at": {
+          "description": "RFC3339 timestamp of when user went offline (only set when online=false)",
+          "type": "string"
+        },
+        "online": {
+          "description": "Whether the user is now online",
+          "type": "boolean"
+        },
+        "user_id": {
+          "description": "ID of the user whose presence changed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id",
+        "online"
       ],
       "type": "object"
     },
@@ -928,6 +958,14 @@
           "pattern": "^usr_[a-f0-9]{16}$",
           "type": "string"
         },
+        "last_seen_at": {
+          "description": "RFC3339 timestamp of when user was last online (empty if never seen or currently online)",
+          "type": "string"
+        },
+        "online": {
+          "description": "Whether the user is currently online",
+          "type": "boolean"
+        },
         "status": {
           "description": "Custom status message",
           "type": "string"
@@ -1078,6 +1116,9 @@
     },
     {
       "$ref": "#/$defs/UnreadCounts"
+    },
+    {
+      "$ref": "#/$defs/PresenceUpdate"
     },
     {
       "$ref": "#/$defs/Envelope"

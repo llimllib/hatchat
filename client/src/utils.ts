@@ -68,6 +68,48 @@ export function formatDate(isoString: string): string {
 }
 
 /**
+ * Format a "last seen" timestamp for display.
+ * - Just now (< 1 min): "Active just now"
+ * - Minutes ago: "Active 5m ago"
+ * - Hours ago: "Active 3h ago"
+ * - Days ago: "Active 2d ago"
+ * - Longer: "Active Jan 31"
+ * - Never/unknown: "Offline"
+ */
+export function formatLastSeen(isoString: string | undefined): string {
+  if (!isoString) {
+    return "Offline";
+  }
+
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 1) {
+    return "Active just now";
+  }
+  if (diffMinutes < 60) {
+    return `Active ${diffMinutes}m ago`;
+  }
+  if (diffHours < 24) {
+    return `Active ${diffHours}h ago`;
+  }
+  if (diffDays < 7) {
+    return `Active ${diffDays}d ago`;
+  }
+
+  // Older - show date
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  return `Active ${dateStr}`;
+}
+
+/**
  * Get initials from a username for avatar placeholder
  */
 export function getInitials(username: string): string {

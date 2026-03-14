@@ -36,7 +36,7 @@ func TestEditMessage_Success(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_edit1234567890", "editor")
 	room := createTestRoom(t, database, "roo_edit12345678", "general", true)
@@ -85,7 +85,7 @@ func TestEditMessage_NotOwner(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	author := createTestUser(t, database, "usr_edit_author_01", "author")
 	other := createTestUser(t, database, "usr_edit_other__01", "other")
@@ -110,7 +110,7 @@ func TestEditMessage_DeletedMessage(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_edit_del12345", "deleter")
 	room := createTestRoom(t, database, "roo_editdel12345", "general", true)
@@ -141,7 +141,7 @@ func TestEditMessage_EmptyBody(t *testing.T) {
 	defer func() { _ = database.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(database, logger)
+	api := NewApi(database, logger, nil)
 
 	user := createTestUser(t, database, "usr_edit_empty123", "emptier")
 	room := createTestRoom(t, database, "roo_editempty123", "general", true)

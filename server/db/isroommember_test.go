@@ -44,6 +44,7 @@ func testDB(t *testing.T) *DB {
 			status TEXT NOT NULL DEFAULT '',
 			active INTEGER,
 			avatar TEXT,
+			last_seen_at TEXT,
 			last_room TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			modified_at TEXT NOT NULL

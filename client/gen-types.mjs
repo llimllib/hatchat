@@ -61,6 +61,7 @@ const typeOrder = [
   "GetMessageContextResponse",
   "MarkReadResponse",
   "UnreadCounts",
+  "PresenceUpdate",
   "Envelope",
 ];
 
@@ -241,6 +242,7 @@ export type MessageType =
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
+  | "presence"
   | "error";
 
 /**
@@ -289,6 +291,7 @@ export type ServerEnvelope =
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
+  | { type: "presence"; data: PresenceUpdate }
   | { type: "error"; data: ErrorResponse };
 
 // =============================================================================
@@ -390,6 +393,11 @@ export const MarkReadEnvelopeSchema = z.object({
   data: MarkReadResponseSchema,
 });
 
+export const PresenceEnvelopeSchema = z.object({
+  type: z.literal("presence"),
+  data: PresenceUpdateSchema,
+});
+
 /**
  * Discriminated union schema for all server → client messages
  */
@@ -412,6 +420,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,
+  PresenceEnvelopeSchema,
   ErrorEnvelopeSchema,
 ]);
 

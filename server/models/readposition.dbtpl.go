@@ -58,7 +58,7 @@ func (rp *ReadPosition) Update(ctx context.Context, db DB) error {
 	case rp._deleted: // deleted
 		return logerror(&ErrUpdateFailed{ErrMarkedForDeletion})
 	}
-	// update with composite primary key
+	// update with primary key
 	const sqlstr = `UPDATE read_positions SET ` +
 		`last_read_at = $1 ` +
 		`WHERE user_id = $2 AND room_id = $3`
@@ -70,7 +70,15 @@ func (rp *ReadPosition) Update(ctx context.Context, db DB) error {
 	return nil
 }
 
-// Upsert performs an insert-or-update of [ReadPosition] in the database.
+// Save saves the [ReadPosition] to the database.
+func (rp *ReadPosition) Save(ctx context.Context, db DB) error {
+	if rp.Exists() {
+		return rp.Update(ctx, db)
+	}
+	return rp.Insert(ctx, db)
+}
+
+// Upsert performs an upsert for [ReadPosition].
 func (rp *ReadPosition) Upsert(ctx context.Context, db DB) error {
 	switch {
 	case rp._deleted: // deleted
@@ -81,8 +89,10 @@ func (rp *ReadPosition) Upsert(ctx context.Context, db DB) error {
 		`user_id, room_id, last_read_at` +
 		`) VALUES (` +
 		`$1, $2, $3` +
-		`) ON CONFLICT (user_id, room_id) DO UPDATE SET ` +
-		`last_read_at = EXCLUDED.last_read_at`
+		`)` +
+		` ON CONFLICT (user_id, room_id) DO ` +
+		`UPDATE SET ` +
+		`last_read_at = EXCLUDED.last_read_at `
 	// run
 	logf(sqlstr, rp.UserID, rp.RoomID, rp.LastReadAt)
 	if _, err := db.ExecContext(ctx, sqlstr, rp.UserID, rp.RoomID, rp.LastReadAt); err != nil {

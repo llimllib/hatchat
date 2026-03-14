@@ -38,6 +38,8 @@ type User struct {
 	DisplayName string `json:"display_name" jsonschema:"description=Display name (shown instead of username if set)"`
 	Status      string `json:"status" jsonschema:"description=Custom status message"`
 	Avatar      string `json:"avatar" jsonschema:"description=Avatar URL (may be empty)"`
+	Online      bool   `json:"online" jsonschema:"description=Whether the user is currently online"`
+	LastSeenAt  string `json:"last_seen_at,omitempty" jsonschema:"description=RFC3339 timestamp of when user was last online (empty if never seen or currently online)"`
 }
 
 // Room represents a chat room or DM
@@ -235,11 +237,12 @@ type MarkReadRequest struct {
 // InitResponse is sent by the server in response to InitRequest
 // Direction: server → client
 type InitResponse struct {
-	User         User           `json:"user" jsonschema:"required,description=The authenticated user"`
-	Rooms        []*Room        `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
-	DMs          []*Room        `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
-	CurrentRoom  string         `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
-	UnreadCounts map[string]int `json:"unread_counts" jsonschema:"required,description=Map of room ID to unread message count"`
+	User          User           `json:"user" jsonschema:"required,description=The authenticated user"`
+	Rooms         []*Room        `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
+	DMs           []*Room        `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
+	CurrentRoom   string         `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
+	UnreadCounts  map[string]int `json:"unread_counts" jsonschema:"required,description=Map of room ID to unread message count"`
+	OnlineUserIDs []string       `json:"online_user_ids" jsonschema:"required,description=IDs of users who are currently online"`
 }
 
 // HistoryResponse is sent by the server in response to HistoryRequest
@@ -274,6 +277,14 @@ type ReactionUpdated struct {
 	UserID    string `json:"user_id" jsonschema:"required,description=User who added/removed the reaction"`
 	Emoji     string `json:"emoji" jsonschema:"required,description=The emoji character(s)"`
 	Action    string `json:"action" jsonschema:"required,description=Whether the reaction was added or removed,enum=add,enum=remove"`
+}
+
+// PresenceUpdate is broadcast to relevant users when someone comes online or goes offline
+// Direction: server → client (broadcast)
+type PresenceUpdate struct {
+	UserID     string `json:"user_id" jsonschema:"required,description=ID of the user whose presence changed"`
+	Online     bool   `json:"online" jsonschema:"required,description=Whether the user is now online"`
+	LastSeenAt string `json:"last_seen_at,omitempty" jsonschema:"description=RFC3339 timestamp of when user went offline (only set when online=false)"`
 }
 
 // ErrorResponse is sent by the server when an error occurs
@@ -577,5 +588,10 @@ var MessageTypes = []MessageMeta{
 		Type:        "mark_read",
 		Direction:   ServerToClient,
 		Description: "Response confirming read position was updated",
+	},
+	{
+		Type:        "presence",
+		Direction:   ServerToClient,
+		Description: "Broadcast when a user comes online or goes offline",
 	},
 }

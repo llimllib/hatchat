@@ -68,6 +68,7 @@ func main() {
 		protocol.MarkReadRequest{},
 		protocol.MarkReadResponse{},
 		protocol.UnreadCounts{},
+		protocol.PresenceUpdate{},
 		protocol.Envelope{},
 	}
 

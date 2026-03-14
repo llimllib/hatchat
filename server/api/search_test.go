@@ -51,7 +51,7 @@ func TestSearch_EmptyQuery(t *testing.T) {
 	defer func() { _ = testDB.Close() }()
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{ID: "usr_test123456789a"}
 
@@ -75,7 +75,7 @@ func TestSearch_ReturnsMatchingMessages(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create test user
 	user := &models.User{
@@ -166,7 +166,7 @@ func TestSearch_RespectsRoomMembership(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create two users
 	alice := &models.User{
@@ -263,7 +263,7 @@ func TestSearch_RoomFilter(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create user and two rooms
 	user := &models.User{
@@ -342,7 +342,7 @@ func TestSearch_UserFilter(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	// Create two users
 	alice := &models.User{
@@ -421,7 +421,7 @@ func TestSearch_ExcludesDeletedMessages(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{
 		ID:         "usr_test123456789a",
@@ -492,7 +492,7 @@ func TestSearch_Pagination(t *testing.T) {
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	api := NewApi(testDB, logger)
+	api := NewApi(testDB, logger, nil)
 
 	user := &models.User{
 		ID:         "usr_test123456789a",

@@ -19,6 +19,7 @@ import {
   type MessageEdited,
   makePendingKey,
   type PendingMessage,
+  type PresenceUpdate,
   parseServerEnvelope,
   type Reaction,
   type ReactionUpdated,
@@ -31,6 +32,7 @@ import {
 } from "./types";
 import {
   formatDate,
+  formatLastSeen,
   formatTimestamp,
   formatTimestampFull,
   getInitials,
@@ -295,6 +297,10 @@ class Client {
         }
         case "mark_read": {
           this.handleMarkRead(envelope.data);
+          break;
+        }
+        case "presence": {
+          this.handlePresence(envelope.data);
           break;
         }
         case "error": {
@@ -657,7 +663,7 @@ class Client {
 
     if (!isGrouped) {
       // Full message with avatar and header
-      const avatar = this.createAvatar(msg.username);
+      const avatar = this.createAvatar(msg.username, msg.user_id);
       const header = $("div", { class: "message-header" });
 
       const usernameEl = $("span", {
@@ -744,17 +750,36 @@ class Client {
   }
 
   /**
-   * Create an avatar element with initials
+   * Create an avatar element with initials and optional presence indicator
    */
-  createAvatar(username: string): HTMLElement {
+  createAvatar(username: string, userId?: string): HTMLElement {
     const initials = getInitials(username);
     const color = stringToColor(username);
 
     const avatar = $("div", {
       class: "message-avatar",
-      text: initials,
     });
     avatar.style.backgroundColor = color;
+
+    if (userId) {
+      avatar.setAttribute("data-user-id", userId);
+    }
+
+    // Initials text
+    const initialsSpan = $("span", {
+      class: "avatar-initials",
+      text: initials,
+    });
+    avatar.appendChild(initialsSpan);
+
+    // Presence dot overlay
+    if (userId) {
+      const isOnline = this.state.isUserOnline(userId);
+      const dot = $("span", {
+        class: `presence-dot ${isOnline ? "online" : "offline"}`,
+      });
+      avatar.appendChild(dot);
+    }
 
     return avatar;
   }
@@ -922,6 +947,16 @@ class Client {
         const link = $("a", {
           href: `/chat/${dm.id}`,
         });
+
+        // Presence indicator for DMs
+        const otherUserId = this.getDMOtherUserId(dm);
+        const isOnline = otherUserId
+          ? this.state.isUserOnline(otherUserId)
+          : false;
+        const presenceDot = $("span", {
+          class: `presence-dot ${isOnline ? "online" : "offline"}`,
+        });
+        link.appendChild(presenceDot);
 
         // DM name span
         const nameSpan = $("span", { text: displayName });
@@ -1101,6 +1136,18 @@ class Client {
 
     // Too many - truncate
     return `${names.slice(0, 2).join(", ")}, and ${names.length - 2} others`;
+  }
+
+  /**
+   * Get the other user's ID in a 1:1 DM, or null for group DMs
+   */
+  getDMOtherUserId(dm: Room): string | null {
+    if (!dm.members) return null;
+    const otherMembers = dm.members.filter((m) => m.id !== this.state.user.id);
+    if (otherMembers.length === 1) {
+      return otherMembers[0].id;
+    }
+    return null;
   }
 
   switchRoom(roomId: string) {
@@ -1312,6 +1359,18 @@ class Client {
    */
   handleGetProfile(response: GetProfileResponse) {
     console.debug("get_profile response", response);
+
+    // Update presence state from profile response
+    if (response.user.online) {
+      this.state.onlineUsers.add(response.user.id);
+      this.state.lastSeenAt.delete(response.user.id);
+    } else {
+      this.state.onlineUsers.delete(response.user.id);
+      if (response.user.last_seen_at) {
+        this.state.lastSeenAt.set(response.user.id, response.user.last_seen_at);
+      }
+    }
+
     this.showProfileModal(response.user);
   }
 
@@ -1397,6 +1456,50 @@ class Client {
     this.state.setUnreadCount(response.room_id, response.unread_count);
     // Re-render sidebar to update unread badges
     this.renderSidebar();
+  }
+
+  handlePresence(data: PresenceUpdate) {
+    console.debug("presence update", data);
+    this.state.updatePresence(data);
+
+    // Re-render sidebar to update presence indicators on DMs
+    this.renderSidebar();
+
+    // Update presence indicators in the room info panel if open
+    this.updatePresenceInRoomInfo(data.user_id);
+
+    // Update presence indicators on messages in the current view
+    this.updatePresenceInMessages(data.user_id, data.online);
+  }
+
+  /**
+   * Update presence indicator in room info panel if it's open and shows this user
+   */
+  updatePresenceInRoomInfo(userId: string) {
+    const memberItems = document.querySelectorAll(
+      `.member-item[data-user-id="${userId}"]`,
+    );
+    for (const item of memberItems) {
+      const indicator = item.querySelector(".presence-indicator");
+      if (indicator) {
+        indicator.className = `presence-indicator ${this.state.isUserOnline(userId) ? "online" : "offline"}`;
+      }
+    }
+  }
+
+  /**
+   * Update presence indicators on message avatars for a specific user
+   */
+  updatePresenceInMessages(userId: string, online: boolean) {
+    const avatars = document.querySelectorAll(
+      `.message-avatar[data-user-id="${userId}"]`,
+    );
+    for (const avatar of avatars) {
+      const indicator = avatar.querySelector(".presence-dot");
+      if (indicator) {
+        indicator.className = `presence-dot ${online ? "online" : "offline"}`;
+      }
+    }
   }
 
   /**
@@ -3177,12 +3280,22 @@ class Client {
 
     const membersList = $("ul", { class: "members-list" });
     for (const member of info.members) {
-      const li = $("li", { class: "member-item clickable" });
+      const li = $("li", {
+        class: "member-item clickable",
+        "data-user-id": member.id,
+      });
 
       // Avatar
-      const avatar = this.createAvatar(member.username);
+      const avatar = this.createAvatar(member.username, member.id);
       avatar.classList.add("member-avatar");
       li.appendChild(avatar);
+
+      // Presence indicator in member list
+      const isOnline = this.state.isUserOnline(member.id);
+      const presenceIndicator = $("span", {
+        class: `presence-indicator ${isOnline ? "online" : "offline"}`,
+      });
+      li.appendChild(presenceIndicator);
 
       // Username (show display_name if available)
       const displayName = member.display_name || member.username;
@@ -3492,7 +3605,7 @@ class Client {
 
     // Avatar and name section
     const header = $("div", { class: "profile-header" });
-    const avatar = this.createAvatar(user.username);
+    const avatar = this.createAvatar(user.username, user.id);
     avatar.classList.add("profile-avatar");
     header.appendChild(avatar);
 
@@ -3503,6 +3616,18 @@ class Client {
     nameSection.appendChild(
       $("span", { class: "profile-username", text: `@${user.username}` }),
     );
+
+    // Presence status
+    const isOnline = this.state.isUserOnline(user.id);
+    const presenceText = isOnline
+      ? "Online"
+      : formatLastSeen(this.state.getLastSeenAt(user.id));
+    const presenceEl = $("span", {
+      class: `profile-presence ${isOnline ? "online" : "offline"}`,
+      text: presenceText,
+    });
+    nameSection.appendChild(presenceEl);
+
     header.appendChild(nameSection);
 
     content.appendChild(header);

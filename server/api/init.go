@@ -95,6 +95,15 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 		unreadCounts = make(map[string]int)
 	}
 
+	// Get list of currently online users
+	var onlineUserIDs []string
+	if a.onlineProvider != nil {
+		onlineUserIDs = a.onlineProvider.OnlineUserIDs()
+	}
+	if onlineUserIDs == nil {
+		onlineUserIDs = []string{}
+	}
+
 	return &InitResult{
 		Envelope: &Envelope{
 			Type: "init",
@@ -105,11 +114,13 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 					DisplayName: user.DisplayName,
 					Status:      user.Status,
 					Avatar:      user.Avatar.String,
+					Online:      true, // User is online since they're requesting init
 				},
-				Rooms:        rooms,
-				DMs:          dms,
-				CurrentRoom:  currentRoom,
-				UnreadCounts: unreadCounts,
+				Rooms:         rooms,
+				DMs:           dms,
+				CurrentRoom:   currentRoom,
+				UnreadCounts:  unreadCounts,
+				OnlineUserIDs: onlineUserIDs,
 			},
 		},
 		CurrentRoom: currentRoom,

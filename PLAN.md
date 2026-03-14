@@ -132,12 +132,12 @@ See `docs/PHASE2_DESIGN.md` for detailed design document.
 - [x] "New Message" button with user picker/autocomplete
 - [x] Handle `create_dm` and `list_users` message types
 
-### 2.2 User Presence (deferred)
+### 2.2 User Presence
 
-- [ ] Track online/offline status based on WebSocket connection
-- [ ] Broadcast presence changes to relevant users
-- [ ] Show presence indicators in UI (green/gray dot)
-- [ ] "Last seen" timestamp for offline users
+- [x] Track online/offline status based on WebSocket connection
+- [x] Broadcast presence changes to relevant users
+- [x] Show presence indicators in UI (green/gray dot)
+- [x] "Last seen" timestamp for offline users
 
 ### 2.3 User Profiles
 
@@ -399,9 +399,9 @@ _Goal: Professional, accessible experience_
 ### 7.4 Loading States & Error Handling
 
 - [ ] Skeleton loaders for content
-- [ ] Connection status indicator (visual feedback when WebSocket disconnects)
-- [ ] WebSocket auto-reconnection with exponential backoff
-- [ ] Reconnection handling with UI feedback
+- [x] Connection status indicator (visual feedback when WebSocket disconnects)
+- [x] WebSocket auto-reconnection with exponential backoff
+- [x] Reconnection handling with UI feedback
 - [ ] Error states and retry options
 
 ### 7.5 Sign-In Page Polish
@@ -432,9 +432,9 @@ _Goal: Make development faster and debugging easier_
 
 ### DX.2 CI Optimization
 
-- [ ] Use path filters in GitHub Actions to run Go CI only when Go files change
-- [ ] Run JS CI only when client/ files change
-- [ ] Keep full CI on main branch merges
+- [x] Use path filters in GitHub Actions to run Go CI only when Go files change
+- [x] Run JS CI only when client/ files change
+- [x] Keep full CI on main branch merges
 
 ### DX.3 End-to-End Tests
 

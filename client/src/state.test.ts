@@ -25,6 +25,7 @@ describe("AppState", () => {
     user: { id: "usr_abc123", username: "testuser" },
     current_room: "roo_123",
     unread_counts: {},
+    online_user_ids: [],
   });
 
   // For backwards compatibility with existing tests
