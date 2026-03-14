@@ -127,6 +127,7 @@ describe("Zod Schema Validation", () => {
           dms: [],
           current_room: "roo_123456789abc",
           unread_counts: {},
+          online_user_ids: [],
         },
       };
       const result = ServerEnvelopeSchema.safeParse(envelope);
