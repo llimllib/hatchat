@@ -95,6 +95,14 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 		unreadCounts = make(map[string]int)
 	}
 
+	// Get read positions for all rooms
+	readPositions, err := a.db.GetReadPositions(ctx, user.ID)
+	if err != nil {
+		a.logger.Error("failed to get read positions", "error", err)
+		// Don't fail init, just return empty positions
+		readPositions = make(map[string]string)
+	}
+
 	// Get list of currently online users
 	var onlineUserIDs []string
 	if a.onlineProvider != nil {
@@ -120,6 +128,7 @@ func (a *Api) InitMessage(user *models.User, msg json.RawMessage) (*InitResult, 
 				DMs:           dms,
 				CurrentRoom:   currentRoom,
 				UnreadCounts:  unreadCounts,
+				ReadPositions: readPositions,
 				OnlineUserIDs: onlineUserIDs,
 			},
 		},

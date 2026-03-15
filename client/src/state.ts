@@ -8,6 +8,8 @@ export interface RoomState {
   historyCursor?: string;
   hasMoreHistory: boolean;
   scrollPosition: number;
+  // Timestamp of the last read message when the room was entered (for "New messages" divider)
+  unreadDividerAt?: string;
 }
 
 /**
@@ -22,6 +24,9 @@ export class AppState {
 
   // Unread counts per room
   unreadCounts: Map<string, number> = new Map();
+
+  // Read positions per room (room_id → last_read_at timestamp)
+  readPositions: Map<string, string> = new Map();
 
   // Online user tracking
   onlineUsers: Set<string> = new Set();
@@ -40,6 +45,14 @@ export class AppState {
     for (const [roomId, count] of Object.entries(data.unread_counts)) {
       if (count > 0) {
         this.unreadCounts.set(roomId, count);
+      }
+    }
+
+    // Initialize read positions from server
+    this.readPositions.clear();
+    for (const [roomId, lastReadAt] of Object.entries(data.read_positions)) {
+      if (lastReadAt) {
+        this.readPositions.set(roomId, lastReadAt);
       }
     }
 
@@ -271,6 +284,34 @@ export class AppState {
       if (count > 0) return true;
     }
     return false;
+  }
+
+  /**
+   * Get the read position (last_read_at) for a room
+   */
+  getReadPosition(roomId: string): string | undefined {
+    return this.readPositions.get(roomId);
+  }
+
+  /**
+   * Update the read position for a room
+   */
+  setReadPosition(roomId: string, readAt: string) {
+    this.readPositions.set(roomId, readAt);
+  }
+
+  /**
+   * Mark all rooms as read: clear all unread counts and update all read positions
+   */
+  markAllRoomsAsRead(readAt: string) {
+    this.unreadCounts.clear();
+    // Update all read positions to the given time
+    for (const room of this.rooms) {
+      this.readPositions.set(room.id, readAt);
+    }
+    for (const dm of this.dms) {
+      this.readPositions.set(dm.id, readAt);
+    }
   }
 
   /**

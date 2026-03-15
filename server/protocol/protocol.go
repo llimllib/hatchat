@@ -230,6 +230,13 @@ type MarkReadRequest struct {
 	ReadAt string `json:"read_at" jsonschema:"required,description=Timestamp to mark as read up to (typically the latest message timestamp)"`
 }
 
+// MarkAllReadRequest marks all rooms as read
+// Direction: client → server
+// Response: MarkAllReadResponse
+type MarkAllReadRequest struct {
+	// Currently empty - marks all rooms at current time
+}
+
 // =============================================================================
 // Server → Client Messages
 // =============================================================================
@@ -237,12 +244,13 @@ type MarkReadRequest struct {
 // InitResponse is sent by the server in response to InitRequest
 // Direction: server → client
 type InitResponse struct {
-	User          User           `json:"user" jsonschema:"required,description=The authenticated user"`
-	Rooms         []*Room        `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
-	DMs           []*Room        `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
-	CurrentRoom   string         `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
-	UnreadCounts  map[string]int `json:"unread_counts" jsonschema:"required,description=Map of room ID to unread message count"`
-	OnlineUserIDs []string       `json:"online_user_ids" jsonschema:"required,description=IDs of users who are currently online"`
+	User          User              `json:"user" jsonschema:"required,description=The authenticated user"`
+	Rooms         []*Room           `json:"rooms" jsonschema:"required,description=Channel rooms the user is a member of"`
+	DMs           []*Room           `json:"dms" jsonschema:"required,description=DM rooms the user is a member of (sorted by most recent activity)"`
+	CurrentRoom   string            `json:"current_room" jsonschema:"required,description=Room ID to display initially"`
+	UnreadCounts  map[string]int    `json:"unread_counts" jsonschema:"required,description=Map of room ID to unread message count"`
+	ReadPositions map[string]string `json:"read_positions" jsonschema:"required,description=Map of room ID to last_read_at RFC3339Nano timestamp (empty string if never read)"`
+	OnlineUserIDs []string          `json:"online_user_ids" jsonschema:"required,description=IDs of users who are currently online"`
 }
 
 // HistoryResponse is sent by the server in response to HistoryRequest
@@ -385,6 +393,12 @@ type MarkReadResponse struct {
 	RoomID      string `json:"room_id" jsonschema:"required,description=Room that was marked as read"`
 	ReadAt      string `json:"read_at" jsonschema:"required,description=Timestamp that was recorded"`
 	UnreadCount int    `json:"unread_count" jsonschema:"required,description=New unread count (always 0 after marking current)"`
+}
+
+// MarkAllReadResponse confirms all rooms were marked as read
+// Direction: server → client
+type MarkAllReadResponse struct {
+	ReadAt string `json:"read_at" jsonschema:"required,description=Timestamp that was recorded for all rooms"`
 }
 
 // UnreadCounts provides unread message counts for all rooms
@@ -588,6 +602,16 @@ var MessageTypes = []MessageMeta{
 		Type:        "mark_read",
 		Direction:   ServerToClient,
 		Description: "Response confirming read position was updated",
+	},
+	{
+		Type:        "mark_all_read",
+		Direction:   ClientToServer,
+		Description: "Mark all rooms as read at current time",
+	},
+	{
+		Type:        "mark_all_read",
+		Direction:   ServerToClient,
+		Description: "Response confirming all rooms were marked as read",
 	},
 	{
 		Type:        "presence",

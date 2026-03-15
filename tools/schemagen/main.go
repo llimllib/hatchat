@@ -67,6 +67,8 @@ func main() {
 		protocol.GetMessageContextResponse{},
 		protocol.MarkReadRequest{},
 		protocol.MarkReadResponse{},
+		protocol.MarkAllReadRequest{},
+		protocol.MarkAllReadResponse{},
 		protocol.UnreadCounts{},
 		protocol.PresenceUpdate{},
 		protocol.Envelope{},

@@ -222,6 +222,7 @@ describe("Protocol Schema Validation", () => {
           dms: [],
           current_room: "roo_123456789abc",
           unread_counts: {},
+          read_positions: {},
           online_user_ids: [],
         };
         const result = validate("InitResponse", res);
@@ -249,6 +250,7 @@ describe("Protocol Schema Validation", () => {
           ],
           current_room: "roo_123456789abc",
           unread_counts: { roo_123456789abc: 5 },
+          read_positions: { roo_123456789abc: "2024-01-01T00:00:00Z" },
           online_user_ids: ["usr_1234567890abcdef"],
         };
         const result = validate("InitResponse", res);

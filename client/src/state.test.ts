@@ -25,6 +25,7 @@ describe("AppState", () => {
     user: { id: "usr_abc123", username: "testuser" },
     current_room: "roo_123",
     unread_counts: {},
+    read_positions: {},
     online_user_ids: [],
   });
 
@@ -341,6 +342,79 @@ describe("AppState", () => {
       // roo_123 should not be in the map since count is 0
       expect(state.unreadCounts.has("roo_123")).toBe(false);
       expect(state.unreadCounts.has("roo_456")).toBe(true);
+    });
+  });
+
+  describe("read positions", () => {
+    it("initializes read positions from init data", () => {
+      const data = createMockInitialData();
+      data.read_positions = {
+        roo_123: "2024-01-01T00:00:00Z",
+        roo_456: "2024-01-02T00:00:00Z",
+      };
+      state.setInitialData(data);
+
+      expect(state.getReadPosition("roo_123")).toBe("2024-01-01T00:00:00Z");
+      expect(state.getReadPosition("roo_456")).toBe("2024-01-02T00:00:00Z");
+    });
+
+    it("returns undefined for rooms with no read position", () => {
+      state.setInitialData(createMockInitialData());
+      expect(state.getReadPosition("roo_123")).toBeUndefined();
+    });
+
+    it("skips empty string read positions", () => {
+      const data = createMockInitialData();
+      data.read_positions = { roo_123: "", roo_456: "2024-01-01T00:00:00Z" };
+      state.setInitialData(data);
+
+      expect(state.getReadPosition("roo_123")).toBeUndefined();
+      expect(state.getReadPosition("roo_456")).toBe("2024-01-01T00:00:00Z");
+    });
+
+    it("updates read position", () => {
+      state.setInitialData(createMockInitialData());
+
+      state.setReadPosition("roo_123", "2024-06-15T12:00:00Z");
+      expect(state.getReadPosition("roo_123")).toBe("2024-06-15T12:00:00Z");
+    });
+
+    it("marks all rooms as read", () => {
+      const data = createMockInitialData();
+      data.unread_counts = { roo_123: 5, roo_456: 10 };
+      state.setInitialData(data);
+
+      expect(state.hasAnyUnread()).toBe(true);
+
+      const readAt = "2024-06-15T12:00:00Z";
+      state.markAllRoomsAsRead(readAt);
+
+      expect(state.hasAnyUnread()).toBe(false);
+      expect(state.getUnreadCount("roo_123")).toBe(0);
+      expect(state.getUnreadCount("roo_456")).toBe(0);
+      expect(state.getReadPosition("roo_123")).toBe(readAt);
+      expect(state.getReadPosition("roo_456")).toBe(readAt);
+    });
+  });
+
+  describe("unread divider", () => {
+    it("stores unread divider timestamp in room state", () => {
+      state.setInitialData(createMockInitialData());
+      const roomState = state.getRoomState("roo_123");
+
+      expect(roomState.unreadDividerAt).toBeUndefined();
+
+      roomState.unreadDividerAt = "2024-01-01T00:00:00Z";
+      expect(roomState.unreadDividerAt).toBe("2024-01-01T00:00:00Z");
+    });
+
+    it("clears unread divider when undefined", () => {
+      state.setInitialData(createMockInitialData());
+      const roomState = state.getRoomState("roo_123");
+
+      roomState.unreadDividerAt = "2024-01-01T00:00:00Z";
+      roomState.unreadDividerAt = undefined;
+      expect(roomState.unreadDividerAt).toBeUndefined();
     });
   });
 });

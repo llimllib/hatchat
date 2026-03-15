@@ -279,6 +279,13 @@
           },
           "type": "array"
         },
+        "read_positions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of room ID to last_read_at RFC3339Nano timestamp (empty string if never read)",
+          "type": "object"
+        },
         "rooms": {
           "description": "Channel rooms the user is a member of",
           "items": {
@@ -304,6 +311,7 @@
         "dms",
         "current_room",
         "unread_counts",
+        "read_positions",
         "online_user_ids"
       ],
       "type": "object"
@@ -422,6 +430,24 @@
       },
       "required": [
         "users"
+      ],
+      "type": "object"
+    },
+    "MarkAllReadRequest": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "MarkAllReadResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "read_at": {
+          "description": "Timestamp that was recorded for all rooms",
+          "type": "string"
+        }
+      },
+      "required": [
+        "read_at"
       ],
       "type": "object"
     },
@@ -1113,6 +1139,12 @@
     },
     {
       "$ref": "#/$defs/MarkReadResponse"
+    },
+    {
+      "$ref": "#/$defs/MarkAllReadRequest"
+    },
+    {
+      "$ref": "#/$defs/MarkAllReadResponse"
     },
     {
       "$ref": "#/$defs/UnreadCounts"

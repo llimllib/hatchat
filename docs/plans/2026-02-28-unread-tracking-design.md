@@ -1,7 +1,7 @@
 # Unread Tracking Design
 
 **Date:** 2026-02-28
-**Status:** In Progress
+**Status:** Complete
 **Phase:** 5.1
 
 ## Overview
@@ -203,11 +203,15 @@ When receiving a new `message_broadcast`:
 - [x] Auto-mark-as-read when switching rooms
 - [x] Auto-mark-as-read after history loads
 - [x] Increment unread count for messages in other rooms
-- [ ] Add "New messages" divider (deferred)
-- [ ] Add manual "Mark as read" option (deferred - context menu)
+- [x] Add "New messages" divider line at first unread message
+- [x] Add manual "Mark as read" context menu on right-click room
+- [x] Add "Mark all as read" option in user dropdown menu
+- [x] Add `mark_all_read` WebSocket message type (backend + frontend)
 
 ### Step 5: Testing
 - [x] Unit tests for new DB functions
 - [x] Unit tests for unread state management
-- [ ] Integration tests for mark_read handler
-- [ ] E2E tests for unread UI behavior
+- [x] Unit tests for read positions and markAllRoomsAsRead
+- [x] DB tests for GetReadPositions and MarkAllRead
+- [x] Integration tests for mark_read handler
+- [x] Integration tests for mark_all_read handler
