@@ -2006,3 +2006,85 @@ body {
   display: block;
   background-color: var(--color-stone-cold);
 }
+
+/* =============================================================================
+   Unread Messages Divider
+   ============================================================================= */
+
+.unread-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 16px;
+  user-select: none;
+}
+
+.unread-divider-line {
+  flex: 1;
+  border: none;
+  border-top: 1px solid var(--color-peat-brown);
+  margin: 0;
+}
+
+.unread-divider-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-peat-brown);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* =============================================================================
+   Room Context Menu
+   ============================================================================= */
+
+.room-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 180px;
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-coco-black);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.context-menu-item:hover {
+  background-color: rgba(141, 124, 85, 0.1);
+}
+
+.context-menu-item-disabled {
+  color: var(--color-shadow-colossus);
+  cursor: default;
+}
+
+.context-menu-item-disabled:hover {
+  background-color: transparent;
+}
+
+/* =============================================================================
+   Dropdown disabled state
+   ============================================================================= */
+
+.dropdown-item-disabled {
+  color: var(--color-shadow-colossus);
+  cursor: default;
+}
+
+.dropdown-item-disabled:hover {
+  background-color: transparent;
+}

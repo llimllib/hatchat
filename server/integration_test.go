@@ -1094,3 +1094,126 @@ func TestIntegration_PresenceInitResponse(t *testing.T) {
 	// Drain presence update that Alice receives for Bob
 	_, _ = client1.waitForMessage(2 * time.Second)
 }
+
+func TestIntegration_MarkRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create a user
+	httpClient := ts.createUser("alice", "password123")
+	client := ts.connectWebSocket(httpClient, "alice")
+	defer client.close()
+
+	initEnv, err := client.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Get the current room ID
+	initData := initEnv.Data.(map[string]interface{})
+	currentRoom := initData["current_room"].(string)
+
+	// Verify init includes read_positions
+	readPositions, ok := initData["read_positions"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected read_positions in init response, got %T", initData["read_positions"])
+	}
+	if len(readPositions) == 0 {
+		t.Log("No read positions yet (expected for new user)")
+	}
+
+	// Send a message to create something to mark as read
+	err = client.sendMessage("Hello world", currentRoom)
+	if err != nil {
+		t.Fatalf("Failed to send message: %v", err)
+	}
+
+	// Wait for message confirmation
+	msgBytes, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Failed to receive message: %v", err)
+	}
+
+	var msgEnv api.Envelope
+	if err := json.Unmarshal(msgBytes, &msgEnv); err != nil {
+		t.Fatalf("Failed to parse message: %v", err)
+	}
+
+	// Send mark_read request
+	readAt := time.Now().UTC().Format(time.RFC3339Nano)
+	markReadMsg := fmt.Sprintf(`{"type":"mark_read","data":{"room_id":%q,"read_at":%q}}`, currentRoom, readAt)
+	if err := client.conn.WriteMessage(websocket.TextMessage, []byte(markReadMsg)); err != nil {
+		t.Fatalf("Failed to send mark_read: %v", err)
+	}
+
+	// Wait for mark_read response
+	respBytes, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Failed to receive mark_read response: %v", err)
+	}
+
+	var respEnv api.Envelope
+	if err := json.Unmarshal(respBytes, &respEnv); err != nil {
+		t.Fatalf("Failed to parse mark_read response: %v", err)
+	}
+
+	if respEnv.Type != "mark_read" {
+		t.Errorf("Expected type 'mark_read', got %q", respEnv.Type)
+	}
+
+	respData := respEnv.Data.(map[string]interface{})
+	if respData["room_id"] != currentRoom {
+		t.Errorf("Expected room_id %q, got %q", currentRoom, respData["room_id"])
+	}
+	if respData["unread_count"].(float64) != 0 {
+		t.Errorf("Expected unread_count 0, got %v", respData["unread_count"])
+	}
+}
+
+func TestIntegration_MarkAllRead(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create a user
+	httpClient := ts.createUser("alice", "password123")
+	client := ts.connectWebSocket(httpClient, "alice")
+	defer client.close()
+
+	_, err := client.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	// Send mark_all_read request
+	markAllMsg := `{"type":"mark_all_read","data":{}}`
+	if err := client.conn.WriteMessage(websocket.TextMessage, []byte(markAllMsg)); err != nil {
+		t.Fatalf("Failed to send mark_all_read: %v", err)
+	}
+
+	// Wait for response
+	respBytes, err := client.waitForMessage(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Failed to receive mark_all_read response: %v", err)
+	}
+
+	var respEnv api.Envelope
+	if err := json.Unmarshal(respBytes, &respEnv); err != nil {
+		t.Fatalf("Failed to parse mark_all_read response: %v", err)
+	}
+
+	if respEnv.Type != "mark_all_read" {
+		t.Errorf("Expected type 'mark_all_read', got %q", respEnv.Type)
+	}
+
+	respData := respEnv.Data.(map[string]interface{})
+	readAt, ok := respData["read_at"].(string)
+	if !ok || readAt == "" {
+		t.Errorf("Expected non-empty read_at, got %v", respData["read_at"])
+	}
+}

@@ -13,6 +13,7 @@ import {
   type LeaveRoomResponse,
   type ListRoomsResponse,
   type ListUsersResponse,
+  type MarkAllReadResponse,
   type MarkReadResponse,
   type Message,
   type MessageDeleted,
@@ -299,6 +300,10 @@ class Client {
           this.handleMarkRead(envelope.data);
           break;
         }
+        case "mark_all_read": {
+          this.handleMarkAllRead(envelope.data);
+          break;
+        }
         case "presence": {
           this.handlePresence(envelope.data);
           break;
@@ -498,6 +503,24 @@ class Client {
 
     // Optimistically update local state
     this.state.markRoomAsRead(roomId);
+    this.state.setReadPosition(roomId, readAt);
+    this.renderSidebar();
+  }
+
+  /**
+   * Mark all rooms as read
+   */
+  markAllRead() {
+    const request = {
+      type: "mark_all_read",
+      data: {},
+    };
+    console.debug("marking all rooms as read", request);
+    this.conn.send(JSON.stringify(request));
+
+    // Optimistically update local state
+    const readAt = new Date().toISOString();
+    this.state.markAllRoomsAsRead(readAt);
     this.renderSidebar();
   }
 
@@ -539,6 +562,18 @@ class Client {
       response.next_cursor || undefined,
       response.has_more,
     );
+
+    // Set the unread divider position before marking as read (only on initial load)
+    if (!isLoadingMore && roomId) {
+      const unreadCount = this.state.getUnreadCount(roomId);
+      if (unreadCount > 0) {
+        // Capture the read position before we mark as read
+        const readPosition = this.state.getReadPosition(roomId);
+        roomState.unreadDividerAt = readPosition || undefined;
+      } else {
+        roomState.unreadDividerAt = undefined;
+      }
+    }
 
     // Re-render the messages from state
     this.renderMessages();
@@ -591,11 +626,25 @@ class Client {
       messageWindow.appendChild(loadMoreBtn);
     }
 
-    // Group and render messages
+    // Group and render messages, inserting "New messages" divider if needed
     const messages = roomState.messages;
     let lastMessage: Message | undefined;
+    let dividerInserted = false;
+    const dividerAt = roomState.unreadDividerAt;
 
     for (const msg of messages) {
+      // Insert "New messages" divider before the first unread message
+      if (!dividerInserted && dividerAt && msg.created_at > dividerAt) {
+        const divider = $("div", { class: "unread-divider" });
+        divider.appendChild($("hr", { class: "unread-divider-line" }));
+        divider.appendChild(
+          $("span", { class: "unread-divider-text", text: "New messages" }),
+        );
+        divider.appendChild($("hr", { class: "unread-divider-line" }));
+        messageWindow.appendChild(divider);
+        dividerInserted = true;
+      }
+
       const isGrouped = this.shouldGroupWithPrevious(msg, lastMessage);
       const isOwn = msg.user_id === this.state.user.id;
       const element = this.createMessageElement(msg, isGrouped, isOwn);
@@ -899,6 +948,12 @@ class Client {
         this.switchRoom(room.id);
       });
 
+      // Add context menu for room actions
+      li.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.showRoomContextMenu(e, room.id);
+      });
+
       li.appendChild(link);
       channelList.appendChild(li);
     }
@@ -981,6 +1036,12 @@ class Client {
         link.addEventListener("click", (e) => {
           e.preventDefault();
           this.switchRoom(dm.id);
+        });
+
+        // Add context menu for DM actions
+        li.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          this.showRoomContextMenu(e, dm.id);
         });
 
         li.appendChild(link);
@@ -1082,8 +1143,23 @@ class Client {
       this.requestProfile(this.state.user.id);
     });
 
+    // Mark all as read option
+    const markAllReadBtn = $("button", {
+      class: "dropdown-item",
+      text: "Mark all as read",
+    });
+    markAllReadBtn.addEventListener("click", () => {
+      this.closeUserDropdown();
+      this.markAllRead();
+    });
+    // Only show if there are unread messages
+    if (!this.state.hasAnyUnread()) {
+      markAllReadBtn.classList.add("dropdown-item-disabled");
+    }
+
     dropdown.appendChild(editProfileBtn);
     dropdown.appendChild(viewProfileBtn);
+    dropdown.appendChild(markAllReadBtn);
     userSection.appendChild(dropdown);
 
     // Close dropdown when clicking elsewhere
@@ -1095,6 +1171,71 @@ class Client {
     };
     // Add handler on next tick to avoid immediate close
     setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  /**
+   * Show a context menu for a room with "Mark as read" option
+   */
+  showRoomContextMenu(e: MouseEvent, roomId: string) {
+    // Close any existing context menu
+    this.closeRoomContextMenu();
+
+    const menu = $("div", { class: "room-context-menu" });
+
+    // Mark as read option
+    const markReadBtn = $("button", {
+      class: "context-menu-item",
+      text: "Mark as read",
+    });
+    const unreadCount = this.state.getUnreadCount(roomId);
+    if (unreadCount === 0) {
+      markReadBtn.classList.add("context-menu-item-disabled");
+    }
+    markReadBtn.addEventListener("click", () => {
+      this.closeRoomContextMenu();
+      if (unreadCount > 0) {
+        // Use current time as the read position
+        this.markRead(roomId, new Date().toISOString());
+      }
+    });
+    menu.appendChild(markReadBtn);
+
+    // Position the menu at the click location
+    document.body.appendChild(menu);
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+    let left = e.clientX;
+    let top = e.clientY;
+
+    // Clamp to viewport
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8;
+    }
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = window.innerHeight - menuHeight - 8;
+    }
+
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+
+    // Close when clicking elsewhere
+    const closeHandler = (evt: MouseEvent) => {
+      if (!menu.contains(evt.target as Node)) {
+        this.closeRoomContextMenu();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  /**
+   * Close any open room context menu
+   */
+  closeRoomContextMenu() {
+    const menu = document.querySelector(".room-context-menu");
+    if (menu) {
+      menu.remove();
+    }
   }
 
   /**
@@ -1203,6 +1344,15 @@ class Client {
 
     // Check if we have cached messages for this room
     if (this.state.hasMessagesForRoom(roomId)) {
+      // Set the unread divider before marking as read
+      const unreadCount = this.state.getUnreadCount(roomId);
+      const roomState = this.state.getRoomState(roomId);
+      if (unreadCount > 0) {
+        const readPosition = this.state.getReadPosition(roomId);
+        roomState.unreadDividerAt = readPosition || undefined;
+      } else {
+        roomState.unreadDividerAt = undefined;
+      }
       // Render from cache
       this.renderMessages();
       // Mark as read since we're viewing cached messages
@@ -1455,6 +1605,17 @@ class Client {
     // Update local unread count
     this.state.setUnreadCount(response.room_id, response.unread_count);
     // Re-render sidebar to update unread badges
+    this.renderSidebar();
+  }
+
+  /**
+   * Handle mark_all_read response from server
+   */
+  handleMarkAllRead(response: MarkAllReadResponse) {
+    console.debug("mark_all_read response", response);
+    // Update local state - all rooms are now read
+    this.state.markAllRoomsAsRead(response.read_at);
+    // Re-render sidebar to clear all unread badges
     this.renderSidebar();
   }
 

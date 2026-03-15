@@ -337,6 +337,14 @@ func (c *Client) readPump() {
 			} else {
 				must(c.writeJSON(res))
 			}
+		case "mark_all_read":
+			res, err := c.api.MarkAllRead(context.Background(), c.user, msg)
+			if err != nil {
+				c.logger.Error("failed to handle mark_all_read", "error", err, "msg", msg)
+				must(c.writeJSON(c.api.ErrorMessage("failed to mark all as read")))
+			} else {
+				must(c.writeJSON(res))
+			}
 		}
 
 		c.logger.Debug("handled ws", "message", string(message), "duration", time.Since(t))

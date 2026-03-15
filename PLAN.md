@@ -288,9 +288,9 @@ _Goal: Don't miss important messages_
 - [x] Unread count badges in sidebar
 - [x] Bold room name if unread
 - [x] Auto-mark as read when viewing room
-- [ ] "New messages" divider line at first unread
-- [ ] Manual "Mark as read" context menu option
-- [ ] "Mark all as read" option
+- [x] "New messages" divider line at first unread
+- [x] Manual "Mark as read" context menu option
+- [x] "Mark all as read" option
 
 ### 5.2 In-App Notifications
 

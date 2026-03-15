@@ -82,3 +82,49 @@ func (d *DB) GetReadPosition(ctx context.Context, userID, roomID string) (*model
 	}
 	return rp, nil
 }
+
+// GetReadPositions returns a map of room ID to last_read_at timestamp for all rooms
+// the user is a member of. Rooms with no read position have empty string values.
+func (d *DB) GetReadPositions(ctx context.Context, userID string) (map[string]string, error) {
+	const sqlstr = `
+		SELECT rm.room_id, COALESCE(rp.last_read_at, '') as last_read_at
+		FROM rooms_members rm
+		LEFT JOIN read_positions rp ON rm.room_id = rp.room_id AND rm.user_id = rp.user_id
+		WHERE rm.user_id = $1
+	`
+
+	rows, err := d.QueryContext(ctx, sqlstr, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	positions := make(map[string]string)
+	for rows.Next() {
+		var roomID, lastReadAt string
+		if err := rows.Scan(&roomID, &lastReadAt); err != nil {
+			return nil, err
+		}
+		positions[roomID] = lastReadAt
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return positions, nil
+}
+
+// MarkAllRead marks all rooms the user is a member of as read at the given timestamp.
+func (d *DB) MarkAllRead(ctx context.Context, userID, readAt string) error {
+	const sqlstr = `
+		INSERT INTO read_positions (user_id, room_id, last_read_at)
+		SELECT $1, rm.room_id, $2
+		FROM rooms_members rm
+		WHERE rm.user_id = $1
+		ON CONFLICT (user_id, room_id) DO UPDATE SET last_read_at = excluded.last_read_at
+	`
+
+	_, err := d.ExecContext(ctx, sqlstr, userID, readAt)
+	return err
+}

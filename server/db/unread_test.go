@@ -379,6 +379,149 @@ func TestGetUnreadCount_SingleRoom(t *testing.T) {
 	}
 }
 
+func TestGetReadPositions(t *testing.T) {
+	db := testDBWithReadPositions(t)
+	ctx := context.Background()
+
+	user := createUnreadTestUser(t, db, "usr_1", "alice")
+	room1 := createUnreadTestRoom(t, db, "roo_1", "general")
+	room2 := createUnreadTestRoom(t, db, "roo_2", "random")
+	addUnreadTestUserToRoom(t, db, user.ID, room1.ID)
+	addUnreadTestUserToRoom(t, db, user.ID, room2.ID)
+
+	// Initially, all positions should be empty strings
+	positions, err := db.GetReadPositions(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get read positions: %v", err)
+	}
+
+	if len(positions) != 2 {
+		t.Errorf("Expected 2 rooms in positions, got %d", len(positions))
+	}
+	if positions[room1.ID] != "" {
+		t.Errorf("Expected empty read position for room1, got %q", positions[room1.ID])
+	}
+	if positions[room2.ID] != "" {
+		t.Errorf("Expected empty read position for room2, got %q", positions[room2.ID])
+	}
+
+	// Set read position for room1
+	readAt := time.Now().Format(time.RFC3339Nano)
+	err = db.SetReadPosition(ctx, user.ID, room1.ID, readAt)
+	if err != nil {
+		t.Fatalf("Failed to set read position: %v", err)
+	}
+
+	// Now room1 should have a read position
+	positions, err = db.GetReadPositions(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get read positions: %v", err)
+	}
+
+	if positions[room1.ID] != readAt {
+		t.Errorf("Expected read position %q for room1, got %q", readAt, positions[room1.ID])
+	}
+	if positions[room2.ID] != "" {
+		t.Errorf("Expected empty read position for room2, got %q", positions[room2.ID])
+	}
+}
+
+func TestMarkAllRead(t *testing.T) {
+	db := testDBWithReadPositions(t)
+	ctx := context.Background()
+
+	user := createUnreadTestUser(t, db, "usr_1", "alice")
+	room1 := createUnreadTestRoom(t, db, "roo_1", "general")
+	room2 := createUnreadTestRoom(t, db, "roo_2", "random")
+	room3 := createUnreadTestRoom(t, db, "roo_3", "dev")
+	addUnreadTestUserToRoom(t, db, user.ID, room1.ID)
+	addUnreadTestUserToRoom(t, db, user.ID, room2.ID)
+	addUnreadTestUserToRoom(t, db, user.ID, room3.ID)
+
+	// Add messages to all rooms
+	baseTime := time.Now()
+	createUnreadTestMessage(t, db, "msg_1", room1.ID, user.ID, "Hello", baseTime.Format(time.RFC3339Nano))
+	createUnreadTestMessage(t, db, "msg_2", room2.ID, user.ID, "Hi", baseTime.Add(time.Second).Format(time.RFC3339Nano))
+	createUnreadTestMessage(t, db, "msg_3", room3.ID, user.ID, "Hey", baseTime.Add(2*time.Second).Format(time.RFC3339Nano))
+
+	// Set read position for room1 only
+	err := db.SetReadPosition(ctx, user.ID, room1.ID, baseTime.Format(time.RFC3339Nano))
+	if err != nil {
+		t.Fatalf("Failed to set read position: %v", err)
+	}
+
+	// Mark all rooms as read
+	readAt := baseTime.Add(time.Minute).Format(time.RFC3339Nano)
+	err = db.MarkAllRead(ctx, user.ID, readAt)
+	if err != nil {
+		t.Fatalf("Failed to mark all read: %v", err)
+	}
+
+	// Verify all rooms are now read
+	counts, err := db.GetUnreadCounts(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get unread counts: %v", err)
+	}
+
+	for _, roomID := range []string{room1.ID, room2.ID, room3.ID} {
+		if counts[roomID] != 0 {
+			t.Errorf("Expected 0 unread for %s after mark all, got %d", roomID, counts[roomID])
+		}
+	}
+
+	// Verify all read positions were set
+	positions, err := db.GetReadPositions(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get read positions: %v", err)
+	}
+
+	for _, roomID := range []string{room1.ID, room2.ID, room3.ID} {
+		if positions[roomID] != readAt {
+			t.Errorf("Expected read position %q for %s, got %q", readAt, roomID, positions[roomID])
+		}
+	}
+}
+
+func TestMarkAllRead_DoesNotAffectOtherUsers(t *testing.T) {
+	db := testDBWithReadPositions(t)
+	ctx := context.Background()
+
+	user1 := createUnreadTestUser(t, db, "usr_1", "alice")
+	user2 := createUnreadTestUser(t, db, "usr_2", "bob")
+	room := createUnreadTestRoom(t, db, "roo_1", "general")
+	addUnreadTestUserToRoom(t, db, user1.ID, room.ID)
+	addUnreadTestUserToRoom(t, db, user2.ID, room.ID)
+
+	// Add messages
+	baseTime := time.Now()
+	createUnreadTestMessage(t, db, "msg_1", room.ID, user1.ID, "Hello", baseTime.Format(time.RFC3339Nano))
+
+	// Mark all read for user1 only
+	readAt := baseTime.Add(time.Minute).Format(time.RFC3339Nano)
+	err := db.MarkAllRead(ctx, user1.ID, readAt)
+	if err != nil {
+		t.Fatalf("Failed to mark all read: %v", err)
+	}
+
+	// User1 should have 0 unread
+	count1, err := db.GetUnreadCount(ctx, user1.ID, room.ID)
+	if err != nil {
+		t.Fatalf("Failed to get unread count for user1: %v", err)
+	}
+	if count1 != 0 {
+		t.Errorf("Expected 0 unread for user1, got %d", count1)
+	}
+
+	// User2 should still have 1 unread
+	count2, err := db.GetUnreadCount(ctx, user2.ID, room.ID)
+	if err != nil {
+		t.Fatalf("Failed to get unread count for user2: %v", err)
+	}
+	if count2 != 1 {
+		t.Errorf("Expected 1 unread for user2, got %d", count2)
+	}
+}
+
 func TestGetUnreadCounts_DeletedMessages(t *testing.T) {
 	db := testDBWithReadPositions(t)
 	ctx := context.Background()

@@ -127,6 +127,7 @@ describe("Zod Schema Validation", () => {
           dms: [],
           current_room: "roo_123456789abc",
           unread_counts: {},
+          read_positions: {},
           online_user_ids: [],
         },
       };

@@ -41,6 +41,7 @@ const typeOrder = [
   "SearchRequest",
   "GetMessageContextRequest",
   "MarkReadRequest",
+  "MarkAllReadRequest",
   "InitResponse",
   "HistoryResponse",
   "JoinRoomResponse",
@@ -60,6 +61,7 @@ const typeOrder = [
   "SearchResponse",
   "GetMessageContextResponse",
   "MarkReadResponse",
+  "MarkAllReadResponse",
   "UnreadCounts",
   "PresenceUpdate",
   "Envelope",
@@ -239,6 +241,7 @@ export type MessageType =
   | "search"
   | "get_message_context"
   | "mark_read"
+  | "mark_all_read"
   | "message_edited"
   | "message_deleted"
   | "reaction_updated"
@@ -267,7 +270,8 @@ export type ClientEnvelope =
   | { type: "remove_reaction"; data: RemoveReactionRequest }
   | { type: "search"; data: SearchRequest }
   | { type: "get_message_context"; data: GetMessageContextRequest }
-  | { type: "mark_read"; data: MarkReadRequest };
+  | { type: "mark_read"; data: MarkReadRequest }
+  | { type: "mark_all_read"; data: MarkAllReadRequest };
 
 /**
  * Type-safe envelope for server → client messages
@@ -288,6 +292,7 @@ export type ServerEnvelope =
   | { type: "search"; data: SearchResponse }
   | { type: "get_message_context"; data: GetMessageContextResponse }
   | { type: "mark_read"; data: MarkReadResponse }
+  | { type: "mark_all_read"; data: MarkAllReadResponse }
   | { type: "message_edited"; data: MessageEdited }
   | { type: "message_deleted"; data: MessageDeleted }
   | { type: "reaction_updated"; data: ReactionUpdated }
@@ -393,6 +398,11 @@ export const MarkReadEnvelopeSchema = z.object({
   data: MarkReadResponseSchema,
 });
 
+export const MarkAllReadEnvelopeSchema = z.object({
+  type: z.literal("mark_all_read"),
+  data: MarkAllReadResponseSchema,
+});
+
 export const PresenceEnvelopeSchema = z.object({
   type: z.literal("presence"),
   data: PresenceUpdateSchema,
@@ -417,6 +427,7 @@ export const ServerEnvelopeSchema = z.discriminatedUnion("type", [
   SearchEnvelopeSchema,
   GetMessageContextEnvelopeSchema,
   MarkReadEnvelopeSchema,
+  MarkAllReadEnvelopeSchema,
   MessageEditedEnvelopeSchema,
   MessageDeletedEnvelopeSchema,
   ReactionUpdatedEnvelopeSchema,
