@@ -324,11 +324,13 @@ _Goal: Workspace management and hardening_
 
 ### 6.2 Session Management
 
-- [ ] Logout endpoint (clear session, redirect to login with message)
-- [ ] Logout button in UI
+- [x] Logout endpoint (clear session, redirect to login with message)
+- [x] Logout button in UI
+- [x] Session expiration (7-day max age, enforced in auth middleware)
+- [x] Expired/invalid sessions redirect to login (pages) or return 401 (API/WS)
+- [x] Improved cookie security (Path, SameSite=Lax)
 - [ ] List active sessions
 - [ ] Revoke sessions
-- [ ] Session expiration and refresh
 
 ### 6.3 Room Administration
 

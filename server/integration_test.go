@@ -41,6 +41,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/llimllib/hatchat/server/api"
 	"github.com/llimllib/hatchat/server/db"
+	"github.com/llimllib/hatchat/server/middleware"
 	"github.com/llimllib/hatchat/server/models"
 )
 
@@ -102,21 +103,11 @@ func newTestServer(t *testing.T) *testServer {
 	// In production, they'd be served from ./static/
 	mux.HandleFunc("/register", chatServer.register)
 	mux.HandleFunc("/login", chatServer.login)
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// For testing, we extract user from session cookie manually
-		cookie, err := r.Cookie(chatServer.sessionKey)
-		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		session, err := models.SessionByID(r.Context(), testDB, cookie.Value)
-		if err != nil {
-			http.Error(w, "Invalid session", http.StatusUnauthorized)
-			return
-		}
-
-		user, err := models.UserByID(r.Context(), testDB, session.UserID)
+	mux.HandleFunc("/logout", chatServer.logout)
+	authRequired := middleware.AuthMiddleware(testDB, logger, chatServer.sessionKey)
+	mux.HandleFunc("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
+		userID := middleware.GetUserID(r.Context())
+		user, err := models.UserByID(r.Context(), testDB, userID)
 		if err != nil {
 			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
@@ -139,7 +130,7 @@ func newTestServer(t *testing.T) *testServer {
 
 		go client.writePump()
 		go client.readPump()
-	})
+	}))
 
 	server := httptest.NewServer(mux)
 
@@ -1215,5 +1206,140 @@ func TestIntegration_MarkAllRead(t *testing.T) {
 	readAt, ok := respData["read_at"].(string)
 	if !ok || readAt == "" {
 		t.Errorf("Expected non-empty read_at, got %v", respData["read_at"])
+	}
+}
+
+// TestIntegration_Logout tests that POST /logout clears the session and redirects
+func TestIntegration_Logout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create and login user
+	httpClient := ts.createUser("alice", "password123")
+
+	// Verify we can connect before logout
+	client1 := ts.connectWebSocket(httpClient, "alice")
+	_, err := client1.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed before logout: %v", err)
+	}
+	client1.close()
+
+	// POST to /logout
+	resp, err := httpClient.Post(ts.server.URL+"/logout", "", nil)
+	if err != nil {
+		t.Fatalf("Logout request failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Should redirect to /?logged_out=1
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("Expected 302 redirect, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	if location != "/?logged_out=1" {
+		t.Errorf("Expected redirect to /?logged_out=1, got %q", location)
+	}
+
+	// After logout, WebSocket connection should fail
+	wsURL := "ws" + strings.TrimPrefix(ts.server.URL, "http") + "/ws"
+	u, _ := url.Parse(ts.server.URL)
+	jar := httpClient.Jar
+	cookies := jar.Cookies(u)
+
+	header := http.Header{}
+	for _, c := range cookies {
+		header.Add("Cookie", c.String())
+	}
+
+	_, resp2, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err == nil {
+		t.Error("Expected WebSocket connection to fail after logout")
+	}
+	if resp2 != nil && resp2.StatusCode != http.StatusUnauthorized {
+		t.Errorf("Expected 401 after logout, got %d", resp2.StatusCode)
+	}
+}
+
+// TestIntegration_LogoutGETIgnored tests that GET /logout is ignored (POST only)
+func TestIntegration_LogoutGETIgnored(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	httpClient := ts.createUser("alice", "password123")
+
+	// GET should redirect to home without logging out
+	resp, err := httpClient.Get(ts.server.URL + "/logout")
+	if err != nil {
+		t.Fatalf("GET logout failed: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("Expected 302 redirect, got %d", resp.StatusCode)
+	}
+
+	// Session should still work — WebSocket connection should succeed
+	client := ts.connectWebSocket(httpClient, "alice")
+	defer client.close()
+
+	_, err = client.sendInit()
+	if err != nil {
+		t.Fatalf("Init failed after GET /logout (session should still be valid): %v", err)
+	}
+}
+
+// TestIntegration_SessionExpiration tests that expired sessions are rejected
+func TestIntegration_SessionExpiration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ts := newTestServer(t)
+	defer ts.close()
+
+	// Create user and get a session
+	httpClient := ts.createUser("alice", "password123")
+
+	// Manually backdate the session in the database to make it expired
+	ctx := context.Background()
+	u, _ := url.Parse(ts.server.URL)
+	cookies := httpClient.Jar.Cookies(u)
+	var sessionID string
+	for _, c := range cookies {
+		if c.Name == ts.chatServer.sessionKey {
+			sessionID = c.Value
+			break
+		}
+	}
+	if sessionID == "" {
+		t.Fatal("No session cookie found")
+	}
+
+	// Set session created_at to 8 days ago (past the 7-day expiration)
+	expired := time.Now().Add(-8 * 24 * time.Hour).Format(time.RFC3339)
+	_, err := ts.chatServer.db.ExecContext(ctx, "UPDATE sessions SET created_at = $1 WHERE id = $2", expired, sessionID)
+	if err != nil {
+		t.Fatalf("Failed to backdate session: %v", err)
+	}
+
+	// WebSocket connection should now fail
+	wsURL := "ws" + strings.TrimPrefix(ts.server.URL, "http") + "/ws"
+	header := http.Header{}
+	for _, c := range cookies {
+		header.Add("Cookie", c.String())
+	}
+
+	_, resp, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err == nil {
+		t.Error("Expected WebSocket connection to fail with expired session")
+	}
+	if resp != nil && resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("Expected 401 for expired session, got %d", resp.StatusCode)
 	}
 }
