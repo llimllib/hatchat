@@ -410,8 +410,11 @@ _Goal: Professional, accessible experience_
 
 - [ ] Restyle sign-in page to match app design
 - [ ] Add "hatchat" branding and app description
-- [ ] Display error messages on failed login/registration (flash messages or query params)
-- [ ] Show success message after logout
+- [ ] Display contextual messages on the login page (warning box above the form, not toasts):
+  - [ ] "Session expired" / "Please log in" when redirected from an auth-protected page
+  - [ ] Error on failed login (wrong username/password)
+  - [ ] Error on failed registration (duplicate username, etc.)
+- [x] Show success message after logout
 - [ ] Auto-login after successful registration (skip the extra login step)
 
 ### 7.6 Visual Design
