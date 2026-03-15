@@ -25,6 +25,9 @@ func fatal(logger *slog.Logger, message string, err error, args ...any) {
 	panic(message)
 }
 
+// sessionMaxAge is how long sessions are valid for.
+const sessionMaxAge = 7 * 24 * time.Hour // 7 days
+
 type ChatServer struct {
 	db         *db.DB
 	logger     *slog.Logger
@@ -175,8 +178,10 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name:     h.sessionKey,
 			Value:    sid,
-			Expires:  time.Now().Add(24 * time.Hour),
-			HttpOnly: true, // Client-side scripts cannot access the cookie
+			Path:     "/",
+			Expires:  time.Now().Add(sessionMaxAge),
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 		})
 
 		http.Redirect(w, r, fmt.Sprintf("/chat/%s", user.LastRoom), http.StatusFound)
@@ -184,6 +189,36 @@ func (h *ChatServer) login(w http.ResponseWriter, r *http.Request) {
 		h.logger.Debug("wrong password")
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
+}
+
+func (h *ChatServer) logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	cookie, err := r.Cookie(h.sessionKey)
+	if err == nil {
+		// Delete the session from the database
+		session, err := models.SessionByID(r.Context(), h.db, cookie.Value)
+		if err == nil {
+			if err := session.Delete(r.Context(), h.db); err != nil {
+				h.logger.Error("failed to delete session", "err", err)
+			}
+		}
+	}
+
+	// Clear the cookie regardless of whether we found a session
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.sessionKey,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.Redirect(w, r, "/?logged_out=1", http.StatusFound)
 }
 
 // create a logger with the given log level
@@ -265,6 +300,7 @@ func (h *ChatServer) Run(addr string) {
 	http.HandleFunc("/search", h.middleware("/search", authRequired(h.serveChat)))
 	http.HandleFunc("/register", h.middleware("/register", h.register))
 	http.HandleFunc("/login", h.middleware("/login", h.login))
+	http.HandleFunc("/logout", h.middleware("/logout", h.logout))
 	http.HandleFunc("/ws", h.middleware("/ws", authRequired(func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, wsAPI, w, r)
 	})))

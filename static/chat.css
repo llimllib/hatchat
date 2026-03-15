@@ -2088,3 +2088,17 @@ body {
 .dropdown-item-disabled:hover {
   background-color: transparent;
 }
+
+.dropdown-divider {
+  height: 1px;
+  margin: 4px 0;
+  background-color: rgba(141, 124, 85, 0.2);
+}
+
+.dropdown-item-danger {
+  color: #c0392b;
+}
+
+.dropdown-item-danger:hover {
+  background-color: rgba(192, 57, 43, 0.08);
+}

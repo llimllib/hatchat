@@ -13,6 +13,9 @@
 <body>
   <div class="auth-card">
     <h1>Hatchat 🪓</h1>
+    <div id="logout-message" class="auth-message" style="display: none;">
+      You've been logged out.
+    </div>
     <p class="subtitle">Sign in or create an account</p>
 
     <div class="auth-tabs">
@@ -54,6 +57,13 @@
         document.getElementById(tab.dataset.tab + '-form').classList.add('active');
       });
     });
+
+    // Show logout message if redirected from /logout
+    if (new URLSearchParams(window.location.search).has('logged_out')) {
+      document.getElementById('logout-message').style.display = 'block';
+      // Clean up the URL without reloading
+      history.replaceState(null, '', '/');
+    }
   </script>
 </body>
 

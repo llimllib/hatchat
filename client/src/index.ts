@@ -1157,9 +1157,24 @@ class Client {
       markAllReadBtn.classList.add("dropdown-item-disabled");
     }
 
+    // Divider before logout
+    const divider = $("div", { class: "dropdown-divider" });
+
+    // Logout option
+    const logoutBtn = $("button", {
+      class: "dropdown-item dropdown-item-danger",
+      text: "Log out",
+    });
+    logoutBtn.addEventListener("click", () => {
+      this.closeUserDropdown();
+      this.logout();
+    });
+
     dropdown.appendChild(editProfileBtn);
     dropdown.appendChild(viewProfileBtn);
     dropdown.appendChild(markAllReadBtn);
+    dropdown.appendChild(divider);
+    dropdown.appendChild(logoutBtn);
     userSection.appendChild(dropdown);
 
     // Close dropdown when clicking elsewhere
@@ -1246,6 +1261,19 @@ class Client {
     if (dropdown) {
       dropdown.remove();
     }
+  }
+
+  /**
+   * Log out the current user by POSTing to /logout.
+   * The server deletes the session and clears the cookie.
+   */
+  logout() {
+    // Use a form POST so the browser handles the redirect
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/logout";
+    document.body.appendChild(form);
+    form.submit();
   }
 
   /**

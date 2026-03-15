@@ -93,10 +93,11 @@ test.describe("Authentication", () => {
     page,
   }) => {
     // Try to access chat directly without being logged in
-    const response = await page.goto("/chat/roo_somefakeroom");
+    await page.goto("/chat/roo_somefakeroom");
 
-    // Should receive 401 Unauthorized
-    expect(response?.status()).toBe(401);
+    // Should be redirected to the login page
+    await expect(page).toHaveURL("/");
+    await expect(page.locator("#signin-form")).toBeVisible();
   });
 
   test("should persist session across page reloads", async ({ page }) => {
