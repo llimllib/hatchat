@@ -13,7 +13,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4.0.1
         id: filter
         with:
           filters: |
@@ -37,7 +37,7 @@ jobs:
       - name: checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # Need full history to compare against base branch
+          fetch-depth: 0 # Need full history to compare against base branch
       - name: Check schema version bump
         run: ./tools/check-schema-version.sh origin/${{ github.base_ref }}
 
@@ -116,7 +116,7 @@ jobs:
         run: cd e2e && npm test
       - name: Upload test results
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: playwright-report
           path: e2e/playwright-report/
